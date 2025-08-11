@@ -52,7 +52,7 @@ export class RideRequest extends Document {
   rideType: RideType;
 
   @Prop({ required: true })
-  offeredFare: number;
+  Fare: number;
 
   @Prop({
     enum: ['pending', 'accepted', 'started', 'completed', 'cancelled'],

@@ -30,7 +30,7 @@ export class CreateRideRequestDto {
 
   @IsNumber()
   @IsNotEmpty()
-  offeredFare: number;
+  Fare: number;
 
   @IsEnum(RideType)
   @IsNotEmpty()

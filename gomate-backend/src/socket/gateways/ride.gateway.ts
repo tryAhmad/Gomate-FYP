@@ -139,16 +139,30 @@ export class RideGateway implements OnGatewayConnection, OnGatewayDisconnect {
       rideId: string;
       driverId: string;
       passengerId: string;
+      counterFare?: number;
     },
   ) {
     console.log(
       `Passenger ${data.passengerId} accepted driver ${data.driverId} for ride ${data.rideId}`,
     );
 
-    // Update DB with accepted driver
+    // Get the stored offers for this ride
+    const offers = this.rideOffers.get(data.rideId) || [];
+
+    // Find the matching driver's offer
+    const offer = offers.find((o) => o.driverId === data.driverId);
+    if (!offer) {
+      console.log(
+        `No counter offer found for ride ${data.rideId} and driver ${data.driverId}`,
+      );
+      return;
+    }
+
+    // Update DB with accepted driver and stored counter fare
     const updatedRide = await this.rideRequestService.acceptDriverOffer(
       data.rideId,
       data.driverId,
+      offer.counterFare,
     );
 
     if (!updatedRide) {
@@ -166,10 +180,9 @@ export class RideGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
     // Notify other drivers that their offer was rejected
-    const offers = this.rideOffers.get(data.rideId) || [];
-    offers.forEach((offer) => {
-      if (offer.driverId !== data.driverId) {
-        const otherDriver = this.connectedDrivers.get(offer.driverId);
+    offers.forEach((o) => {
+      if (o.driverId !== data.driverId) {
+        const otherDriver = this.connectedDrivers.get(o.driverId);
         if (otherDriver) {
           this.server.to(otherDriver.socketId).emit('offerRejected', {
             rideId: data.rideId,

@@ -119,13 +119,14 @@ export class RideRequestService {
     };
   }
 
-  async acceptDriverOffer(rideId: string, driverId: string) {
+  async acceptDriverOffer(rideId: string, driverId: string, counterFare: number) {
     return await this.rideRequestModel.findByIdAndUpdate(
       rideId,
       {
         $set: {
           status: 'accepted',
-          acceptedDriver: driverId,
+          driverID: driverId,
+          Fare: counterFare,
         },
       },
       { new: true },
