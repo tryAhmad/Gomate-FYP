@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Passenger Test</title>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+</head>
+<body>
+  <h1>Passenger Side</h1>
+  <script>
+    const socket = io("http://localhost:3000", {
+      transports: ["websocket"]
+    });
+
+    socket.on("connect", () => {
+      console.log("Passenger connected:", socket.id);
+
+      // Optional: send passenger registration so backend knows where to send offers
+      socket.emit("registerPassenger", { passengerId: "688c69f20653ec0f43df6e2c" });
+    });
+
+    // Listen for counter fare offers
+    socket.on("receiveCounterOffer", (data) => {
+      console.log("Counter fare received:", data);
+    });
+
+    socket.on("disconnect", () => {
+      console.log("Disconnected from server");
+    });
+  </script>
+</body>
+</html>
