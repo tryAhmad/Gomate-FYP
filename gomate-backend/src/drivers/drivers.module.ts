@@ -5,7 +5,9 @@ import { DriverSchema } from './schemas/driver.schema';
 import { MongooseModule } from '@nestjs/mongoose';
 
 @Module({
-  imports: [MongooseModule.forFeature([{ name: 'Driver', schema: DriverSchema }])],
+  imports: [
+    MongooseModule.forFeature([{ name: 'Driver', schema: DriverSchema }]),
+  ],
   controllers: [DriversController],
   providers: [DriversService],
   exports: [DriversService],

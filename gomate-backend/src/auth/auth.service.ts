@@ -1,10 +1,13 @@
-import { BadRequestException, Injectable, UnauthorizedException } from "@nestjs/common";
-import { PassengersService } from "src/passengers/passengers.service";
+import {
+  BadRequestException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { PassengersService } from 'src/passengers/passengers.service';
 import * as bcrypt from 'bcrypt';
-import { JwtService } from "@nestjs/jwt";
-import { Role } from "src/common/enums/roles.enum";
-import { DriversService } from "src/drivers/drivers.service";
-
+import { JwtService } from '@nestjs/jwt';
+import { Role } from 'src/common/enums/roles.enum';
+import { DriversService } from 'src/drivers/drivers.service';
 
 @Injectable()
 export class AuthService {
@@ -31,15 +34,15 @@ export class AuthService {
   }
 
   async login(user: any) {
-    const payload = { email: user.email, sub: user._id, role: user.role };
-    
+    const payload = await { email: user.email, sub: user._id, role: user.role };
+
     console.log(`Signing ${payload.role} JWT with payload:`, payload);
-    
+
     return {
       access_token: this.jwtService.sign(payload),
     };
   }
-  
+
   async register(userData: any) {
     const { email, password, role } = userData;
 
@@ -61,7 +64,8 @@ export class AuthService {
         role: Role.Passenger,
       });
 
-      const { password, ...result } = createdPassenger.toObject?.() ?? createdPassenger;
+      const { password, ...result } =
+        createdPassenger.toObject?.() ?? createdPassenger;
       return {
         message: 'Passenger registered successfully',
         user: result,
@@ -80,7 +84,8 @@ export class AuthService {
         role: Role.Driver,
       });
 
-      const { password, ...result } = createdDriver.toObject?.() ?? createdDriver;
+      const { password, ...result } =
+        createdDriver.toObject?.() ?? createdDriver;
       return {
         message: 'Driver registered successfully',
         user: result,
@@ -90,4 +95,3 @@ export class AuthService {
     throw new BadRequestException('Invalid role');
   }
 }
-

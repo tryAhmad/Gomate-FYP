@@ -22,7 +22,7 @@ export class PassengersService {
   }
 
   async getPassengerProfile(id: string) {
-    const passenger =  this.passengerModel.findById(id).select('-password');
+    const passenger = this.passengerModel.findById(id).select('-password');
     if (!passenger) {
       throw new NotFoundException('Passenger not found');
     }
@@ -34,11 +34,13 @@ export class PassengersService {
   }
 
   findOneByEmail(email: string) {
-    return this.passengerModel.findOne({email}).exec();
+    return this.passengerModel.findOne({ email }).exec();
   }
 
   update(id: string, updatePassengerDto: UpdatePassengerDto) {
-    return this.passengerModel.findByIdAndUpdate(id, updatePassengerDto, { new: true }).exec();
+    return this.passengerModel
+      .findByIdAndUpdate(id, updatePassengerDto, { new: true })
+      .exec();
   }
 
   remove(id: string) {

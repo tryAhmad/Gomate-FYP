@@ -12,7 +12,6 @@ import { DriversService } from './drivers.service';
 import { CreateDriverDto } from './dto/create-driver.dto';
 import { UpdateDriverDto } from './dto/update-driver.dto';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { AuthGuard } from '@nestjs/passport';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/common/guards/roles.guard';
 import { Roles } from 'src/common/decorators/roles.decorators';
@@ -56,7 +55,10 @@ export class DriversController {
   @Patch(':id')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Update a driver by ID' })
-  async update(@Param('id') id: string, @Body() updateDriverDto: UpdateDriverDto) {
+  async update(
+    @Param('id') id: string,
+    @Body() updateDriverDto: UpdateDriverDto,
+  ) {
     const driver = await this.driversService.update(id, updateDriverDto);
     return { message: 'Driver updated successfully', driver };
   }

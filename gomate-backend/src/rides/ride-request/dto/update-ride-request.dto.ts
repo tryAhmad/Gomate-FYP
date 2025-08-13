@@ -33,7 +33,7 @@ export class UpdateRideRequestDto {
 
   @IsOptional()
   @IsNumber()
-  Fare?: number;
+  fare?: number;
 
   @IsOptional()
   @IsString()

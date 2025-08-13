@@ -5,6 +5,7 @@ import { RideRequest, RideRequestSchema } from './schemas/ride-request.schema';
 import { MongooseModule } from '@nestjs/mongoose';
 import { DriversModule } from 'src/drivers/drivers.module';
 import { WebSocketModule } from 'src/socket/webSocket.module';
+import { SharedRideRequestService } from './shared-ride-request.service';
 
 @Module({
   imports: [
@@ -15,7 +16,7 @@ import { WebSocketModule } from 'src/socket/webSocket.module';
     forwardRef(() => WebSocketModule),
   ],
   controllers: [RideRequestController],
-  providers: [RideRequestService],
-  exports: [RideRequestService],
+  providers: [RideRequestService, SharedRideRequestService],
+  exports: [RideRequestService, SharedRideRequestService],
 })
 export class RideRequestModule {}

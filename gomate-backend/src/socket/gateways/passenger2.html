@@ -5,20 +5,20 @@
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   </head>
   <body>
-    <h1>Passenger 1 Side</h1>
+    <h1>Passenger 2 Side</h1>
     <script>
       const socket = io('http://localhost:3000', {
         transports: ['websocket'],
       });
 
-      const passengerId = '688c69f20653ec0f43df6e2c';
+      const passengerId = '688cbe7229a9f07fd08b426b';
 
       socket.on('connect', () => {
         console.log('Passenger connected:', socket.id);
 
         // Optional: send passenger registration so backend knows where to send offers
         socket.emit('registerPassenger', {
-          passengerId: '688c69f20653ec0f43df6e2c',
+          passengerId: '688cbe7229a9f07fd08b426b',
         });
       });
 

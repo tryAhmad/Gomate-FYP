@@ -6,9 +6,9 @@ import {
   IsEnum,
   IsNotEmpty,
   IsNumber,
-  IsObject,
   ValidateNested,
 } from 'class-validator';
+import { RideMode } from 'src/common/enums/ride-mode.enum';
 import { RideType } from 'src/common/enums/ride-type.enum';
 
 class GeoPointDto {
@@ -30,9 +30,13 @@ export class CreateRideRequestDto {
 
   @IsNumber()
   @IsNotEmpty()
-  Fare: number;
+  fare: number;
 
   @IsEnum(RideType)
   @IsNotEmpty()
   rideType: RideType;
+
+  @IsEnum(RideMode)
+  @IsNotEmpty()
+  rideMode: RideMode;
 }

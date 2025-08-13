@@ -85,7 +85,7 @@ export class RideRequestService {
     };
   }
 
-  async updateRideRequest(id: String, dto: UpdateRideRequestDto) {
+  async updateRideRequest(id: string, dto: UpdateRideRequestDto) {
     const updated = await this.rideRequestModel
       .findByIdAndUpdate(id, dto, { new: true })
       .exec();
@@ -99,8 +99,12 @@ export class RideRequestService {
     };
   }
 
-  async getNearbyRides(location: [number, number], radius: number) {
-    const rides = await this.rideRequestModel.find({
+  async getNearbyRides(
+    location: [number, number],
+    radius: number,
+    rideMode?: string, // solo or shared
+  ) {
+    const query: any = {
       pickupLocation: {
         $near: {
           $geometry: {
@@ -110,8 +114,14 @@ export class RideRequestService {
           $maxDistance: radius, // in meters
         },
       },
-      status: 'pending', // filter only unaccepted rides
-    });
+      status: 'pending',
+    };
+
+    if (rideMode) {
+      query.rideMode = rideMode; // filter by exact mode if provided
+    }
+
+    const rides = await this.rideRequestModel.find(query);
 
     return {
       message: 'Nearby rides retrieved successfully',
@@ -119,14 +129,18 @@ export class RideRequestService {
     };
   }
 
-  async acceptDriverOffer(rideId: string, driverId: string, counterFare: number) {
+  async acceptDriverOffer(
+    rideId: string,
+    driverId: string,
+    counterFare: number,
+  ) {
     return await this.rideRequestModel.findByIdAndUpdate(
       rideId,
       {
         $set: {
           status: 'accepted',
           driverID: driverId,
-          Fare: counterFare,
+          fare: counterFare,
         },
       },
       { new: true },

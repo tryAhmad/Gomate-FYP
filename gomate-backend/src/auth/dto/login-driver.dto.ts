@@ -7,6 +7,4 @@ export class LoginDriverDto {
 
   @IsNotEmpty()
   password: string;
-
-  
 }

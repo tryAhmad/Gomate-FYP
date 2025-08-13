@@ -12,6 +12,7 @@ import { CreateRideRequestDto } from 'src/rides/ride-request/dto/create-ride-req
 import { RideRequestService } from 'src/rides/ride-request/ride-request.service';
 import { DriversService } from 'src/drivers/drivers.service';
 import { forwardRef, Inject } from '@nestjs/common';
+import { SharedRideRequestService } from 'src/rides/ride-request/shared-ride-request.service';
 
 @WebSocketGateway({ cors: true })
 export class RideGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -36,6 +37,10 @@ export class RideGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     @Inject(forwardRef(() => RideRequestService))
     private readonly rideRequestService: RideRequestService,
+
+    @Inject(forwardRef(() => SharedRideRequestService))
+    private readonly sharedRideRequestService: SharedRideRequestService,
+
     private readonly driversService: DriversService,
   ) {}
 
@@ -87,9 +92,11 @@ export class RideGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @ConnectedSocket() client: Socket,
   ) {
     this.connectedPassengers.set(data.passengerId, client.id);
+    client.join(data.passengerId); // ✅ This makes `.to(passengerId)` work
     console.log(`Passenger ${data.passengerId} registered for real-time`);
   }
 
+  // Solo ride creation
   @SubscribeMessage('createRideRequest')
   async handleRideRequest(
     @MessageBody() data: { passengerId: string; dto: CreateRideRequestDto },
@@ -100,8 +107,19 @@ export class RideGateway implements OnGatewayConnection, OnGatewayDisconnect {
     );
   }
 
+  // SHARED RIDE CREATION
+  @SubscribeMessage('createSharedRideRequest')
+  async handleSharedRideRequest(
+    @MessageBody() data: { passengerId: string; dto: CreateRideRequestDto },
+  ) {
+    return this.sharedRideRequestService.createSharedRideRequest(
+      data.passengerId,
+      data.dto,
+    );
+  }
+
   @SubscribeMessage('sendCounterOffer')
-  async handleCounterOffer(
+  handleCounterOffer(
     @MessageBody()
     data: {
       rideId: string;

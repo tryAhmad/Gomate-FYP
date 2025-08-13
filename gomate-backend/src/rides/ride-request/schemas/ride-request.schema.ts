@@ -1,9 +1,11 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
+import { RideMode } from 'src/common/enums/ride-mode.enum';
 import { RideType } from 'src/common/enums/ride-type.enum';
 
 @Schema({
   timestamps: true,
+  collection: 'rides',
 })
 export class RideRequest extends Document {
   @Prop({ required: true, type: Types.ObjectId, ref: 'Passenger' })
@@ -51,11 +53,21 @@ export class RideRequest extends Document {
   })
   rideType: RideType;
 
+  @Prop({
+    type: String,
+    enum: RideMode,
+    required: true,
+  })
+  rideMode: RideMode;
+
+  @Prop({ type: Types.ObjectId, ref: 'RideRequest', default: null })
+  matchedWith?: Types.ObjectId;
+
   @Prop({ required: true })
-  Fare: number;
+  fare: number;
 
   @Prop({
-    enum: ['pending', 'accepted', 'started', 'completed', 'cancelled'],
+    enum: ['pending', 'matched', 'accepted', 'started', 'completed', 'cancelled'],
     default: 'pending',
   })
   status: string;

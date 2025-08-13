@@ -8,7 +8,6 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from './auth/auth.module';
 import { RideRequestModule } from './rides/ride-request/ride-request.module';
 import { WebSocketModule } from './socket/webSocket.module';
-import { RideGateway } from './socket/gateways/ride.gateway';
 
 @Module({
   imports: [
