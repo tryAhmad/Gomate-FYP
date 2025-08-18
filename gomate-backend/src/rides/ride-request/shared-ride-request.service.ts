@@ -1,4 +1,3 @@
-// src/rides/ride-request/shared-ride-request.service.ts
 import {
   Injectable,
   NotFoundException,
@@ -7,7 +6,7 @@ import {
   Inject,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types, ClientSession } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { RideRequest } from './schemas/ride-request.schema';
 import { CreateRideRequestDto } from './dto/create-ride-request.dto';
 import { RideMode } from 'src/common/enums/ride-mode.enum';
@@ -19,13 +18,12 @@ import { RideGateway } from 'src/socket/gateways/ride.gateway';
  * Heuristics:
  * - Pickup proximity: within 2 km (geospatial index on pickupLocation is used)
  * - Route alignment: simple vector-angle + path proximity check (straight-line fallback).
- *   You can later replace checkRouteAlignment() with Google/Mapbox/OSRM route comparison.
  */
 @Injectable()
 export class SharedRideRequestService {
-  private readonly PICKUP_RADIUS_M = 2000; // 2 km for pickup proximity
-  private readonly ROUTE_MAX_ANGLE_DIFF_DEG = 35; // vectors should be roughly aligned
-  private readonly DROP_TO_PATH_MAX_DISTANCE_M = 2000; // dropoff should be near other route
+  private readonly PICKUP_RADIUS_M = 2000; // 2 km
+  private readonly ROUTE_MAX_ANGLE_DIFF_DEG = 35;
+  private readonly DROP_TO_PATH_MAX_DISTANCE_M = 2000;
 
   constructor(
     @InjectModel(RideRequest.name)
@@ -65,44 +63,33 @@ export class SharedRideRequestService {
     const { ride } = await this.createSharedRideRequest(passengerID, dto);
 
     const match = await this.findCompatibleMatch(ride);
-   if (!match) {
-  try {
-    const socketId = this.rideGateway.connectedPassengers.get(
-      passengerID.toString(),
-    );
-    if (socketId) {
-      this.rideGateway.server.to(socketId).emit(
-        'sharedRideSearching',
-        { message: 'No compatible shared match found (yet)', ride },
-      );
+    if (!match) {
+      // Notify passenger room that we are still searching
+      this.rideGateway.server
+        .to(`passenger:${passengerID}`)
+        .emit('sharedRideSearching', {
+          message: 'No compatible shared match found (yet)',
+          ride,
+        });
+
+      return {
+        message: 'No compatible shared match found (yet)',
+        ride,
+        matched: null,
+      };
     }
-  } catch (e) {
-    console.warn('WebSocket emit failed (sharedRideSearching):', e.message);
-  }
 
-  return {
-    message: 'No compatible shared match found (yet)',
-    ride,
-    matched: null,
-  };
-}
-
-
-    // Pair both rides atomically
+    // Pair both rides atomically (transaction + guarded updates)
     const paired = await this.pairPassengers(ride, match);
 
     // Notify both passengers
-    try {
-      this.rideGateway.server
-        .to(ride.passengerID.toString())
-        .emit('sharedRideMatched', paired.primary);
-      this.rideGateway.server
-        .to(match.passengerID.toString())
-        .emit('sharedRideMatched', paired.secondary);
-    } catch (e) {
-      // Non-fatal: socket may not be connected; continue
-      console.warn('WebSocket emit failed (sharedRideMatched):', e.message);
-    }
+    this.rideGateway.server
+      .to(`passenger:${paired.primary.passengerID}`)
+      .emit('sharedRideMatched', paired.primary);
+
+    this.rideGateway.server
+      .to(`passenger:${paired.secondary.passengerID}`)
+      .emit('sharedRideMatched', paired.secondary);
 
     // Emit to nearby drivers as a combined request
     await this.emitCombinedSharedRideToDrivers(
@@ -130,7 +117,6 @@ export class SharedRideRequestService {
         rideMode: RideMode.Shared,
         status: 'pending',
         matchedWith: null,
-        // Vehicle type can be either same or compatible; for now require same:
         rideType: ride.rideType as RideType,
         pickupLocation: {
           $near: {
@@ -138,6 +124,8 @@ export class SharedRideRequestService {
             $maxDistance: this.PICKUP_RADIUS_M,
           },
         },
+        // Optional: filter by createdAt recency window
+        // createdAt: { $gte: new Date(Date.now() - 15 * 60 * 1000) },
       })
       .limit(15) // small batch to score
       .exec();
@@ -158,7 +146,6 @@ export class SharedRideRequestService {
       if (!best || score > best.score) best = { cand, score };
     }
 
-    // Minimal acceptable score (0..1). Tune as needed.
     if (!best || best.score < 0.5) return null;
     return best.cand;
   }
@@ -168,39 +155,35 @@ export class SharedRideRequestService {
     a: RideRequest,
     b: RideRequest,
   ): Promise<{ primary: RideRequest; secondary: RideRequest }> {
-    const freshA = await this.rideRequestModel.findById(a._id).exec();
-    const freshB = await this.rideRequestModel.findById(b._id).exec();
+    const session = await this.rideRequestModel.db.startSession();
+    let updatedA: RideRequest | null = null;
+    let updatedB: RideRequest | null = null;
 
-    if (!freshA || !freshB) {
-      throw new NotFoundException('Ride request not found during pairing');
-    }
-
-    if (
-      freshA.status !== 'pending' ||
-      freshB.status !== 'pending' ||
-      freshA.matchedWith ||
-      freshB.matchedWith
-    ) {
-      throw new BadRequestException(
-        'One of the rides is no longer available for matching',
+    await session.withTransaction(async () => {
+      // Guarded update for A
+      updatedA = await this.rideRequestModel.findOneAndUpdate(
+        { _id: a._id, status: 'pending', matchedWith: null },
+        { $set: { matchedWith: b._id, status: 'matched' } },
+        { new: true, session },
       );
-    }
 
-    const updatedA = await this.rideRequestModel
-      .findByIdAndUpdate(
-        freshA._id,
-        { $set: { matchedWith: freshB._id, status: 'matched' } },
-        { new: true },
-      )
-      .exec();
+      if (!updatedA) {
+        throw new BadRequestException('Ride A not available for matching');
+      }
 
-    const updatedB = await this.rideRequestModel
-      .findByIdAndUpdate(
-        freshB._id,
-        { $set: { matchedWith: freshA._id, status: 'matched' } },
-        { new: true },
-      )
-      .exec();
+      // Guarded update for B
+      updatedB = await this.rideRequestModel.findOneAndUpdate(
+        { _id: b._id, status: 'pending', matchedWith: null },
+        { $set: { matchedWith: a._id, status: 'matched' } },
+        { new: true, session },
+      );
+
+      if (!updatedB) {
+        throw new BadRequestException('Ride B not available for matching');
+      }
+    });
+
+    session.endSession();
 
     if (!updatedA || !updatedB) {
       throw new BadRequestException('Failed to pair rides');
@@ -224,14 +207,14 @@ export class SharedRideRequestService {
 
     const result = await this.driversService.findNearbyDrivers(
       centroid,
-      a.rideType, // same type enforced in match
+      a.rideType as RideType,
       radius,
     );
     const nearbyDrivers = result.drivers ?? [];
 
-    // Prepare a combined payload (you can adapt this to your driver app contract)
+    // Prepare a combined payload
     const combinedPayload = {
-      _id: a._id, // primary id just for reference
+      _id: a._id, // reference id
       shared: true,
       passengers: [
         {
@@ -252,24 +235,16 @@ export class SharedRideRequestService {
       rideType: a.rideType,
       rideMode: RideMode.Shared,
       status: 'matched',
-      // You could compute a suggested combined fare for drivers here:
       // suggestedTotalFare: a.fare + b.fare,
     };
 
+    // Emit to each nearby driver's room (driver:<id>)
     nearbyDrivers.forEach((driver: any) => {
       const driverId = (driver._id as Types.ObjectId).toString();
-      const connected = this.rideGateway.connectedDrivers.get(driverId);
-
-      if (connected?.socketId) {
-        this.rideGateway.server
-          .to(connected.socketId)
-          .emit('newSharedRideRequest', combinedPayload);
-        console.log(
-          `Emitted shared ride to driver socket: ${connected.socketId}`,
-        );
-      } else {
-        console.log(`Driver ${driverId} is not connected`);
-      }
+      this.rideGateway.server
+        .to(`driver:${driverId}`)
+        .emit('newSharedRideRequest', combinedPayload);
+      // It's ok if driver is offline; room is empty and emit is a no-op.
     });
   }
 
