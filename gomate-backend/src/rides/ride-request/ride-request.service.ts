@@ -54,12 +54,21 @@ export class RideRequestService {
     );
     const nearbyDrivers = result.drivers;
 
-    // 3. Emit to connected drivers by room
+    // 3. Emit to connected drivers
     nearbyDrivers.forEach((driver) => {
       const driverId = (driver._id as Types.ObjectId).toString();
-      this.rideGateway.server
-        .to(`driver:${driverId}`)
-        .emit('newRideRequest', ride);
+      const connected = this.rideGateway.connectedDrivers.get(driverId);
+
+      if (connected?.socketId) {
+        this.rideGateway.server
+          .to(connected.socketId)
+          .emit('newRideRequest', ride);
+        console.log(
+          `Emitted ride request to driver socket: ${connected.socketId}`,
+        );
+      } else {
+        console.log(`Driver ${driverId} is not connected`);
+      }
     });
 
     return { message: 'Ride emitted to nearby drivers', ride };
