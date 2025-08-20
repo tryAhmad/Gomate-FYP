@@ -1,10 +1,14 @@
 import {
   IsEmail,
+  IsEnum,
   IsNotEmpty,
   IsString,
   IsStrongPassword,
   Matches,
 } from 'class-validator';
+
+import { Role } from 'src/common/enums/roles.enum';
+
 
 export class CreatePassengerDto {
   @IsNotEmpty()
@@ -24,4 +28,7 @@ export class CreatePassengerDto {
     message: 'Phone number must be a 11-digit number',
   })
   phoneNumber: string;
+
+  @IsEnum(Role)
+  role: Role;
 }
