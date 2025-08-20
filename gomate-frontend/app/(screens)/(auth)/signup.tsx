@@ -45,7 +45,7 @@ const Signup = () => {
 
     try {
       const response = await fetch(
-        "http://192.168.1.18:3000/auth/passenger/register",
+        "http://192.168.1.22/auth/passenger/register",
         {
           method: "POST",
           headers: {
