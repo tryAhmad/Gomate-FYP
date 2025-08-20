@@ -43,55 +43,62 @@ export class AuthService {
     };
   }
 
-  async register(userData: any) {
-    const { email, password, role } = userData;
+  async registerPassenger(userData: any) {
+    const { email, password } = userData;
 
-    if (!email || !password || !role) {
+    if (!email || !password) {
       throw new BadRequestException('Missing required fields');
+    }
+
+    const existingUser = await this.passengersService.findOneByEmail(email);
+    if (existingUser) {
+      throw new UnauthorizedException('Passenger already exists');
     }
 
     const hash = await bcrypt.hash(password, 10);
 
-    if (role === Role.Passenger) {
-      const existingUser = await this.passengersService.findOneByEmail(email);
-      if (existingUser) {
-        throw new UnauthorizedException('Passenger already exists');
-      }
+    const createdPassenger = await this.passengersService.createPassenger({
+      ...userData,
+      password: hash,
+      role: Role.Passenger, // force passenger role
+    });
 
-      const createdPassenger = await this.passengersService.createPassenger({
-        ...userData,
-        password: hash,
-        role: Role.Passenger,
-      });
+    const { password: _, ...result } =
+      createdPassenger.toObject?.() ?? createdPassenger;
 
-      const { password, ...result } =
-        createdPassenger.toObject?.() ?? createdPassenger;
-      return {
-        message: 'Passenger registered successfully',
-        user: result,
-      };
+    return {
+      message: 'Passenger registered successfully',
+      user: result,
+    };
+  }
+
+  async registerDriver(userData: any) {
+    const { email, password } = userData;
+
+    if (!email || !password) {
+      throw new BadRequestException('Missing required fields');
     }
 
-    if (role === Role.Driver) {
-      const existingDriver = await this.driversService.findOneByEmail(email);
-      if (existingDriver) {
-        throw new UnauthorizedException('Driver already exists');
-      }
-
-      const createdDriver = await this.driversService.createDriver({
-        ...userData,
-        password: hash,
-        role: Role.Driver,
-      });
-
-      const { password, ...result } =
-        createdDriver.toObject?.() ?? createdDriver;
-      return {
-        message: 'Driver registered successfully',
-        user: result,
-      };
+    const existingDriver = await this.driversService.findOneByEmail(email);
+    if (existingDriver) {
+      throw new UnauthorizedException('Driver already exists');
     }
 
-    throw new BadRequestException('Invalid role');
+    const hash = await bcrypt.hash(password, 10);
+
+    const createdDriver = await this.driversService.createDriver({
+      ...userData,
+      password: hash,
+      role: Role.Driver,
+      isApproved: false, // admin must approve
+    });
+
+    const { password: _, ...result } =
+      createdDriver.toObject?.() ?? createdDriver;
+
+    return {
+      message: 'Driver registered successfully, waiting for admin approval',
+      user: result,
+    };
   }
 }

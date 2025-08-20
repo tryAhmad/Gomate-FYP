@@ -29,13 +29,13 @@ export class AuthController {
   @Post('passenger/register')
   @ApiOperation({ summary: 'Register Passenger' })
   async registerPassenger(@Body() registerPassengerDto: RegisterPassengerDto) {
-    return this.authService.register(registerPassengerDto);
+    return this.authService.registerPassenger(registerPassengerDto);
   }
 
   @Post('driver/register')
   @ApiOperation({ summary: 'Register Driver' })
   async registerDriver(@Body() registerDriverDto: RegisterDriverDto) {
-    return this.authService.register(registerDriverDto);
+    return this.authService.registerDriver(registerDriverDto);
   }
 
   @Post('driver/login')
