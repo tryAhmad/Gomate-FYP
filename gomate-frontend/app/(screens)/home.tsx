@@ -15,6 +15,7 @@ import InputField from "@/components/InputField";
 import { icons } from "@/constants";
 import CustomButton from "@/components/CustomButton";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { router } from "expo-router";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -62,7 +63,7 @@ const Home = () => {
   const [fare, setFare] = useState("");
 
   const sheetRef = useRef<BottomSheet>(null);
-  const snapPoints = useMemo(() => ["18%", "62%"], []);
+  const snapPoints = useMemo(() => ["16%", "62%"], []);
 
   useEffect(() => {
     (async () => {
@@ -99,6 +100,7 @@ const Home = () => {
     alert(
       `Finding ride for ${selectedRideType} from ${pickup} to ${dropoff} with fare ${fare}`
     );
+    router.push("/offers");
   };
 
   return (
@@ -168,8 +170,8 @@ const Home = () => {
             placeholder="Enter Pickup Location"
             placeholderTextColor="grey"
             icon={icons.map}
-            value={initialRegion?.latitude.toString()}
-            //value={pickup}
+            //value={initialRegion?.latitude.toString()}
+            value={pickup}
             onChangeText={setPickup}
             //editable={false}
           />
@@ -178,8 +180,8 @@ const Home = () => {
             placeholder="Enter Destination"
             placeholderTextColor="grey"
             icon={icons.marker}
-            //value={dropoff}
-            value={initialRegion?.longitude.toString()}
+            value={dropoff}
+            //value={initialRegion?.longitude.toString()}
             onChangeText={setDropoff}
             //editable={false}
           />
