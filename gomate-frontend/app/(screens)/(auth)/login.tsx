@@ -2,7 +2,7 @@ import CustomButton from "@/components/CustomButton";
 import InputField from "@/components/InputField";
 import OAuth from "@/components/OAuth";
 import { icons, images } from "@/constants";
-import { Link, router } from "expo-router";
+import { Link, Redirect, router } from "expo-router";
 import React, { useState } from "react";
 import { Image, Text, TouchableOpacity, View } from "react-native";
 import * as Notifications from "expo-notifications";
@@ -86,7 +86,6 @@ const Login = () => {
   };
 
   return (
-    
     <View className="flex-1 bg-white">
       <View className="relative w-full h-[35%]">
         <Image source={images.signUpCar} className="z-0 w-full h-[100%]" />
@@ -113,6 +112,18 @@ const Login = () => {
           value={form.password}
           onChangeText={(text) => setform({ ...form, password: text })}
         />
+
+        <TouchableOpacity
+          onPress={() => router.push("/(screens)/(auth)/forget-password")}
+          className="w-full flex justify-end items-end p-3 "
+        >
+          <Text
+            className="text-blue-600 text-xl font-JakartaBold"
+            style={{ textDecorationLine: "underline" }}
+          >
+            Forgot Password ?
+          </Text>
+        </TouchableOpacity>
 
         <CustomButton
           title="Sign In"

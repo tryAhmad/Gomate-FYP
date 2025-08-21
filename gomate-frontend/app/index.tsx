@@ -15,7 +15,7 @@ const Home = () => {
         Go to registration Page
       </Text>
       <TouchableOpacity
-        onPress={() => router.push("/(screens)/home")}
+        onPress={() => router.push("/(screens)/(auth)/welcome")}
         // style={{
         //   marginTop: 20,
         //   padding: 10,
