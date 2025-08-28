@@ -20,8 +20,9 @@ const InputField = ({
   iconStyle = "",
   className = "",
   keyboardType = "default",
+  rightIcon,
   ...props
-}: InputFieldProps) => {
+}: InputFieldProps & { rightIcon?: React.ReactNode }) => {
   const [isFocused, setIsFocused] = useState<boolean>(false);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -44,6 +45,7 @@ const InputField = ({
             {icon && (
               <Image source={icon} className={`w-6 h-6 ml-4 ${iconStyle}`} />
             )}
+
             <TextInput
               className={`rounded-full p-4 py-6 font-JakartaSemiBold text-xl flex-1 ${inputStyle} text-left`}
               secureTextEntry={secureTextEntry && !showPassword}
@@ -52,10 +54,22 @@ const InputField = ({
               keyboardType={keyboardType}
               {...props}
             />
+
+            {/* Right-side icon*/}
+            {rightIcon && (
+              <TouchableOpacity
+                activeOpacity={0.7}
+                className="mr-3 p-2 rounded-full"
+              >
+                {rightIcon}
+              </TouchableOpacity>
+            )}
+
+            {/* Password toggle */}
             {secureTextEntry && (
               <TouchableOpacity
                 onPress={() => setShowPassword(!showPassword)}
-                className="mr-5" // margin from right inside flex
+                className="mr-5"
               >
                 <Image
                   source={

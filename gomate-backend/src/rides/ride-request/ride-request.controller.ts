@@ -52,8 +52,8 @@ export class RideRequestController {
   @UseGuards(JwtAuthGuard)
   @Get('nearby')
   @ApiOperation({ summary: 'Get nearby ride requests' })
-  @ApiQuery({ name: 'lng', type: Number, example: 73.0479 })
-  @ApiQuery({ name: 'lat', type: Number, example: 33.6844 })
+  @ApiQuery({ name: 'lng', type: Number })
+  @ApiQuery({ name: 'lat', type: Number })
   @ApiQuery({ name: 'rideMode', enum: RideMode, required: false })
   @ApiQuery({
     name: 'radius',

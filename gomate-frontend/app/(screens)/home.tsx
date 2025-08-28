@@ -100,7 +100,7 @@ const Home = () => {
     alert(
       `Finding ride for ${selectedRideType} from ${pickup} to ${dropoff} with fare ${fare}`
     );
-    router.push("/offers");
+    router.push("/(screens)/newHome");
   };
 
   return (

@@ -6,6 +6,7 @@ import { Link, Redirect, router } from "expo-router";
 import React, { useState } from "react";
 import { Image, Text, TouchableOpacity, View } from "react-native";
 import * as Notifications from "expo-notifications";
+import { ScrollView } from "react-native-gesture-handler";
 
  Notifications.setNotificationHandler({
    handleNotification: async () => ({
@@ -43,7 +44,7 @@ const Login = () => {
 
     try {
       const response = await fetch(
-        "http://192.168.1.22:3000/auth/passenger/login",
+        "http://192.168.0.104:3000/auth/passenger/login",
         {
           method: "POST",
           headers: {
@@ -67,7 +68,7 @@ const Login = () => {
           trigger: null,
         });
         // Navigate to home or dashboard screen
-        router.replace("/home");
+        router.replace("/(screens)/newHome");
       } else {
         // Handle login error
         console.error("Login failed:", data);
@@ -93,7 +94,7 @@ const Login = () => {
           Sign In to Your Account
         </Text>
       </View>
-      <View className="p-7">
+      <ScrollView className="p-7">
         <InputField
           label="Email"
           placeholder="Enter your Email"
@@ -131,7 +132,7 @@ const Login = () => {
           onPress={onSignInPress}
         />
 
-        <OAuth />
+        {/* <OAuth /> */}
 
         <Link
           href="/(screens)/(auth)/signup"
@@ -140,7 +141,7 @@ const Login = () => {
           <Text>Don't have an account? </Text>
           <Text className="text-primary-500">Sign Up</Text>
         </Link>
-      </View>
+      </ScrollView>
     </View>
   );
 };
