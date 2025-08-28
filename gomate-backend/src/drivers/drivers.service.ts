@@ -50,6 +50,7 @@ export class DriversService {
     rideTypes: RideType,
     radius: number,
   ) {
+    console.log(location[0], location[1],);
     const drivers = await this.driverModel.find({
       location: {
         $near: {

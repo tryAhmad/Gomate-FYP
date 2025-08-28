@@ -95,7 +95,7 @@ const Signup = () => {
           </Text>
         </View>
 
-        <View className="p-7">
+        <ScrollView className="p-7">
           <InputField
             label="Username"
             placeholder="Enter your Username"
@@ -139,7 +139,7 @@ const Signup = () => {
             onPress={onSignUpPress}
           />
 
-          <OAuth />
+          {/* <OAuth /> */}
 
           <Link
             href="/(screens)/(auth)/login"
@@ -148,7 +148,7 @@ const Signup = () => {
             <Text>Already have an account? </Text>
             <Text className="text-primary-500">Log In</Text>
           </Link>
-        </View>
+        </ScrollView>
       </View>
     </ScrollView>
   );
