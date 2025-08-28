@@ -610,7 +610,7 @@ const newHome = () => {
 
   return (
     <SafeAreaView className="flex-1 bg-white">
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle="light-content" />
       {/* <View className="p-2 mt-10 bg-transparent">
         <Text className="text-2xl font-JakartaExtraBold text-center">Mapscreen</Text>
       </View> */}
