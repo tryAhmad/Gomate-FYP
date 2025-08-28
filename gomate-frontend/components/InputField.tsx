@@ -43,7 +43,13 @@ const InputField = ({
             } ${containerStyle}`}
           >
             {icon && (
-              <Image source={icon} className={`w-6 h-6 ml-4 ${iconStyle}`} />
+              <View className={`ml-4 ${iconStyle}`}>
+                {typeof icon === "number" ? (
+                  <Image source={icon} className="w-6 h-6" />
+                ) : (
+                  icon
+                )}
+              </View>
             )}
 
             <TextInput

@@ -624,6 +624,8 @@ const newHome = () => {
         followsUserLocation={false}
         onPress={handleMapPress}
         mapPadding={{ top: 50, right: 0, bottom: 0, left: 0 }} // 👈 push buttons down
+        mapType="standard"
+        //showsTraffic={true}
       >
         {/* Always show pickup marker when coordinates exist */}
         {pickupCoord && (
@@ -690,7 +692,7 @@ const newHome = () => {
 
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
-        className="absolute bottom-[1px] w-full bg-blue-100 rounded-3xl shadow-lg"
+        className="absolute bottom-[1px] w-full bg-blue-100 rounded-t-[40px] shadow-lg border-t-2 border-l-2 border-r-2 border-blue-300"
       >
         {/* Header */}
         <View className="flex-row justify-between items-center p-5 pb-4">
@@ -699,7 +701,7 @@ const newHome = () => {
           </Text>
           <TouchableOpacity
             onPress={toggleCollapse}
-            className="p-2 rounded-full bg-white shadow-sm"
+            className="p-2 rounded-full bg-white shadow-sm border-[1px]"
           >
             <MaterialCommunityIcons
               name={isCollapsed ? "chevron-up" : "chevron-down"}
@@ -711,7 +713,7 @@ const newHome = () => {
 
         {/* Collapsible content */}
         {!isCollapsed && (
-          <View className="px-5 pb-5">
+          <View className="px-5 pb-5 ">
             <View className="flex-row justify-around mb-2">
               {rideTypes.map((ride) => (
                 <TouchableOpacity
@@ -745,7 +747,13 @@ const newHome = () => {
                     label="Pickup Location"
                     placeholder="Enter Pickup"
                     placeholderTextColor="grey"
-                    icon={icons.map}
+                    icon={
+                      <MaterialCommunityIcons
+                        name="map-marker-outline"
+                        size={26}
+                        color="red"
+                      />
+                    }
                     value={pickup}
                     onChangeText={handlePickupChange}
                     onFocus={() => setShowDropoffSuggestions(false)}
@@ -779,7 +787,13 @@ const newHome = () => {
                     label="Drop-off Location"
                     placeholder="Enter Destination"
                     placeholderTextColor="grey"
-                    icon={icons.marker}
+                    icon={
+                      <MaterialCommunityIcons
+                        name="map-marker"
+                        size={26}
+                        color="green"
+                      />
+                    }
                     value={dropoff}
                     onChangeText={handleDropoffChange}
                     onFocus={() => setShowPickupSuggestions(false)}
@@ -810,7 +824,13 @@ const newHome = () => {
               placeholder="Enter Fare"
               placeholderTextColor="grey"
               keyboardType="numeric"
-              icon={icons.map}
+              icon={
+                <MaterialCommunityIcons
+                  name="currency-usd"
+                  size={26}
+                  color="black"
+                />
+              }
               value={fare}
               onChangeText={(text) => {
                 const numeric = text.replace(/[^0-9]/g, ""); // removes everything except digits
