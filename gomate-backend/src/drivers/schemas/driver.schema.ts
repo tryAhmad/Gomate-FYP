@@ -1,8 +1,8 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Types } from 'mongoose';
 import { Role } from 'src/common/enums/roles.enum';
 
-export type DriverDocument = Driver & Document;
+export type DriverDocument = Driver & Document & { _id: Types.ObjectId };
 
 @Schema()
 export class Driver {
@@ -72,6 +72,14 @@ export class Driver {
         required: true,
         enum: ['car', 'motorcycle', 'auto'],
       },
+      company: {
+        type: String,
+        required: false, // 👈 make optional if not always needed
+      },
+      model: {
+        type: String,
+        required: false,
+      },
     },
   })
   vehicle: {
@@ -79,6 +87,8 @@ export class Driver {
     plate: string;
     capacity: number;
     vehicleType: 'car' | 'motorcycle' | 'auto';
+    company?: string;
+    model?: string;
   };
 
   @Prop({ required: true, enum: Role, default: Role.Driver })

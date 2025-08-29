@@ -44,6 +44,15 @@ export class RideRequestService {
     // 1. Create ride
     const { ride } = await this.createRideRequest(passengerId, dto);
 
+    const rideWithPassenger = await this.rideRequestModel
+      .findById(ride._id)
+      .populate('passengerID', 'username') // 👈 only fetch fields you need
+      .lean();
+
+    if (!rideWithPassenger) {
+      throw new NotFoundException('Ride request not found after creation');
+    }
+
     // 2. Find nearby drivers
     const passengerLocation = dto.pickupLocation.coordinates;
     const radius = 2000;
@@ -60,9 +69,10 @@ export class RideRequestService {
       const connected = this.rideGateway.connectedDrivers.get(driverId);
 
       if (connected?.socketId) {
-        this.rideGateway.server
-          .to(connected.socketId)
-          .emit('newRideRequest', ride);
+        this.rideGateway.server.to(connected.socketId).emit('newRideRequest', {
+          ride: rideWithPassenger,
+          passenger: rideWithPassenger.passengerID, // 👈 extracted passenger info
+        });
         console.log(
           `Emitted ride request to driver socket: ${connected.socketId}`,
         );

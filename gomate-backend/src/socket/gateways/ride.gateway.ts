@@ -119,7 +119,7 @@ export class RideGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('sendCounterOffer')
-  handleCounterOffer(
+  async handleCounterOffer(
     @MessageBody()
     data: {
       rideId: string;
@@ -137,14 +137,44 @@ export class RideGateway implements OnGatewayConnection, OnGatewayDisconnect {
     offers.push({ driverId: data.driverId, counterFare: data.counterFare });
     this.rideOffers.set(data.rideId, offers);
 
-    // Send to passenger in real-time
+    // ✅ Fetch driver details from DB
+    const driver = await this.driversService.findOne(data.driverId);
+    if (!driver) {
+      console.log(`Driver ${data.driverId} not found in DB`);
+      return;
+    }
+
+    // ✅ Build correct driver info
+    const driverInfo = {
+      id: driver._id.toString(),
+      firstname: driver.fullname?.firstname,
+      lastname: driver.fullname?.lastname,
+      location: {
+        lat: driver.location.coordinates[1],
+        lng: driver.location.coordinates[0],
+      },
+      vehicle: {
+        color: driver.vehicle?.color,
+        company: driver.vehicle?.company,
+        model: driver.vehicle?.model,
+        plate: driver.vehicle?.plate,
+      },
+    };
+
+    // ✅ Send to passenger
     const passengerSocketId = this.connectedPassengers.get(data.passengerId);
     if (passengerSocketId) {
       this.server.to(passengerSocketId).emit('receiveCounterOffer', {
         rideId: data.rideId,
-        driverId: data.driverId,
         counterFare: data.counterFare,
+        driver: driverInfo,
       });
+      console.log(`Sent counter offer to passenger ${data.passengerId}
+        details: ${JSON.stringify({
+          rideId: data.rideId,
+          counterFare: data.counterFare,
+          driver: driverInfo,
+        })}`);
     } else {
       console.log(`Passenger ${data.passengerId} is not connected`);
     }

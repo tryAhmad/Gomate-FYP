@@ -17,16 +17,31 @@ const { width } = Dimensions.get("window");
 
 interface Driver {
   id: string;
-  first_name: string;
-  last_name: string;
-  profile_image_url: string;
-  car_image_url: string;
+  firstname: string;
+  lastname?: string;
+  profile_image_url?: string; // optional, can be added later
+  car_image_url?: string; // optional, can be added later
   fare: number;
-  time: string;
-  distance: string;
-  carMake: string;
-  carModel: string;
+  time?: string;
+  distance?: string;
+  location: {
+    lat: number;
+    lng: number;
+  };
+  vehicle: {
+    color: string;
+    company?: string;
+    model?: string;
+    plate: string;
+  };
 }
+
+interface DriverOffer {
+  rideId: string;
+  counterFare: number;
+  driver: Driver;
+}
+
 
 interface RawOffer {
   counterFare: string;
@@ -44,7 +59,7 @@ interface DriverOffersModalProps {
     rideType: string;
     fare: string;
   };
-  offers?: RawOffer[];
+  offers?: DriverOffer[];
 }
 
 const DriverOffersModal: React.FC<DriverOffersModalProps> = ({
@@ -100,7 +115,7 @@ const DriverOffersModal: React.FC<DriverOffersModalProps> = ({
   const acceptDriver = (driver: Driver) => {
     Alert.alert(
       "Ride Confirmed! 🚗",
-      `Your ride with ${driver.first_name} ${driver.last_name} has been confirmed.`,
+      `Your ride with ${driver.firstname} ${driver.lastname} has been confirmed.`,
       [{ text: "Great!", onPress: () => onDriverAccepted(driver) }]
     );
   };
@@ -177,23 +192,30 @@ const DriverOffersModal: React.FC<DriverOffersModalProps> = ({
                   slideAnimsRef.current[index] || new Animated.Value(0);
                 return (
                   <Animated.View
-                    key={offer.driverId || index}
+                    key={offer.driver.id || index}
                     style={{ transform: [{ translateX: anim }] }}
-                    className="bg-white rounded-2xl p-5 mb-4 mx-4 shadow-sm border border-gray-100"
+                    className="bg-white rounded-2xl p-5 mb-4 mx-4 shadow-sm border border-gray-200"
                   >
                     <View className="flex-row items-center justify-between">
                       <View className="flex-row items-center flex-1">
-                        {/* Temporary circle instead of image */}
                         <View className="w-16 h-16 rounded-full bg-gray-200 mr-4 items-center justify-center">
                           <Text className="text-gray-500 font-bold">D</Text>
                         </View>
 
                         <View className="flex-1">
                           <Text className="text-xl font-JakartaBold text-gray-800">
-                            Driver {offer.driverId?.slice(-4)}
+                            {offer.driver.firstname} {offer.driver.lastname}
                           </Text>
                           <Text className="text-gray-600 font-JakartaMedium">
                             Ride ID: {offer.rideId}
+                          </Text>
+                          <Text className="text-gray-600 font-JakartaMedium">
+                            {offer.driver.vehicle.color}{" "}
+                            {offer.driver.vehicle.company}{" "}
+                            {offer.driver.vehicle.model}{" "}
+                          </Text>
+                          <Text className="text-gray-600 font-JakartaMedium">
+                            {offer.driver.vehicle.plate}
                           </Text>
                         </View>
                       </View>
@@ -208,20 +230,7 @@ const DriverOffersModal: React.FC<DriverOffersModalProps> = ({
                     <CustomButton
                       title="Accept Ride"
                       className="mt-4 bg-blue-600 py-3 rounded-xl"
-                      onPress={() =>
-                        acceptDriver({
-                          id: offer.driverId,
-                          first_name: "Driver",
-                          last_name: offer.driverId?.slice(-4),
-                          profile_image_url: "",
-                          car_image_url: "",
-                          fare: Number(offer.counterFare),
-                          time: "",
-                          distance: "",
-                          carMake: "",
-                          carModel: "",
-                        })
-                      }
+                      onPress={() => acceptDriver(offer.driver)} // 👈 now `offer` already matches Driver
                     />
                   </Animated.View>
                 );

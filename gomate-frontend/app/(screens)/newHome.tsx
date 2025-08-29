@@ -18,6 +18,7 @@ import {
   StatusBar,
   GestureResponderEvent,
   ActivityIndicator,
+  Image,
 } from "react-native";
 import MapView, {
   PROVIDER_GOOGLE,
@@ -76,6 +77,7 @@ const newHome = () => {
   );
 
   const [driverOffers, setDriverOffers] = useState<any[]>([]);
+  const [acceptedDriver, setAcceptedDriver] = useState<any>(null);
 
   // Autocomplete states
   const [pickupSuggestions, setPickupSuggestions] = useState<string[]>([]);
@@ -490,7 +492,7 @@ const newHome = () => {
         headers: {
           "Content-Type": "application/json",
           Authorization:
-            "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFobWFkQGV4YW1wbGUuY29tIiwic3ViIjoiNjg4YzY5ZjIwNjUzZWMwZjQzZGY2ZTJjIiwicm9sZSI6InBhc3NlbmdlciIsImlhdCI6MTc1NjIwMzM3MSwiZXhwIjoxNzU2Mjg5NzcxfQ.73_2hsvq0LDc8bAdHeRVSw5Jey7Dy-hK_USwxJzndvM", // replace with actual token
+            "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFobWFkQGV4YW1wbGUuY29tIiwic3ViIjoiNjg4YzY5ZjIwNjUzZWMwZjQzZGY2ZTJjIiwicm9sZSI6InBhc3NlbmdlciIsImlhdCI6MTc1NjQ0OTUzNywiZXhwIjoxNzU2NTM1OTM3fQ.KhBQF6JpCVh9LsI_FmTjkdgH2Ry7MaNE0Q1kW2Zef2I",
         },
         body: JSON.stringify({
           pickupLocation: {
@@ -528,15 +530,41 @@ const newHome = () => {
   };
 
   useEffect(() => {
-    if (pickupCoord && dropoffCoord) {
-      const isTwoWheeler = ["motorcycle", "auto"].includes(
-        selectedRideType || ""
-      );
-      const mode = "driving";
-      const avoid = isTwoWheeler ? "&avoid=highways" : "";
+    const isTwoWheeler = ["motorcycle", "auto"].includes(
+      selectedRideType || ""
+    );
+    const mode = "driving";
+    const avoid = isTwoWheeler ? "&avoid=highways" : "";
 
+    let origin, destination;
+
+    if (acceptedDriver && acceptedDriver.location && pickupCoord) {
+      // Driver accepted → route from driver to pickup
+      origin = {
+        latitude: acceptedDriver.location.lat,
+        longitude: acceptedDriver.location.lng,
+      };
+      destination = pickupCoord;
+
+      // Animate map to driver location
+      const region: Region = {
+        latitude: acceptedDriver.location.lat - 0.0055, // same offset for centering
+        longitude: acceptedDriver.location.lng,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      };
+      setTimeout(() => {
+        mapRef.current?.animateToRegion(region, 1000);
+      }, 100);
+    } else if (pickupCoord && dropoffCoord) {
+      // No driver yet → route from pickup to dropoff
+      origin = pickupCoord;
+      destination = dropoffCoord;
+    }
+
+    if (origin && destination) {
       fetch(
-        `https://maps.googleapis.com/maps/api/directions/json?origin=${pickupCoord.latitude},${pickupCoord.longitude}&destination=${dropoffCoord.latitude},${dropoffCoord.longitude}&mode=${mode}${avoid}&key=${mapsApiKey}`
+        `https://maps.googleapis.com/maps/api/directions/json?origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}&mode=${mode}${avoid}&key=${mapsApiKey}`
       )
         .then((res) => res.json())
         .then(({ routes }) => {
@@ -546,9 +574,12 @@ const newHome = () => {
               points.map(([lat, lng]) => ({ latitude: lat, longitude: lng }))
             );
           }
-        });
+        })
+        .catch((err) => console.error("Error fetching route:", err));
     }
-  }, [pickupCoord, dropoffCoord, selectedRideType]);
+  }, [pickupCoord, dropoffCoord, selectedRideType, acceptedDriver]);
+
+
 
   // Prepare ride details to pass to modal
   const rideDetails = {
@@ -562,6 +593,7 @@ const newHome = () => {
   const handleDriverAccepted = (driver: any) => {
     console.log("Driver accepted:", driver.id);
     setDriverOffers([]); // clear offers
+    setAcceptedDriver(driver); // set accepted driver
     setShowOffersModal(false);
   };
 
@@ -609,10 +641,23 @@ const newHome = () => {
 
   return (
     <SafeAreaView className="flex-1 bg-white">
-      <StatusBar barStyle="light-content" />
-      {/* <View className="p-2 mt-10 bg-transparent">
-        <Text className="text-2xl font-JakartaExtraBold text-center">Mapscreen</Text>
-      </View> */}
+      <StatusBar
+        barStyle="light-content"
+        translucent
+        backgroundColor="transparent"
+      />
+      {/* Fake background for StatusBar */}
+      <View
+        style={{
+          height: (StatusBar.currentHeight ? StatusBar.currentHeight : 0) * 0.8, // status bar height on Android
+          backgroundColor: "rgba(0,0,0,0.6)", // slightly black, adjust opacity
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 1,
+        }}
+      />
       <MapView
         ref={mapRef}
         style={{ flex: 1 }}
@@ -624,7 +669,6 @@ const newHome = () => {
         onPress={handleMapPress}
         mapPadding={{ top: 50, right: 0, bottom: 0, left: 0 }} // 👈 push buttons down
         mapType="standard"
-        //showsTraffic={true}
       >
         {/* Always show pickup marker when coordinates exist */}
         {pickupCoord && (
@@ -639,17 +683,30 @@ const newHome = () => {
           />
         )}
 
-        {/* Show dropoff marker only when dropoff coordinates exist */}
-        {dropoffCoord && (
+        {/* Show either driver marker if accepted OR dropoff marker otherwise */}
+        {acceptedDriver && acceptedDriver.location ? (
           <Marker
-            coordinate={dropoffCoord}
-            title="Drop-off Location"
-            description={dropoff}
-            pinColor="red"
-            //image={icons.pin}
-            draggable={true}
-            onDragEnd={(e) => handleDropoffMarkerDrag(e.nativeEvent.coordinate)}
+            coordinate={{
+              latitude: acceptedDriver.location.lat,
+              longitude: acceptedDriver.location.lng,
+            }}
+            title="Driver's Location"
+            //description={`${acceptedDriver.firstname} ${acceptedDriver.lastname}`}
+            image={icons.marker}
           />
+        ) : (
+          dropoffCoord && (
+            <Marker
+              coordinate={dropoffCoord}
+              title="Drop-off Location"
+              description={dropoff}
+              pinColor="red"
+              draggable={true}
+              onDragEnd={(e) =>
+                handleDropoffMarkerDrag(e.nativeEvent.coordinate)
+              }
+            />
+          )
         )}
 
         {/* Route polyline */}
@@ -658,11 +715,9 @@ const newHome = () => {
             coordinates={routeCoords}
             strokeWidth={3}
             strokeColor="black"
-            //strokePattern={[1]}
           />
         )}
       </MapView>
-
       {/* Current Location Button */}
       <TouchableOpacity
         onPress={returnToCurrentLocation}
@@ -678,7 +733,6 @@ const newHome = () => {
           />
         )}
       </TouchableOpacity>
-
       {/* Loading */}
       {isLoadingLocation && (
         <View></View>
@@ -688,164 +742,246 @@ const newHome = () => {
         //   </Text>
         // </View>
       )}
-
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         className="absolute bottom-[1px] w-full bg-blue-100 rounded-t-[40px] shadow-lg border-t-2 border-l-2 border-r-2 border-blue-300"
       >
-        {/* Header */}
-        <View className="flex-row justify-between items-center p-5 pb-4">
-          <Text className="text-2xl font-JakartaExtraBold">
-            {isCollapsed ? "Tap to expand" : "Choose Ride Type."}
-          </Text>
-          <TouchableOpacity
-            onPress={toggleCollapse}
-            className="p-2 rounded-full bg-white shadow-sm border-[1px]"
-          >
-            <MaterialCommunityIcons
-              name={isCollapsed ? "chevron-up" : "chevron-down"}
-              size={24}
-              color="black"
-            />
-          </TouchableOpacity>
-        </View>
+        {acceptedDriver ? (
+          <>
+            <View className="p-5">
+              <View className="flex-row justify-between items-center p-1 mb-4">
+                <Text className="text-3xl font-JakartaExtraBold p-2">
+                  Driver Arriving
+                </Text>
+                <View className="flex-row">
+                  <TouchableOpacity className="p-2 rounded-full bg-blue-500 shadow-sm border-[1px]">
+                    <MaterialCommunityIcons
+                      name={"phone"}
+                      size={44}
+                      color="white"
+                    />
+                  </TouchableOpacity>
+                  <TouchableOpacity className="p-2 ml-6 rounded-full bg-green-500 shadow-sm border-[1px] border-white">
+                    <MaterialCommunityIcons
+                      name={"whatsapp"}
+                      size={44}
+                      color="white"
+                    />
+                  </TouchableOpacity>
+                </View>
+              </View>
 
-        {/* Collapsible content */}
-        {!isCollapsed && (
-          <View className="px-5 pb-5 ">
-            <View className="flex-row justify-around mb-2">
-              {rideTypes.map((ride) => (
-                <TouchableOpacity
-                  key={ride.id}
-                  onPress={() => setSelectedRideType(ride.id)}
-                  className={`w-[24%] p-2 rounded-xl mb-2 border-2 items-center ${
-                    selectedRideType === ride.id
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-gray-200 bg-gray-50"
-                  }`}
-                >
-                  <Text className="text-sm text-gray-50">{ride.icon}</Text>
-                  <Text
-                    className={`font-JakartaBold text-lg ${
-                      selectedRideType === ride.id
-                        ? "text-blue-600"
-                        : "text-gray-800"
-                    }`}
-                  >
-                    {ride.name}
+              {/* Driver Info */}
+              <View className="flex-row items-center space-x-4 mb-4">
+                <Image
+                  source={{
+                    uri: "https://ucarecdn.com/dae59f69-2c1f-48c3-a883-017bcf0f9950/-/preview/1000x666/",
+                  }}
+                  className="w-16 h-16 rounded-full"
+                />
+                <View className="ml-4">
+                  <Text className="text-xl font-JakartaBold">
+                    {acceptedDriver.firstname} {acceptedDriver.lastname}
                   </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            {/* Pickup Location Input with Autocomplete */}
-            <View>
-              <View className="flex-row items-center justify-center">
-                <View className="flex-1">
-                  <InputField
-                    label="Pickup Location"
-                    placeholder="Enter Pickup"
-                    placeholderTextColor="grey"
-                    icon={
-                      <MaterialCommunityIcons
-                        name="map-marker-outline"
-                        size={26}
-                        color="red"
-                      />
-                    }
-                    value={pickup}
-                    onChangeText={handlePickupChange}
-                    onFocus={() => setShowDropoffSuggestions(false)}
-                    rightIcon={
-                      pickup.length > 0 && (
-                        <TouchableOpacity onPress={onClearPickup}>
-                          <MaterialCommunityIcons
-                            name="close-circle"
-                            size={26}
-                            color="gray"
-                          />
-                        </TouchableOpacity>
-                      )
-                    }
-                  />
+                  <Text className="text-gray-600 text-xl font-JakartaMedium">
+                    {acceptedDriver.vehicle.color}{" "}
+                    {acceptedDriver.vehicle.company}{" "}
+                    {acceptedDriver.vehicle.model}{" "}
+                  </Text>
+                  <Text className="text-primary-500 text-2xl font-JakartaExtraBold">
+                    {acceptedDriver.vehicle.plate}
+                  </Text>
                 </View>
               </View>
-              {showPickupSuggestions &&
-                pickupSuggestions.length > 0 &&
-                renderSuggestions(
-                  pickupSuggestions,
-                  handlePickupSuggestionSelect
-                )}
-            </View>
 
-            {/* Drop-off Location Input with Autocomplete */}
-            <View>
-              <View className="flex-row items-center">
-                <View className="flex-1">
-                  <InputField
-                    label="Drop-off Location"
-                    placeholder="Enter Destination"
-                    placeholderTextColor="grey"
-                    icon={
-                      <MaterialCommunityIcons
-                        name="map-marker"
-                        size={26}
-                        color="green"
-                      />
-                    }
-                    value={dropoff}
-                    onChangeText={handleDropoffChange}
-                    onFocus={() => setShowPickupSuggestions(false)}
-                    rightIcon={
-                      dropoff.length > 0 && (
-                        <TouchableOpacity onPress={onClearDropoff}>
-                          <MaterialCommunityIcons
-                            name="close-circle"
-                            size={26}
-                            color="gray"
-                          />
-                        </TouchableOpacity>
-                      )
-                    }
-                  />
-                </View>
+              {/* Pickup & Dropoff */}
+              <View className="mb-3">
+                <Text className="text-lg text-gray-500 font-JakartaSemiBold">
+                  Pickup
+                </Text>
+                <Text className="text-xl font-JakartaBold">{pickup}</Text>
               </View>
-              {showDropoffSuggestions &&
-                dropoffSuggestions.length > 0 &&
-                renderSuggestions(
-                  dropoffSuggestions,
-                  handleDropoffSuggestionSelect
-                )}
-            </View>
 
-            <InputField
-              label="Fare Offer"
-              placeholder="Enter Fare"
-              placeholderTextColor="grey"
-              keyboardType="numeric"
-              icon={
+              <View className="mb-5">
+                <Text className="text-lg text-gray-500 font-JakartaSemiBold">
+                  Drop-off
+                </Text>
+                <Text className="text-xl font-JakartaBold">{dropoff}</Text>
+              </View>
+              <View className="mb-5">
+                <Text className="text-lg text-gray-500 font-JakartaSemiBold">
+                  Fare
+                </Text>
+                <Text className="text-2xl font-JakartaExtraBold">PKR 1500</Text>
+              </View>
+
+              {/* Cancel Ride Button */}
+              <CustomButton
+                title="Cancel Ride"
+                className="bg-red-500"
+                onPress={() => {
+                  setAcceptedDriver(null); // reset state
+                  // TODO: emit cancel to backend
+                }}
+              />
+            </View>
+          </>
+        ) : (
+          <>
+            {/* Header */}
+            <View className="flex-row justify-between items-center p-5 pb-4">
+              <Text className="text-2xl font-JakartaExtraBold">
+                {isCollapsed ? "Tap to expand" : "Choose Ride Type."}
+              </Text>
+              <TouchableOpacity
+                onPress={toggleCollapse}
+                className="p-2 rounded-full bg-white shadow-sm border-[1px]"
+              >
                 <MaterialCommunityIcons
-                  name="currency-usd"
-                  size={26}
+                  name={isCollapsed ? "chevron-up" : "chevron-down"}
+                  size={24}
                   color="black"
                 />
-              }
-              value={fare}
-              onChangeText={(text) => {
-                const numeric = text.replace(/[^0-9]/g, ""); // removes everything except digits
-                setFare(numeric);
-              }}
-            />
+              </TouchableOpacity>
+            </View>
 
-            <CustomButton
-              title="Find Ride"
-              className="mt-4 font-JakartaBold"
-              onPress={handleFindRide}
-            />
-          </View>
+            {/* Collapsible content */}
+            {!isCollapsed && (
+              <View className="px-5 pb-5 ">
+                <View className="flex-row justify-around mb-2">
+                  {rideTypes.map((ride) => (
+                    <TouchableOpacity
+                      key={ride.id}
+                      onPress={() => setSelectedRideType(ride.id)}
+                      className={`w-[24%] p-2 rounded-xl mb-2 border-2 items-center ${
+                        selectedRideType === ride.id
+                          ? "border-blue-500 bg-blue-50"
+                          : "border-gray-200 bg-gray-50"
+                      }`}
+                    >
+                      <Text className="text-sm text-gray-50">{ride.icon}</Text>
+                      <Text
+                        className={`font-JakartaBold text-lg ${
+                          selectedRideType === ride.id
+                            ? "text-blue-600"
+                            : "text-gray-800"
+                        }`}
+                      >
+                        {ride.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                {/* Pickup Location Input with Autocomplete */}
+                <View>
+                  <View className="flex-row items-center justify-center">
+                    <View className="flex-1">
+                      <InputField
+                        label="Pickup Location"
+                        placeholder="Enter Pickup"
+                        placeholderTextColor="grey"
+                        icon={
+                          <MaterialCommunityIcons
+                            name="map-marker-outline"
+                            size={26}
+                            color="red"
+                          />
+                        }
+                        value={pickup}
+                        onChangeText={handlePickupChange}
+                        onFocus={() => setShowDropoffSuggestions(false)}
+                        rightIcon={
+                          pickup.length > 0 && (
+                            <TouchableOpacity onPress={onClearPickup}>
+                              <MaterialCommunityIcons
+                                name="close-circle"
+                                size={26}
+                                color="gray"
+                              />
+                            </TouchableOpacity>
+                          )
+                        }
+                      />
+                    </View>
+                  </View>
+                  {showPickupSuggestions &&
+                    pickupSuggestions.length > 0 &&
+                    renderSuggestions(
+                      pickupSuggestions,
+                      handlePickupSuggestionSelect
+                    )}
+                </View>
+
+                {/* Drop-off Location Input with Autocomplete */}
+                <View>
+                  <View className="flex-row items-center">
+                    <View className="flex-1">
+                      <InputField
+                        label="Drop-off Location"
+                        placeholder="Enter Destination"
+                        placeholderTextColor="grey"
+                        icon={
+                          <MaterialCommunityIcons
+                            name="map-marker"
+                            size={26}
+                            color="green"
+                          />
+                        }
+                        value={dropoff}
+                        onChangeText={handleDropoffChange}
+                        onFocus={() => setShowPickupSuggestions(false)}
+                        rightIcon={
+                          dropoff.length > 0 && (
+                            <TouchableOpacity onPress={onClearDropoff}>
+                              <MaterialCommunityIcons
+                                name="close-circle"
+                                size={26}
+                                color="gray"
+                              />
+                            </TouchableOpacity>
+                          )
+                        }
+                      />
+                    </View>
+                  </View>
+                  {showDropoffSuggestions &&
+                    dropoffSuggestions.length > 0 &&
+                    renderSuggestions(
+                      dropoffSuggestions,
+                      handleDropoffSuggestionSelect
+                    )}
+                </View>
+
+                <InputField
+                  label="Fare Offer"
+                  placeholder="Enter Fare"
+                  placeholderTextColor="grey"
+                  keyboardType="numeric"
+                  icon={
+                    <MaterialCommunityIcons
+                      name="currency-rupee"
+                      size={26}
+                      color="black"
+                    />
+                  }
+                  value={fare}
+                  onChangeText={(text) => {
+                    const numeric = text.replace(/[^0-9]/g, ""); // removes everything except digits
+                    setFare(numeric);
+                  }}
+                />
+
+                <CustomButton
+                  title="Find Ride"
+                  className="mt-4 font-JakartaBold"
+                  onPress={handleFindRide}
+                />
+              </View>
+            )}
+          </>
         )}
       </KeyboardAvoidingView>
-
       {/* Driver Offers Modal */}
       <DriverOffersModal
         visible={showOffersModal}

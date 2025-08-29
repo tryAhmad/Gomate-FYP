@@ -10,10 +10,12 @@ import {
   TouchableOpacity,
   Alert,
   Linking,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import CustomButton from "@/components/CustomButton";
 import { router } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 
 const mockDrivers = [
   {
@@ -161,101 +163,73 @@ const Offers = () => {
   }
 
   return (
-    <View className="flex-1 bg-white pt-10">
-      <Text className="text-3xl font-JakartaExtraBold text-gray-700 mb-4 mt-4 text-center">
-        Available Drivers
-      </Text>
-
-      <ScrollView
-        contentContainerStyle={{ paddingBottom: 100 }}
-        showsVerticalScrollIndicator={false}
-      >
-        {mockDrivers.map((driver, index) => (
-          <Animated.View
-            key={driver.id}
-            style={{ transform: [{ translateX: slideAnims[index] }] }}
-            className="bg-primary-200 rounded-xl p-4 mb-4 shadow-md mx-4"
-          >
-            <View className="flex-row items-center justify-between">
-              <View className="flex-row items-center flex-1">
-                <Image
-                  source={{ uri: driver.profile_image_url }}
-                  className="w-16 h-16 rounded-full mr-4"
-                />
-                <View>
-                  <Text className="text-2xl font-JakartaBold">
-                    {driver.first_name} {driver.last_name}
-                  </Text>
-                  <Text className="text-gray-800 font-JakartaSemiBold">
-                    {driver.distance} ~ {driver.time}
-                  </Text>
-                  <Text className="text-gray-800 font-JakartaExtraBold text-2xl">
-                    Fare: Rs {driver.fare}
-                  </Text>
-                </View>
-              </View>
-
-              <View className="flex flex-col items-center justify-center">
-                <Text className="text-lg font-JakartaBold">
-                  {driver.carMake}
-                </Text>
-                <Text className="text-base font-JakartaSemiBold">
-                  {driver.carModel}
-                </Text>
-              </View>
-            </View>
-
-            <View className="mt-4">
-              <CustomButton
-                title="Accept"
-                className="py-2 rounded-xl text-2xl h-14"
-                onPress={() => acceptDriver(driver.id)}
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      className="absolute bottom-[1px] w-full bg-blue-100 rounded-t-[40px] shadow-lg border-t-2 border-l-2 border-r-2 border-blue-300"
+    >
+      <View className="p-5">
+        <View className="flex-row justify-between items-center p-1 mb-4">
+          <Text className="text-3xl font-JakartaExtraBold p-2">
+            Driver Arriving
+          </Text>
+          <View className="flex-row">
+            <TouchableOpacity className="p-2 rounded-full bg-blue-500 shadow-sm border-[1px] border-white">
+              <MaterialCommunityIcons
+                name={"phone"}
+                size={44}
+                color="white"
               />
-            </View>
-          </Animated.View>
-        ))}
-      </ScrollView>
-
-      <View className="bg-white mx-4 mb-6 p-6 rounded-xl shadow-sm border border-gray-100">
-        <Text className="text-center font-semibold text-gray-800 mb-4">
-          Raise your fare
-        </Text>
-
-        <View className="flex-row items-center justify-center mb-6">
-          <TouchableOpacity
-            className="w-12 h-12 bg-gray-100 rounded-full items-center justify-center active:bg-gray-200"
-            onPress={() => adjustFare(false)}
-          >
-            <Ionicons name="remove" size={20} color="#666" />
-          </TouchableOpacity>
-
-          <View className="mx-8 items-center">
-            <Text className="text-2xl font-bold text-gray-800">
-              PKR {fareOffer}
-            </Text>
+            </TouchableOpacity>
+            <TouchableOpacity className="p-2 ml-6 rounded-full bg-green-500 shadow-sm border-[1px] border-white">
+              <MaterialCommunityIcons name={"whatsapp"} size={44} color="white" />
+            </TouchableOpacity>
           </View>
-
-          <TouchableOpacity
-            className="w-12 h-12 bg-gray-100 rounded-full items-center justify-center active:bg-gray-200"
-            onPress={() => adjustFare(true)}
-          >
-            <Ionicons name="add" size={20} color="#666" />
-          </TouchableOpacity>
         </View>
 
-        {fareOffer > 0 && (
-          <CustomButton
-            title="Confirm Fare"
-            className="bg-green-600 py-3 rounded-full h-16"
+        {/* Driver Info */}
+        <View className="flex-row items-center  mb-4">
+          <Image
+            source={{
+              uri: "https://ucarecdn.com/dae59f69-2c1f-48c3-a883-017bcf0f9950/-/preview/1000x666/",
+            }}
+            className="w-16 h-16 rounded-full"
           />
-        )}
-        <CustomButton
-          title="Cancel Ride"
-          className="bg-red-600 py-3 rounded-full h-16 mt-2"
-          onPress={cancelRide}
-        />
+          <View className="ml-4">
+            <Text className="text-xl font-JakartaBold">Muhammad Ahmad</Text>
+            <Text className="text-gray-600 text-xl font-JakartaMedium">
+              White Toyota Corolla
+            </Text>
+            <Text className="text-primary-500 text-2xl font-JakartaExtraBold">
+              LEN 1234
+            </Text>
+          </View>
+        </View>
+
+        {/* Pickup & Dropoff */}
+        <View className="mb-3">
+          <Text className="text-lg text-gray-500 font-JakartaSemiBold">Pickup</Text>
+          <Text className="text-xl font-JakartaBold">
+            Harbanspura, Lahore, Pakistan
+          </Text>
+        </View>
+
+        <View className="mb-5">
+          <Text className="text-lg text-gray-500 font-JakartaSemiBold">Drop-off</Text>
+          <Text className="text-xl font-JakartaBold">
+            Gulberg, Lahore, Pakistan
+          </Text>
+        </View>
+        <View className="mb-5">
+          <Text className="text-lg text-gray-500 font-JakartaSemiBold">Fare</Text>
+          <Text className="text-2xl font-JakartaBold">
+            PKR 1500
+          </Text>
+        </View>
+
+        {/* Cancel Ride Button */}
+        <CustomButton title="Cancel Ride" className="bg-red-500" />
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 };
 

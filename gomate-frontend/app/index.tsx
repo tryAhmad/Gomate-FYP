@@ -1,7 +1,7 @@
 import socket from "@/utils/socket";
 import { Redirect, router } from "expo-router";
 import { useEffect } from "react";
-import { View, Text, TouchableOpacity, LogBox } from "react-native";
+import { View, Text, TouchableOpacity, LogBox, StatusBar } from "react-native";
 
 LogBox.ignoreLogs([
   "expo-notifications: Android Push notifications",
@@ -9,7 +9,6 @@ LogBox.ignoreLogs([
 ]);
 
 const Home = () => {
-
   const passengerId = "688c69f20653ec0f43df6e2c";
 
   useEffect(() => {
@@ -23,11 +22,12 @@ const Home = () => {
 
       // tell backend this socket belongs to passenger
       socket.emit("registerPassenger", { passengerId });
+      router.replace("/(screens)/newHome");
     });
 
     // cleanup to avoid duplicate listeners
     return () => {
-      socket.off("connect");
+      //socket.off("connect");
     };
   }, [passengerId]);
 
@@ -40,10 +40,11 @@ const Home = () => {
         backgroundColor: "white",
       }}
     >
+      <StatusBar barStyle="dark-content" />
       <Text className="text-black text-2xl font-JakartaSemiBold">
         Go to registration Page
       </Text>
-      <Redirect href="/(screens)/newHome" />
+      {/* <Redirect href="/(screens)/newHome" /> */}
       <TouchableOpacity
         onPress={() => router.push("/(screens)/newHome")}
         // style={{
