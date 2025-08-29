@@ -19,7 +19,6 @@ import {
   GestureResponderEvent,
   ActivityIndicator,
 } from "react-native";
-//import polyline from "@mapbox/polyline";
 import MapView, {
   PROVIDER_GOOGLE,
   Marker,

@@ -43,11 +43,7 @@ const Home = () => {
       <Text className="text-black text-2xl font-JakartaSemiBold">
         Go to registration Page
       </Text>
-<<<<<<< HEAD
       <Redirect href="/(screens)/newHome" />
-=======
-      {/* <Redirect href="/(screens)/newHome" /> */}
->>>>>>> 4d831e499267aa4b3a47270576a680fa15715658
       <TouchableOpacity
         onPress={() => router.push("/(screens)/newHome")}
         // style={{
