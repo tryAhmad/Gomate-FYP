@@ -19,6 +19,7 @@ import {
   GestureResponderEvent,
   ActivityIndicator,
   Image,
+  Vibration,
 } from "react-native";
 import MapView, {
   PROVIDER_GOOGLE,
@@ -35,15 +36,22 @@ import {
   getAddressCoordinate,
 } from "@/utils/mapsApi";
 import socket from "@/utils/socket";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from "react-native-reanimated";
 
 Notifications.setNotificationHandler({
-   handleNotification: async () => ({
-     shouldShowBanner: true,
-     shouldShowList: true,
-     shouldPlaySound: true,
-     shouldSetBadge: true,
-   }),
- });
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
 
 const rideTypes = [
   {
@@ -155,6 +163,40 @@ const newHome = () => {
       socket.off("disconnect");
     };
   }, []);
+
+  // 🔹 DriverBanner for pulsing animation
+  const DriverBanner = ({
+    driverArrived,
+    children,
+  }: {
+    driverArrived: boolean;
+    children: React.ReactNode;
+  }) => {
+    const scale = useSharedValue(1);
+
+    useEffect(() => {
+      if (driverArrived) {
+        // Start pulsing
+        scale.value = withRepeat(
+          withSequence(
+            withTiming(1.05, { duration: 400 }),
+            withTiming(1, { duration: 400 })
+          ),
+          -1,
+          true
+        );
+
+        // Vibrate once
+        Vibration.vibrate(800);
+      }
+    }, [driverArrived]);
+
+    const animatedStyle = useAnimatedStyle(() => ({
+      transform: [{ scale: scale.value }],
+    }));
+
+    return <Animated.View style={animatedStyle}>{children}</Animated.View>;
+  };
 
   // // Get current location on component mount
   // useEffect(() => {
@@ -777,19 +819,23 @@ const newHome = () => {
         //   </Text>
         // </View>
       )}
+
+      {/* Driver Banner */}
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
-        className={`absolute bottom-[1px] w-full ${driverArrived ? "bg-green-100" : "bg-blue-100"} rounded-t-[40px] shadow-lg border-t-2 border-l-2 border-r-2 border-blue-300`}
+        className={`absolute bottom-[1px] w-full ${driverArrived ? "bg-blue-200" : "bg-blue-100"} rounded-t-[40px] shadow-lg border-t-2 border-l-2 border-r-2 border-blue-300`}
       >
         {acceptedDriver ? (
           <>
             <View className="p-5">
               <View className="flex-row justify-between items-center p-1 mb-4">
-                <Text className="text-3xl font-JakartaExtraBold p-2">
-                  {driverArrived
-                    ? "Driver has arrived!"
-                    : "Driver is on the way"}
-                </Text>
+                <DriverBanner driverArrived={driverArrived}>
+                  <Text className="text-3xl font-JakartaExtraBold p-2">
+                    {driverArrived
+                      ? "Driver has arrived!"
+                      : "Driver is on the way"}
+                  </Text>
+                </DriverBanner>
                 <View className="flex-row">
                   <TouchableOpacity className="p-2 rounded-full bg-blue-500 shadow-sm border-[1px] border-white">
                     <MaterialCommunityIcons
@@ -1021,6 +1067,7 @@ const newHome = () => {
           </>
         )}
       </KeyboardAvoidingView>
+
       {/* Driver Offers Modal */}
       <DriverOffersModal
         visible={showOffersModal}
