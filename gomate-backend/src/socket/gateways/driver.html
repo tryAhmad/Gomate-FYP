@@ -49,6 +49,12 @@
         console.log('✅ Your offer was accepted:', data);
       });
 
+      // Listen for confirmation
+      socket.on('rideStarted', (data) => {
+        console.log('Ride started:', data.message);
+        // Update driver UI to show ride is active
+      });
+
       socket.on('disconnect', () => {
         console.log('Driver disconnected from server');
       });

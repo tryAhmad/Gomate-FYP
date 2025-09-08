@@ -26,6 +26,7 @@ import MapView, {
   Region,
   Polyline,
 } from "react-native-maps";
+import * as Notifications from "expo-notifications";
 import polyline from "@mapbox/polyline";
 import Constants from "expo-constants";
 import * as Location from "expo-location";
@@ -34,6 +35,15 @@ import {
   getAddressCoordinate,
 } from "@/utils/mapsApi";
 import socket from "@/utils/socket";
+
+Notifications.setNotificationHandler({
+   handleNotification: async () => ({
+     shouldShowBanner: true,
+     shouldShowList: true,
+     shouldPlaySound: true,
+     shouldSetBadge: true,
+   }),
+ });
 
 const rideTypes = [
   {
@@ -84,6 +94,7 @@ const newHome = () => {
   const [dropoffSuggestions, setDropoffSuggestions] = useState<string[]>([]);
   const [showPickupSuggestions, setShowPickupSuggestions] = useState(false);
   const [showDropoffSuggestions, setShowDropoffSuggestions] = useState(false);
+  const [driverArrived, setDriverArrived] = useState(false);
 
   const [currentLocation, setCurrentLocation] =
     useState<Location.LocationObject | null>(null);
@@ -121,12 +132,26 @@ const newHome = () => {
       //setShowOffersModal(true); // open modal automatically
     });
 
+    // Listen for driver arrival
+    socket.on("driverArrived", (data) => {
+      console.log("Driver arrived:", data.message);
+      setDriverArrived(true);
+      Notifications.scheduleNotificationAsync({
+        content: {
+          title: "Driver Arrived 🚗",
+          body: `Your driver has arrived at your pickup location.`,
+        },
+        trigger: null,
+      });
+    });
+
     socket.on("disconnect", () => {
       console.log("Socket disconnected");
     });
 
     return () => {
       socket.off("receiveCounterOffer");
+      socket.off("driverArrived");
       socket.off("disconnect");
     };
   }, []);
@@ -343,7 +368,7 @@ const newHome = () => {
     }
   };
 
-  // Handle suggestion selection for dropoff
+  // Handle suggestion selection for dropOff
   const handleDropoffSuggestionSelect = async (suggestion: string) => {
     setDropoff(suggestion);
     setShowDropoffSuggestions(false);
@@ -754,14 +779,16 @@ const newHome = () => {
       )}
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
-        className="absolute bottom-[1px] w-full bg-blue-100 rounded-t-[40px] shadow-lg border-t-2 border-l-2 border-r-2 border-blue-300"
+        className={`absolute bottom-[1px] w-full ${driverArrived ? "bg-green-100" : "bg-blue-100"} rounded-t-[40px] shadow-lg border-t-2 border-l-2 border-r-2 border-blue-300`}
       >
         {acceptedDriver ? (
           <>
             <View className="p-5">
               <View className="flex-row justify-between items-center p-1 mb-4">
                 <Text className="text-3xl font-JakartaExtraBold p-2">
-                  Driver Arriving
+                  {driverArrived
+                    ? "Driver has arrived!"
+                    : "Driver is on the way"}
                 </Text>
                 <View className="flex-row">
                   <TouchableOpacity className="p-2 rounded-full bg-blue-500 shadow-sm border-[1px] border-white">
@@ -822,7 +849,9 @@ const newHome = () => {
                 <Text className="text-lg text-gray-500 font-JakartaSemiBold">
                   Fare
                 </Text>
-                <Text className="text-2xl font-JakartaExtraBold">PKR {fare}</Text>
+                <Text className="text-2xl font-JakartaExtraBold">
+                  PKR {fare}
+                </Text>
               </View>
 
               {/* Cancel Ride Button */}

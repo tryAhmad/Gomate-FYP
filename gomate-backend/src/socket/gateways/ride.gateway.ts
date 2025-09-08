@@ -244,4 +244,60 @@ export class RideGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     return updatedRide;
   }
+
+  // Add this new event handler to your existing RideGateway class
+
+  @SubscribeMessage('driverReached')
+  async handleDriverReached(
+    @MessageBody()
+    data: {
+      driverId: string;
+      passengerId: string;
+      rideId: string;
+    },
+    @ConnectedSocket() client: Socket,
+  ) {
+    console.log(
+      `Driver ${data.driverId} has reached pickup location for ride ${data.rideId}`,
+    );
+
+    // Verify the driver is connected and matches the socket
+    const driverInfo = this.connectedDrivers.get(data.driverId);
+    if (!driverInfo || driverInfo.socketId !== client.id) {
+      console.log(`Unauthorized driver reach attempt for ride ${data.rideId}`);
+      return { success: false, message: 'Unauthorized' };
+    }
+
+    // Update ride status to "started"
+    const updatedRide = await this.rideRequestService.startRide(data.rideId);
+
+    if (!updatedRide) {
+      console.log(`Failed to start ride ${data.rideId}`);
+      return { success: false, message: 'Failed to start ride' };
+    }
+
+    // Notify passenger that driver has arrived and ride is starting
+    const passengerSocketId = this.connectedPassengers.get(data.passengerId);
+    if (passengerSocketId) {
+      this.server.to(passengerSocketId).emit('driverArrived', {
+        rideId: data.rideId,
+        message: 'Your driver has arrived! The ride is now starting.',
+        status: 'started',
+      });
+      console.log(`Notified passenger ${data.passengerId} that driver arrived`);
+    }
+
+    // Confirm to driver that ride has started
+    this.server.to(client.id).emit('rideStarted', {
+      rideId: data.rideId,
+      message: 'Ride has been started successfully',
+      status: 'started',
+    });
+
+    return {
+      success: true,
+      message: 'Ride started successfully',
+      ride: updatedRide,
+    };
+  }
 }

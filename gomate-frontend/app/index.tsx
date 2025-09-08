@@ -8,7 +8,11 @@ import {
   LogBox,
   StatusBar,
   ActivityIndicator,
+  Alert,
+  Platform,
 } from "react-native";
+import * as Notifications from "expo-notifications";
+
 
 LogBox.ignoreLogs([
   "expo-notifications: Android Push notifications",
@@ -20,6 +24,26 @@ const Home = () => {
   const [isConnecting, setIsConnecting] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      // Request permissions
+      const { status } = await Notifications.requestPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert("Permission required", "Enable notifications in settings.");
+      }
+
+      // Setup channel for Android
+      if (Platform.OS === "android") {
+        await Notifications.setNotificationChannelAsync("default", {
+          name: "default",
+          importance: Notifications.AndroidImportance.MAX,
+          sound: "default",
+        });
+      }
+    })();
+  }, []);
+
 
   useEffect(() => {
     const connectPassenger = () => {

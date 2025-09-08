@@ -156,4 +156,17 @@ export class RideRequestService {
       { new: true },
     );
   }
+  async startRide(
+    rideId: string,
+  ) {
+    return await this.rideRequestModel.findByIdAndUpdate(
+      rideId,
+      {
+        $set: {
+          status: 'started',
+        },
+      },
+      { new: true },
+    );
+  }
 }
