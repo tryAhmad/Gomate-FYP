@@ -452,7 +452,7 @@ const newHome = () => {
         latitude: currentLocation.coords.latitude,
         longitude: currentLocation.coords.longitude,
       };
-      setPickupCoord(currentCoords);
+      //setPickupCoord(currentCoords);
 
       try {
         const [place] = await Location.reverseGeocodeAsync(currentCoords);
@@ -601,6 +601,7 @@ const newHome = () => {
 
     setDriverOffers([]);
     setAcceptedDriver(offer.driver);
+    setFare(offer.counterFare?.toString() || "");
     setShowOffersModal(false);
   };
 
@@ -634,6 +635,7 @@ const newHome = () => {
     // Clear pickup text and any visible suggestions
     setPickup("");
     setPickupSuggestions([]);
+    setPickupCoord(null);
     setShowPickupSuggestions(false);
     // Intentionally keep pickupCoord so marker stays in place
   }
@@ -642,6 +644,7 @@ const newHome = () => {
     // Clear dropoff text and any visible suggestions
     setDropoff("");
     setDropoffSuggestions([]);
+    setDropoffCoord(null);
     setShowDropoffSuggestions(false);
     // Intentionally keep dropoffCoord so marker stays in place
   }
@@ -717,7 +720,7 @@ const newHome = () => {
         )}
 
         {/* Route polyline */}
-        {routeCoords.length > 0 && (
+        {pickupCoord && dropoffCoord && routeCoords.length > 0 && (
           <Polyline
             coordinates={routeCoords}
             strokeWidth={3}
@@ -819,7 +822,7 @@ const newHome = () => {
                 <Text className="text-lg text-gray-500 font-JakartaSemiBold">
                   Fare
                 </Text>
-                <Text className="text-2xl font-JakartaExtraBold">PKR 1500</Text>
+                <Text className="text-2xl font-JakartaExtraBold">PKR {fare}</Text>
               </View>
 
               {/* Cancel Ride Button */}
