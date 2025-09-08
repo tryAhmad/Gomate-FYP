@@ -111,6 +111,8 @@ const newHome = () => {
     longitudeDelta: 0.05,
   };
 
+  const passengerId = "688c69f20653ec0f43df6e2c";
+
   useEffect(() => {
     // when driver sends counter offer
     socket.on("receiveCounterOffer", (data) => {
@@ -124,7 +126,6 @@ const newHome = () => {
     });
 
     return () => {
-      socket.off("connect");
       socket.off("receiveCounterOffer");
       socket.off("disconnect");
     };
@@ -487,12 +488,12 @@ const newHome = () => {
     console.log("helloo");
 
     try {
-      const response = await fetch("http://192.168.1.13:3000/ride-request", {
+      const response = await fetch("http://192.168.1.8:3000/ride-request", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization:
-            "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFobWFkQGV4YW1wbGUuY29tIiwic3ViIjoiNjg4YzY5ZjIwNjUzZWMwZjQzZGY2ZTJjIiwicm9sZSI6InBhc3NlbmdlciIsImlhdCI6MTc1NjQ0OTUzNywiZXhwIjoxNzU2NTM1OTM3fQ.KhBQF6JpCVh9LsI_FmTjkdgH2Ry7MaNE0Q1kW2Zef2I",
+            "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFobWFkQGV4YW1wbGUuY29tIiwic3ViIjoiNjg4YzY5ZjIwNjUzZWMwZjQzZGY2ZTJjIiwicm9sZSI6InBhc3NlbmdlciIsImlhdCI6MTc1NzMxMDkyNiwiZXhwIjoxNzU3Mzk3MzI2fQ.DiG6u9DxZ15JrHD3y5r16eqDp0mQHaJzUjTFNSe7SlI",
         },
         body: JSON.stringify({
           pickupLocation: {
@@ -579,8 +580,6 @@ const newHome = () => {
     }
   }, [pickupCoord, dropoffCoord, selectedRideType, acceptedDriver]);
 
-
-
   // Prepare ride details to pass to modal
   const rideDetails = {
     pickup,
@@ -590,10 +589,18 @@ const newHome = () => {
   };
 
   // Called when user accepts a driver from the modal
-  const handleDriverAccepted = (driver: any) => {
-    console.log("Driver accepted:", driver.id);
-    setDriverOffers([]); // clear offers
-    setAcceptedDriver(driver); // set accepted driver
+  const handleDriverAccepted = (offer: any) => {
+    console.log("Driver accepted:", offer.driver);
+
+    socket.emit("acceptDriverOffer", {
+      rideId: offer.rideId,
+      driverId: offer.driver.id,
+      passengerId: passengerId,
+      counterFare: offer.counterFare ?? offer.driver.fare, // send whichever is active
+    });
+
+    setDriverOffers([]);
+    setAcceptedDriver(offer.driver);
     setShowOffersModal(false);
   };
 
@@ -754,7 +761,7 @@ const newHome = () => {
                   Driver Arriving
                 </Text>
                 <View className="flex-row">
-                  <TouchableOpacity className="p-2 rounded-full bg-blue-500 shadow-sm border-[1px]">
+                  <TouchableOpacity className="p-2 rounded-full bg-blue-500 shadow-sm border-[1px] border-white">
                     <MaterialCommunityIcons
                       name={"phone"}
                       size={44}

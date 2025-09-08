@@ -52,7 +52,7 @@ interface RawOffer {
 interface DriverOffersModalProps {
   visible: boolean;
   onClose: () => void;
-  onDriverAccepted: (driver: Driver) => void;
+  onDriverAccepted: (offer: DriverOffer) => void;
   rideDetails?: {
     pickup: string;
     dropoff: string;
@@ -112,11 +112,11 @@ const DriverOffersModal: React.FC<DriverOffersModalProps> = ({
     });
   };
 
-  const acceptDriver = (driver: Driver) => {
+  const acceptDriver = (offer: DriverOffer) => {
     Alert.alert(
       "Ride Confirmed! 🚗",
-      `Your ride with ${driver.firstname} ${driver.lastname} has been confirmed.`,
-      [{ text: "Great!", onPress: () => onDriverAccepted(driver) }]
+      `Your ride with ${offer.driver.firstname} ${offer.driver.lastname} has been confirmed.`,
+      [{ text: "Great!", onPress: () => onDriverAccepted(offer) }]
     );
   };
 
@@ -230,7 +230,7 @@ const DriverOffersModal: React.FC<DriverOffersModalProps> = ({
                     <CustomButton
                       title="Accept Ride"
                       className="mt-4 bg-blue-600 py-3 rounded-xl"
-                      onPress={() => acceptDriver(offer.driver)} // 👈 now `offer` already matches Driver
+                      onPress={() => acceptDriver(offer)} // 👈 now `offer` already matches Driver
                     />
                   </Animated.View>
                 );
