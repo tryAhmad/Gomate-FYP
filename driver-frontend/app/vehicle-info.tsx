@@ -47,7 +47,16 @@ export default function VehicleInfo() {
 
     Alert.alert(
       "Submitted Successfully",
-      "Your info has been sent to admin. Kindly wait for verification."
+      "Your info has been sent to admin. Kindly wait for verification.",
+      [
+    {
+      text: "OK",
+      onPress: () => {
+        router.replace("/landing_page" as any); 
+        // Used replace instead of push to prevent going back to verification
+      }
+    }
+  ]
     );
   };
 
@@ -251,7 +260,7 @@ const styles = StyleSheet.create({
     padding: 24,
     backgroundColor: "#fff",
     flexGrow: 1,
-    paddingTop: 10, // Reduced space above
+    paddingTop: 10, 
   },
   label: {
     fontSize: 16,

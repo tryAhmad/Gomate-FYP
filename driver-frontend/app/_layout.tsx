@@ -29,6 +29,12 @@ export default function RootLayout() {
         <Stack.Screen name="selfie-with-id" options={{ title: "ID Confirmation" }} />
         <Stack.Screen name="driver's-license" options={{ title: "Driver's License" }} />
         <Stack.Screen name="vehicle-info" options={{ title: "Vehicle Information" }} />
+        <Stack.Screen
+          name="landing_page"
+          options={{
+            headerShown: false, 
+          }}
+        />
       </Stack>
       <StatusBar style="dark" /> 
     </ThemeProvider>

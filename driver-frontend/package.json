@@ -24,7 +24,7 @@
     "expo-image": "~3.0.8",
     "expo-image-picker": "~17.0.8",
     "expo-linking": "~8.0.8",
-    "expo-router": "~6.0.4",
+    "expo-router": "~6.0.5",
     "expo-splash-screen": "~31.0.10",
     "expo-status-bar": "~3.0.8",
     "expo-symbols": "~1.0.7",
@@ -40,7 +40,8 @@
     "react-native-toast-message": "^2.3.3",
     "react-native-web": "^0.21.0",
     "react-native-webview": "13.15.0",
-    "react-native-worklets-core": "^1.6.2"
+    "react-native-worklets-core": "^1.6.2",
+    "expo-location": "~19.0.7"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
