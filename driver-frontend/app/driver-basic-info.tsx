@@ -40,14 +40,11 @@ export default function DriverBasicInfo() {
     }
   };
 
-  // Auto-format Date of Birth as DD-MM-YYYY
   const handleDobChange = (input: string) => {
-    // Remove non-digit characters
     const digits = input.replace(/\D/g, "");
 
     let formatted = "";
 
-    // Format based on the number of digits
     if (digits.length <= 2) {
       formatted = digits;
     } else if (digits.length <= 4) {
@@ -56,7 +53,6 @@ export default function DriverBasicInfo() {
       formatted = `${digits.slice(0, 2)}-${digits.slice(2, 4)}-${digits.slice(4, 8)}`;
     }
 
-    // If user just typed the 2nd or 4th digit, auto-insert hyphen
     if (
       (digits.length === 2 && !input.endsWith("-")) ||
       (digits.length === 4 && input.length === 5 && !input.endsWith("-"))
@@ -67,7 +63,6 @@ export default function DriverBasicInfo() {
     setDob(formatted);
   };
 
-  // Restrict phone number to 12 digits, avoid flashing 13th digit
   const handlePhoneChange = (input: string) => {
     const digits = input.replace(/\D/g, "").slice(0, 11); // limit to 11 digits max
 
@@ -78,7 +73,6 @@ export default function DriverBasicInfo() {
       formatted = `${digits.slice(0, 4)}-${digits.slice(4)}`;
     }
 
-    // Auto-add hyphen after 4 digits if not already
     if (digits.length === 4 && !input.endsWith("-")) {
       formatted += "-";
     }
@@ -134,7 +128,6 @@ export default function DriverBasicInfo() {
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.heading}>Driver Information</Text>
 
-        {/* Profile Picture Circle */}
         <View style={styles.profileContainer}>
           {photoUri ? (
             <Image source={{ uri: photoUri }} style={styles.profileCircle} />

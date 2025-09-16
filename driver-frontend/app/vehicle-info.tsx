@@ -53,7 +53,6 @@ export default function VehicleInfo() {
       text: "OK",
       onPress: () => {
         router.replace("/landing_page" as any); 
-        // Used replace instead of push to prevent going back to verification
       }
     }
   ]

@@ -11,14 +11,14 @@ export default function RootLayout() {
       <Stack
         screenOptions={{
           headerStyle: {
-            backgroundColor: "#ffffff", // Header background: white
+            backgroundColor: "#ffffff", 
           },
-          headerTintColor: "#0286ff", // Back button & icons: blue
+          headerTintColor: "#0286ff", 
           headerTitleStyle: {
-            color: "#0286ff", // Title text color: blue
+            color: "#0286ff", 
           },
           contentStyle: {
-            backgroundColor: "#ffffff", // Screen background: white
+            backgroundColor: "#ffffff", 
           },
           headerBackTitle: "Back",
         }}

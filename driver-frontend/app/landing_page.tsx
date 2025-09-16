@@ -91,14 +91,12 @@ const DriverLandingPage: React.FC = () => {
   const [slideAnim] = useState(new Animated.Value(-width * 0.7));
   const [isLocationLoaded, setIsLocationLoaded] = useState(false);
 
-  // Get current location
   useEffect(() => {
     const getLocation = async () => {
       try {
-        // First, check if we already have permission
         let { status } = await Location.getForegroundPermissionsAsync();
         
-        // If we don't have permission, request it
+
         if (status !== 'granted') {
           const { status: newStatus } = await Location.requestForegroundPermissionsAsync();
           status = newStatus;
@@ -123,7 +121,7 @@ const DriverLandingPage: React.FC = () => {
         }
         
         setIsLocationLoaded(true);
-        setIsOnline(true); // Automatically turn online after getting location
+        setIsOnline(true); 
       } catch (error) {
         setCurrentLocation('Unable to get location');
         setIsLocationLoaded(true);
@@ -133,11 +131,11 @@ const DriverLandingPage: React.FC = () => {
     getLocation();
   }, []);
 
-  // Simulate real-time ride updates
+  // Simulating real-time ride updates
   useEffect(() => {
     if (isOnline) {
       setAvailableRides(mockRides);
-      // Simulate new rides coming in
+      // Simulating new rides coming in
       const interval = setInterval(() => {
         setAvailableRides(prev => [...prev]);
       }, 10000);
@@ -173,15 +171,13 @@ const DriverLandingPage: React.FC = () => {
   };
 
   const handleProfileClick = () => {
-    // Navigate to profile page
     console.log('Opening profile...');
-    // router.push('/profile'); // Add your navigation logic here
+    // router.push('/profile'); // TODO
   };
 
   const handleViewRide = (rideId: string) => {
-    // Navigate to ride details page
     console.log(`Navigating to ride details for ride ID: ${rideId}`);
-    // router.push(`/ride-details/${rideId}`); // Add your navigation logic here
+    // router.push(`/ride-details/${rideId}`); //TODO
   };
 
   const renderSidebar = () => (
