@@ -156,9 +156,7 @@ export class RideRequestService {
       { new: true },
     );
   }
-  async startRide(
-    rideId: string,
-  ) {
+  async startRide(rideId: string) {
     return await this.rideRequestModel.findByIdAndUpdate(
       rideId,
       {
@@ -168,5 +166,17 @@ export class RideRequestService {
       },
       { new: true },
     );
+  }
+
+  async getPassengerRideHistory(passengerId: string) {
+    const rides = await this.rideRequestModel
+      .find({ passengerID: passengerId })
+      .sort({ createdAt: -1 }) // newest first
+      .lean();
+
+    return {
+      message: 'Ride history retrieved successfully',
+      rides,
+    };
   }
 }

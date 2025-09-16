@@ -22,7 +22,7 @@ const InputField = ({
   keyboardType = "default",
   rightIcon,
   ...props
-}: InputFieldProps & { rightIcon?: React.ReactNode }) => {
+}: InputFieldProps & { rightIcon?: React.ReactNode, label?: string }) => {
   const [isFocused, setIsFocused] = useState<boolean>(false);
   const [showPassword, setShowPassword] = useState(false);
 

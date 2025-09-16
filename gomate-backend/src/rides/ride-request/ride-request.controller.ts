@@ -80,6 +80,15 @@ export class RideRequestController {
     );
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Passenger)
+  @Get('history')
+  @ApiOperation({ summary: 'Get all ride history for logged-in passenger' })
+  async getPassengerRideHistory(@Req() req: any) {
+    const passengerId = req.user?.userId;
+    return this.rideRequestService.getPassengerRideHistory(passengerId);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get ride request by ID' })
   async getById(@Param('id') id: string) {

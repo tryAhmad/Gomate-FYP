@@ -43,6 +43,7 @@ import Animated, {
   withSequence,
   withTiming,
 } from "react-native-reanimated";
+import BurgerMenu from "@/components/BurgerMenu";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -552,15 +553,14 @@ const newHome = () => {
 
     console.log(pickupCoord.latitude, pickupCoord.longitude);
     console.log(dropoffCoord.latitude, dropoffCoord.longitude);
-    console.log("helloo");
 
     try {
-      const response = await fetch("http://192.168.1.8:3000/ride-request", {
+      const response = await fetch("http://192.168.1.9:3000/ride-request", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization:
-            "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFobWFkQGV4YW1wbGUuY29tIiwic3ViIjoiNjg4YzY5ZjIwNjUzZWMwZjQzZGY2ZTJjIiwicm9sZSI6InBhc3NlbmdlciIsImlhdCI6MTc1NzMxMDkyNiwiZXhwIjoxNzU3Mzk3MzI2fQ.DiG6u9DxZ15JrHD3y5r16eqDp0mQHaJzUjTFNSe7SlI",
+            "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFobWFkQGV4YW1wbGUuY29tIiwic3ViIjoiNjg4YzY5ZjIwNjUzZWMwZjQzZGY2ZTJjIiwicm9sZSI6InBhc3NlbmdlciIsImlhdCI6MTc1ODAwMjYzNSwiZXhwIjoxNzU4MDg5MDM1fQ.u4iwX53NKnL35qHsNbrQE2c5oGCcciL6FiDQb3rdB_0",
         },
         body: JSON.stringify({
           pickupLocation: {
@@ -810,6 +810,13 @@ const newHome = () => {
           />
         )}
       </TouchableOpacity>
+
+      <BurgerMenu
+        passengerName="Ahmad"
+        profilePic="https://i.pravatar.cc/150?img=3"
+        style="top-16 left-5"
+        onLogout={() => console.log("Logged out")}
+      />
       {/* Loading */}
       {isLoadingLocation && (
         <View></View>
@@ -963,7 +970,6 @@ const newHome = () => {
                   <View className="flex-row items-center justify-center">
                     <View className="flex-1">
                       <InputField
-                        label="Pickup Location"
                         placeholder="Enter Pickup"
                         placeholderTextColor="grey"
                         icon={
@@ -1003,7 +1009,6 @@ const newHome = () => {
                   <View className="flex-row items-center">
                     <View className="flex-1">
                       <InputField
-                        label="Drop-off Location"
                         placeholder="Enter Destination"
                         placeholderTextColor="grey"
                         icon={
@@ -1039,7 +1044,6 @@ const newHome = () => {
                 </View>
 
                 <InputField
-                  label="Fare Offer"
                   placeholder="Enter Fare"
                   placeholderTextColor="grey"
                   keyboardType="numeric"

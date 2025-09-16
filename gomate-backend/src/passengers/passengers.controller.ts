@@ -43,7 +43,7 @@ export class PassengersController {
 
   @Get()
   //@UseGuards(JwtAuthGuard, RolesGuard)
-  //@Roles(Role.Driver)
+  //@Roles(Role.Admin)
   @ApiOperation({ summary: 'Retrieves all users' })
   async findAll() {
     const passengers = await this.passengersService.findAll();
