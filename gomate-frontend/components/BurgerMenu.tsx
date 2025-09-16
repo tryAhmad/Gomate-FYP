@@ -97,6 +97,18 @@ export default function BurgerMenu({
               <TouchableOpacity
                 onPress={() => {
                   closeMenu();
+                  router.push("/newHome");
+                }}
+                className="flex-row items-center my-4"
+              >
+                <Ionicons name="car" size={22} color="black" />
+                <Text className="ml-3 text-2xl font-JakartaSemiBold">
+                  Book Ride
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  closeMenu();
                   router.push("/rideHistory");
                 }}
                 className="flex-row items-center my-4"
@@ -108,8 +120,8 @@ export default function BurgerMenu({
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => {
-                    closeMenu();
-                    router.push("/notifications");
+                  closeMenu();
+                  router.push("/notifications");
                 }}
                 className="flex-row items-center my-4"
               >
@@ -120,7 +132,10 @@ export default function BurgerMenu({
               </TouchableOpacity>
 
               <TouchableOpacity
-                onPress={() => console.log("Support")}
+                onPress={() => {
+                  closeMenu();
+                  router.push("/supportScreen");
+                }}
                 className="flex-row items-center my-4"
               >
                 <Ionicons name="call" size={22} color="black" />

@@ -316,7 +316,7 @@ const newHome = () => {
 
         // Animate map
         const region: Region = {
-          latitude: coords.latitude - 0.0055,
+          latitude: coords.latitude - 0.0020,
           longitude: coords.longitude,
           latitudeDelta: 0.01,
           longitudeDelta: 0.01,
@@ -397,7 +397,7 @@ const newHome = () => {
 
       // Apply latitude offset so marker is centered better
       const region: Region = {
-        latitude: coords.latitude - 0.0055, // 👈 shift upward
+        latitude: coords.latitude - 0.0020, // 👈 shift upward
         longitude: coords.longitude,
         latitudeDelta: 0.01,
         longitudeDelta: 0.01,
@@ -421,7 +421,7 @@ const newHome = () => {
       setDropoffCoord(coords);
 
       const region: Region = {
-        latitude: coords.latitude - 0.0055, // 👈 same offset
+        latitude: coords.latitude - 0.0020, // 👈 same offset
         longitude: coords.longitude,
         latitudeDelta: 0.01,
         longitudeDelta: 0.01,
@@ -508,7 +508,7 @@ const newHome = () => {
   const returnToCurrentLocation = async () => {
     if (currentLocation) {
       const region = {
-        latitude: currentLocation.coords.latitude - 0.0055,
+        latitude: currentLocation.coords.latitude - 0.0020,
         longitude: currentLocation.coords.longitude,
         latitudeDelta: 0.01,
         longitudeDelta: 0.01,
@@ -616,7 +616,7 @@ const newHome = () => {
 
       // Animate map to driver location
       const region: Region = {
-        latitude: acceptedDriver.location.lat - 0.0055, // same offset for centering
+        latitude: acceptedDriver.location.lat - 0.0020, // same offset for centering
         longitude: acceptedDriver.location.lng,
         latitudeDelta: 0.01,
         longitudeDelta: 0.01,
