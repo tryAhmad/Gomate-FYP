@@ -223,28 +223,28 @@ const DriverLandingPage: React.FC = () => {
 
             <View style={styles.menuItems}>
               <TouchableOpacity style={styles.menuItem}>
-                <Ionicons name="time-outline" size={20} color="#333" />
+                <Ionicons name="time" size={20} color="black" />
                 <Text style={styles.menuText}>Ride History</Text>
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.menuItem}>
-                <Ionicons name="cash-outline" size={20} color="#333" />
+                <Ionicons name="cash" size={20} color="black" />
                 <Text style={styles.menuText}>Earnings</Text>
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.menuItem}>
-                <Ionicons name="notifications-outline" size={20} color="#333" />
+                <Ionicons name="notifications" size={20} color="black" />
                 <Text style={styles.menuText}>Notifications</Text>
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.menuItem}>
-                <Ionicons name="help-circle-outline" size={20} color="#333" />
+                <Ionicons name="call" size={20} color="black" />
                 <Text style={styles.menuText}>Support</Text>
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.menuItem}>
-                <Ionicons name="log-out-outline" size={20} color="#333" />
-                <Text style={styles.menuText}>Logout</Text>
+                <Ionicons name="log-out" size={20} color="black" />
+                <Text style={[styles.menuText, { color: "red" }]}>Logout</Text>
               </TouchableOpacity>
             </View>
 
