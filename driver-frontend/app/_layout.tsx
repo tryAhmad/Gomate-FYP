@@ -30,6 +30,12 @@ export default function RootLayout() {
         <Stack.Screen name="driver's-license" options={{ title: "Driver's License" }} />
         <Stack.Screen name="vehicle-info" options={{ title: "Vehicle Information" }} />
         <Stack.Screen
+          name="docs-pending"
+          options={{
+            headerShown: false, 
+          }}
+        />
+        <Stack.Screen
           name="landing_page"
           options={{
             headerShown: false, 

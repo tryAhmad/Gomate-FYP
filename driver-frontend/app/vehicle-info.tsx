@@ -52,7 +52,7 @@ export default function VehicleInfo() {
     {
       text: "OK",
       onPress: () => {
-        router.replace("/landing_page" as any); 
+        router.replace("/docs-pending" as any); 
       }
     }
   ]
