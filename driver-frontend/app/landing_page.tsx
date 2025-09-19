@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
+import { router } from 'expo-router';
 
 const { width } = Dimensions.get('window');
 
@@ -24,9 +25,8 @@ interface RideRequest {
   destination: string;
   fare: number;
   distance: string;
-  timeAgo: string;
+  timeAway: string;   
   passengerName: string;
-  passengerRating: number;
 }
 
 // Mock ride data
@@ -37,19 +37,17 @@ const mockRides: RideRequest[] = [
     destination: 'Faiz Road 12 (Muslim Town)',
     fare: 250,
     distance: '1 KM',
-    timeAgo: 'Just Now',
+    timeAway: '2 min away',
     passengerName: 'Adil',
-    passengerRating: 4.8,
   },
   {
     id: '2',
     pickup: 'Eden Villas',
-    destination: 'K Block, Lake City',
+    destination: 'Roundabout, Block M 1 Lake City, Lahore',
     fare: 540,
     distance: '2 KM',
-    timeAgo: '5 min ago',
+    timeAway: '5 min away',
     passengerName: 'Ahmad',
-    passengerRating: 4.5,
   },
   {
     id: '3',
@@ -57,9 +55,8 @@ const mockRides: RideRequest[] = [
     destination: 'G1, Johar Town',
     fare: 400,
     distance: '2.5 KM',
-    timeAgo: '1 min ago',
+    timeAway: '7 min away',
     passengerName: 'Ali',
-    passengerRating: 4.9,
   },
   {
     id: '4',
@@ -67,21 +64,20 @@ const mockRides: RideRequest[] = [
     destination: 'Kareem Block',
     fare: 750,
     distance: '0.5 KM',
-    timeAgo: '3 min ago',
+    timeAway: '1 min away',
     passengerName: 'Umer',
-    passengerRating: 4.7,
   },
   {
     id: '5',
-    pickup: 'St 14, A Block, Model Town',
-    destination: 'Tulip Block, Bahria Town',
+    pickup: 'Nargis Block, Allama Iqbal Town',
+    destination: 'Overseas Enclave Sector B Bahria Town, Lahore',
     fare: 1120,
     distance: '1 KM',
-    timeAgo: '7 min ago',
+    timeAway: '10 min away',
     passengerName: 'Adil',
-    passengerRating: 4.6,
   },
 ];
+
 
 const DriverLandingPage: React.FC = () => {
   const [isOnline, setIsOnline] = useState(false);
@@ -176,8 +172,22 @@ const DriverLandingPage: React.FC = () => {
   };
 
   const handleViewRide = (rideId: string) => {
-    console.log(`Navigating to ride details for ride ID: ${rideId}`);
-    // router.push(`/ride-details/${rideId}`); //TODO
+    // Find the ride data
+    const selectedRide = availableRides.find(ride => ride.id === rideId);
+    if (selectedRide) {
+      router.push({
+        pathname: '/ride-request',
+        params: {
+          rideId: selectedRide.id,
+          pickup: selectedRide.pickup,
+          destination: selectedRide.destination,
+          fare: selectedRide.fare.toString(),
+          distance: selectedRide.distance,
+          timeAway: selectedRide.timeAway,
+          passengerName: selectedRide.passengerName,
+        }
+      });
+    }
   };
 
   const renderSidebar = () => (
@@ -269,7 +279,7 @@ const DriverLandingPage: React.FC = () => {
           <View style={styles.passengerDetails}>
             <Text style={styles.passengerName}>{ride.passengerName}</Text>
             <Text style={styles.rideDistance}>{ride.distance}</Text>
-            <Text style={styles.timeAgo}>{ride.timeAgo}</Text>
+            <Text style={styles.timeAway}>{ride.timeAway}</Text>
           </View>
         </View>
         <Text style={styles.fareAmount}>PKR {ride.fare}</Text>
@@ -505,7 +515,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
   },
-  timeAgo: {
+  timeAway: {
     fontSize: 12,
     color: '#666',
   },
