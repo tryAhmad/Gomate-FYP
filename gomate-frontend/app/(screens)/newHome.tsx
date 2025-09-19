@@ -555,12 +555,12 @@ const newHome = () => {
     console.log(dropoffCoord.latitude, dropoffCoord.longitude);
 
     try {
-      const response = await fetch("http://192.168.1.9:3000/ride-request", {
+      const response = await fetch("http://192.168.1.44:3000/ride-request", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization:
-            "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFobWFkQGV4YW1wbGUuY29tIiwic3ViIjoiNjg4YzY5ZjIwNjUzZWMwZjQzZGY2ZTJjIiwicm9sZSI6InBhc3NlbmdlciIsImlhdCI6MTc1ODAwMjYzNSwiZXhwIjoxNzU4MDg5MDM1fQ.u4iwX53NKnL35qHsNbrQE2c5oGCcciL6FiDQb3rdB_0",
+            "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFobWFkQGV4YW1wbGUuY29tIiwic3ViIjoiNjg4YzY5ZjIwNjUzZWMwZjQzZGY2ZTJjIiwicm9sZSI6InBhc3NlbmdlciIsImlhdCI6MTc1ODI2MzU2NywiZXhwIjoxNzU4MzQ5OTY3fQ.U1IUGTEujs4yUM6tyHn5qNBZu074T97i6nA0b7LVGSM",
         },
         body: JSON.stringify({
           pickupLocation: {

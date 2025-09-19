@@ -12,6 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { reverseGeocode } from "../../utils/mapsApi";
 import BurgerMenu from "@/components/BurgerMenu";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import RideDetailModal from "@/components/RideDetailModal";
 
 interface Location {
   coordinates: [number, number];
@@ -33,6 +34,9 @@ export default function RideHistoryScreen() {
   const [rides, setRides] = useState<Ride[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedRide, setSelectedRide] = useState<Ride | null>(null);
+  const [modalVisible, setModalVisible] = useState(false);
+
 
   // Load cached rides first
   useEffect(() => {
@@ -55,10 +59,10 @@ export default function RideHistoryScreen() {
     const fetchHistory = async () => {
       try {
         const res = await axios.get(
-          "http://192.168.1.9:3000/ride-request/history",
+          "http://192.168.1.44:3000/ride-request/history",
           {
             headers: {
-              Authorization: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFobWFkQGV4YW1wbGUuY29tIiwic3ViIjoiNjg4YzY5ZjIwNjUzZWMwZjQzZGY2ZTJjIiwicm9sZSI6InBhc3NlbmdlciIsImlhdCI6MTc1ODAwMjYzNSwiZXhwIjoxNzU4MDg5MDM1fQ.u4iwX53NKnL35qHsNbrQE2c5oGCcciL6FiDQb3rdB_0`,
+              Authorization: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFobWFkQGV4YW1wbGUuY29tIiwic3ViIjoiNjg4YzY5ZjIwNjUzZWMwZjQzZGY2ZTJjIiwicm9sZSI6InBhc3NlbmdlciIsImlhdCI6MTc1ODI2MzU2NywiZXhwIjoxNzU4MzQ5OTY3fQ.U1IUGTEujs4yUM6tyHn5qNBZu074T97i6nA0b7LVGSM`,
             },
           }
         );
@@ -97,6 +101,7 @@ export default function RideHistoryScreen() {
         );
 
         setRides(ridesWithAddresses);
+        //console.log("Fetched rides:", ridesWithAddresses);
 
         // Save in AsyncStorage
         await AsyncStorage.setItem(
@@ -155,7 +160,13 @@ export default function RideHistoryScreen() {
           data={rides}
           keyExtractor={(item) => item._id}
           renderItem={({ item }) => (
-            <TouchableOpacity className="border-b border-gray-700 pb-4 mb-4">
+            <TouchableOpacity
+              onPress={() => {
+                setSelectedRide(item);
+                setModalVisible(true);
+              }}
+              className="border-b border-gray-700 pb-4 mb-4"
+            >
               {/* Date + Fare */}
               <View className="flex-row justify-between items-center mb-2">
                 <Text className="text-black text-2xl font-JakartaSemiBold">
@@ -214,6 +225,11 @@ export default function RideHistoryScreen() {
           )}
         />
       )}
+      <RideDetailModal
+        visible={modalVisible}
+        onClose={() => setModalVisible(false)}
+        ride={selectedRide}
+      />
     </View>
   );
 }

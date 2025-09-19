@@ -6,8 +6,9 @@ import {
   Linking,
   StatusBar,
   Alert,
+  ScrollView,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import BurgerMenu from "@/components/BurgerMenu";
 
 const SupportScreen = () => {
@@ -55,17 +56,19 @@ const SupportScreen = () => {
   };
 
   return (
-    <View className="flex-1 bg-white px-2">
+    <View className="flex-1 bg-gray-100">
       <StatusBar
         barStyle="dark-content"
         translucent
         backgroundColor="transparent"
       />
-      <View className="p-4 border-b border-gray-200 items-center mt-[10%] pb-4">
+
+      {/* Header */}
+      <View className="p-4 border-b border-gray-200 items-center mt-[10%] pb-4 bg-white">
         <BurgerMenu
           passengerName="Ahmad"
           profilePic="https://i.pravatar.cc/150?img=3"
-          style="left-2 ml-3"
+          style="left-2 ml-3 mt-2"
           onLogout={() => console.log("Logged out")}
         />
         <Text className="text-3xl font-JakartaExtraBold text-blue-500">
@@ -73,53 +76,77 @@ const SupportScreen = () => {
         </Text>
       </View>
 
-      {/* Intro text */}
-      <Text className="text-center text-gray-600 text-lg font-JakartaSemiBold mt-6 mb-6 px-4">
-        Need help with your rides or have a question?{"\n"}
-        Our support team is here for you.
-      </Text>
-      <Text className="text-center text-gray-600 text-lg font-JakartaExtraBold mt-6 mb-6 px-4">
-        Choose an option below:
-      </Text>
-
-      <TouchableOpacity
-        onPress={handleCall}
-        className="flex-row items-center justify-center bg-emerald-600 p-4 rounded-2xl mt-4 mb-2"
-      >
-        <Ionicons name="call" size={26} color="white" />
-        <Text className="text-white text-2xl font-JakartaSemiBold ml-2">
-          Call Us
+      <ScrollView contentContainerStyle={{ padding: 16 }}>
+        {/* Intro */}
+        <Text className="text-center text-gray-600 text-lg font-JakartaSemiBold mt-4 mb-2">
+          Need help with your rides or have a question?{"\n"}
+          Our support team is here for you.
         </Text>
-      </TouchableOpacity>
-      <Text className="text-center text-gray-500 text-lg font-JakartaBold mb-6">
-        Available 9am – 9pm
-      </Text>
-
-      <TouchableOpacity
-        onPress={handleEmail}
-        className="flex-row items-center justify-center bg-blue-500 p-4 rounded-2xl mb-2"
-      >
-        <Ionicons name="mail" size={26} color="white" />
-        <Text className="text-white text-2xl font-JakartaSemiBold ml-2">
-          Email Us
+        <Text className="text-center text-gray-800 text-xl font-JakartaExtraBold mt-2 mb-6">
+          Choose an option below:
         </Text>
-      </TouchableOpacity>
-      <Text className="text-center text-gray-500 text-lg font-JakartaBold mb-6">
-        We usually reply within 24 hours
-      </Text>
 
-      <TouchableOpacity
-        onPress={handleWhatsApp}
-        className="flex-row items-center justify-center bg-green-600 p-4 rounded-2xl mb-2"
-      >
-        <Ionicons name="logo-whatsapp" size={26} color="white" />
-        <Text className="text-white text-2xl font-JakartaSemiBold ml-2">
-          Whatsapp Us
-        </Text>
-      </TouchableOpacity>
-      <Text className="text-center text-gray-500 text-lg font-JakartaBold mb-6">
-        Quickest way to reach us
-      </Text>
+        {/* Call Card */}
+        <View className="bg-white shadow-md rounded-2xl p-5 mb-5">
+          <TouchableOpacity
+            onPress={handleCall}
+            className="flex-row items-center justify-center bg-emerald-600 p-4 rounded-2xl"
+          >
+            <Ionicons name="call" size={26} color="white" />
+            <Text className="text-white text-xl font-JakartaSemiBold ml-2">
+              Call
+            </Text>
+          </TouchableOpacity>
+          <View className="flex-row items-center justify-center mt-3">
+            <Ionicons name="time-outline" size={18} color="gray" />
+            <Text className="text-gray-500 text-base font-JakartaBold ml-2">
+              Available 9am – 9pm
+            </Text>
+          </View>
+        </View>
+
+        {/* Email Card */}
+        <View className="bg-white shadow-md rounded-2xl p-5 mb-5">
+          <TouchableOpacity
+            onPress={handleEmail}
+            className="flex-row items-center justify-center bg-blue-500 p-4 rounded-2xl"
+          >
+            <Ionicons name="mail" size={26} color="white" />
+            <Text className="text-white text-xl font-JakartaSemiBold ml-2">
+              Email
+            </Text>
+          </TouchableOpacity>
+          <View className="flex-row items-center justify-center mt-3">
+            <Ionicons name="mail-outline" size={18} color="gray" />
+            <Text className="text-gray-500 text-base font-JakartaBold ml-2">
+              We usually reply within 24 hours
+            </Text>
+          </View>
+        </View>
+
+        {/* WhatsApp Card */}
+        <View className="bg-white shadow-md rounded-2xl p-5 mb-5">
+          <TouchableOpacity
+            onPress={handleWhatsApp}
+            className="flex-row items-center justify-center bg-green-600 p-4 rounded-2xl"
+          >
+            <Ionicons name="logo-whatsapp" size={26} color="white" />
+            <Text className="text-white text-xl font-JakartaSemiBold ml-2">
+              WhatsApp
+            </Text>
+          </TouchableOpacity>
+          <View className="flex-row items-center justify-center mt-3">
+            <Ionicons
+              name="chatbubble-ellipses-outline"
+              size={18}
+              color="gray"
+            />
+            <Text className="text-gray-500 text-base font-JakartaBold ml-2">
+              Quick replies (9am – 9pm)
+            </Text>
+          </View>
+        </View>
+      </ScrollView>
     </View>
   );
 };
