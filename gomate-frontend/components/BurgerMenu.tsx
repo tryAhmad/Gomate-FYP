@@ -77,8 +77,8 @@ export default function BurgerMenu({
               {/* Profile Section */}
               <TouchableOpacity
                 onPress={() => {
-                  console.log("Go to Profile");
                   closeMenu();
+                  router.push("/profile");
                 }}
                 className="flex-row items-center mb-5"
               >
