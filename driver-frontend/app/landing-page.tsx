@@ -1,3 +1,5 @@
+"use client"
+
 import type React from "react"
 import { useState, useEffect } from "react"
 import {
@@ -11,6 +13,7 @@ import {
   Switch,
   Dimensions,
   Animated,
+  Platform,
 } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import * as Location from "expo-location"
@@ -247,14 +250,18 @@ const DriverLandingPage: React.FC = () => {
       <View style={styles.locationContainer}>
         <View style={styles.locationRow}>
           <View style={styles.dotLineContainer}>
-            <View style={styles.greenDot} />
+            <View style={styles.pinIcon}>
+              <Ionicons name="location" size={16} color="#F44336" />
+            </View>
             <View style={styles.verticalLine} />
           </View>
           <Text style={styles.locationText}>{ride.pickup}</Text>
         </View>
         <View style={styles.locationRow}>
           <View style={styles.dotLineContainer}>
-            <View style={styles.redDot} />
+            <View style={styles.pinIcon}>
+              <Ionicons name="location" size={16} color="#4CAF50" />
+            </View>
           </View>
           <Text style={styles.locationText}>{ride.destination}</Text>
         </View>
@@ -342,6 +349,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#f5f5f5",
+    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight || 24 : 0,
   },
   header: {
     flexDirection: "row",
@@ -482,32 +490,39 @@ const styles = StyleSheet.create({
   dotLineContainer: {
     width: 20,
     alignItems: "center",
-    marginRight: 8,
+    marginRight: 12,
   },
-  greenDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#4CAF50",
+  pinIcon: {
+    width: 16,
+    height: 16,
+    alignItems: "center",
+    justifyContent: "center",
   },
   redDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
     backgroundColor: "#F44336",
+  },
+  greenDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#4CAF50",
   },
   verticalLine: {
     width: 2,
-    height: 24,
-    backgroundColor: "#ccc",
-    marginTop: 4,
-    marginBottom: 4,
+    height: 28,
+    backgroundColor: "#ddd",
+    marginTop: 6,
+    marginBottom: 2,
   },
   locationText: {
     fontSize: 14,
     color: "#333",
     flex: 1,
-    marginTop: -2,
+    marginTop: 2,
+    lineHeight: 18,
   },
   viewRideButton: {
     backgroundColor: "#0286FF",
