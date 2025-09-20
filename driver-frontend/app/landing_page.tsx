@@ -1,5 +1,3 @@
-"use client"
-
 import type React from "react"
 import { useState, useEffect } from "react"
 import {
@@ -29,6 +27,7 @@ interface RideRequest {
   distance: string
   timeAway: string
   passengerName: string
+  passengerPhone: string
 }
 
 // Mock ride data
@@ -41,6 +40,7 @@ const mockRides: RideRequest[] = [
     distance: "1 KM",
     timeAway: "2 min away",
     passengerName: "Adil",
+    passengerPhone: "923164037719",
   },
   {
     id: "2",
@@ -50,6 +50,7 @@ const mockRides: RideRequest[] = [
     distance: "2 KM",
     timeAway: "5 min away",
     passengerName: "Ahmad",
+    passengerPhone: "923164037719",
   },
   {
     id: "3",
@@ -59,6 +60,7 @@ const mockRides: RideRequest[] = [
     distance: "2.5 KM",
     timeAway: "7 min away",
     passengerName: "Ali",
+    passengerPhone: "923164037719",
   },
   {
     id: "4",
@@ -68,6 +70,7 @@ const mockRides: RideRequest[] = [
     distance: "0.5 KM",
     timeAway: "1 min away",
     passengerName: "Umer",
+    passengerPhone: "923164037719",
   },
   {
     id: "5",
@@ -77,6 +80,7 @@ const mockRides: RideRequest[] = [
     distance: "1 KM",
     timeAway: "10 min away",
     passengerName: "Adil",
+    passengerPhone: "923164037719",
   },
 ]
 
@@ -185,6 +189,7 @@ const DriverLandingPage: React.FC = () => {
           distance: selectedRide.distance,
           timeAway: selectedRide.timeAway,
           passengerName: selectedRide.passengerName,
+          passengerPhone: selectedRide.passengerPhone,
         },
       })
     }

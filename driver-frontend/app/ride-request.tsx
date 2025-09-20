@@ -15,7 +15,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Keyboard, 
+  Keyboard,
 } from "react-native"
 import { MaterialCommunityIcons } from "@expo/vector-icons"
 import { useRouter, useLocalSearchParams } from "expo-router"
@@ -33,6 +33,7 @@ type RideParams = {
   passengerName?: string
   profilePhoto?: string
   timeAway?: string
+  passengerPhone?: string 
 }
 
 const RideRequestPage: React.FC = () => {
@@ -40,7 +41,7 @@ const RideRequestPage: React.FC = () => {
   const params = useLocalSearchParams() as RideParams
   const mapRef = useRef<MapView>(null)
   const scrollViewRef = useRef<ScrollView>(null)
-  const inputRef = useRef<TextInput>(null) 
+  const inputRef = useRef<TextInput>(null)
 
   const [counterFare, setCounterFare] = useState("")
   const [pickupCoord, setPickupCoord] = useState<{ latitude: number; longitude: number } | null>(null)
@@ -61,7 +62,7 @@ const RideRequestPage: React.FC = () => {
 
     const keyboardDidShowListener = Keyboard.addListener("keyboardDidShow", (e) => {
       setIsKeyboardVisible(true)
-      
+
       setTimeout(() => {
         scrollViewRef.current?.scrollToEnd({ animated: true })
       }, 100)
@@ -97,10 +98,10 @@ const RideRequestPage: React.FC = () => {
           const exactPickupCoord = route[0]
           const exactDestinationCoord = route[route.length - 1]
 
-          console.log("[v0] Route start point:", exactPickupCoord)
-          console.log("[v0] Route end point:", exactDestinationCoord)
-          console.log("[v0] Original geocoded pickup:", pickupCoords)
-          console.log("[v0] Original geocoded destination:", destinationCoords)
+          console.log("Route start point:", exactPickupCoord)
+          console.log("Route end point:", exactDestinationCoord)
+          console.log("Original geocoded pickup:", pickupCoords)
+          console.log("Original geocoded destination:", destinationCoords)
 
           setPickupCoord(exactPickupCoord)
           setDestinationCoord(exactDestinationCoord)
@@ -133,20 +134,31 @@ const RideRequestPage: React.FC = () => {
   }
 
   const handleAcceptRide = () => {
+    router.push({
+              pathname: "/pickup",
+              params: {
+                rideId: params.rideId,
+                pickup: params.pickup,
+                destination: params.destination,
+                fare: params.fare,
+                distance: params.distance,
+                passengerName: params.passengerName,
+                profilePhoto: params.profilePhoto,
+                timeAway: params.timeAway,
+                passengerPhone: params.passengerPhone, 
+              },
+            })
     Alert.alert(
       "Ride Accepted",
       "Navigate to pickup location",
       [
         {
           text: "OK",
-          onPress: () => {
-            //router.push("/pickup"); 
-          },
         },
       ],
-      { cancelable: false }
-    );
-  };
+      { cancelable: false },
+    )
+  }
 
   const handleOfferFare = () => {
     const offeredFare = params.fare ? Number(params.fare) : 0
@@ -258,9 +270,7 @@ const RideRequestPage: React.FC = () => {
             )}
             <View style={styles.passengerInfo}>
               <Text style={styles.passengerName}>{params.passengerName || "Passenger"}</Text>
-              {params.timeAway && (
-                <Text style={styles.timeAwayText}>{params.timeAway}</Text>
-              )}
+              {params.timeAway && <Text style={styles.timeAwayText}>{params.timeAway}</Text>}
             </View>
             <Text style={styles.fareText}>Rs {params.fare || "250"}</Text>
           </View>
@@ -290,12 +300,12 @@ const RideRequestPage: React.FC = () => {
           <View style={styles.counterRow}>
             <Text style={styles.currencyText}>Rs</Text>
             <TextInput
-              ref={inputRef} 
+              ref={inputRef}
               style={styles.input}
               value={counterFare}
               onChangeText={setCounterFare}
               onFocus={focusOnInput}
-              onBlur={handleInputBlur} 
+              onBlur={handleInputBlur}
               keyboardType="numeric"
               placeholder="Enter amount"
               placeholderTextColor="#999"
@@ -317,28 +327,27 @@ const RideRequestPage: React.FC = () => {
 }
 
 const styles = StyleSheet.create({
-
-  container: { 
-    flex: 1, 
-    backgroundColor: "#f5f5f5" 
+  container: {
+    flex: 1,
+    backgroundColor: "#f5f5f5",
   },
 
-  mapContainer: { 
-    flex: 1, 
-    position: "relative" 
+  mapContainer: {
+    flex: 1,
+    position: "relative",
   },
 
-  mapContainerKeyboard: { 
-    flex: 0.05 
+  mapContainerKeyboard: {
+    flex: 0.05,
   },
 
-  map: { 
-    flex: 1 
+  map: {
+    flex: 1,
   },
 
-  markerContainer: { 
-    alignItems: "center", 
-    justifyContent: "center" 
+  markerContainer: {
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   loadingOverlay: {
@@ -353,26 +362,26 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
 
-  loadingText: { 
-    marginTop: 10, 
-    fontSize: 16, 
-    color: "#333" 
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: "#333",
   },
 
-  keyboardAvoidingView: { 
-    flex: 0 
+  keyboardAvoidingView: {
+    flex: 0,
   },
 
-  keyboardAvoidingViewExpanded: { 
-    flex: 0.95 
+  keyboardAvoidingViewExpanded: {
+    flex: 0.95,
   },
 
-  scrollContent: { 
-    paddingBottom: 40 
+  scrollContent: {
+    paddingBottom: 40,
   },
 
-  scrollContentExpanded: { 
-    paddingBottom: 120 
+  scrollContentExpanded: {
+    paddingBottom: 120,
   },
 
   card: {
@@ -381,9 +390,9 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 35,
     borderTopRightRadius: 35,
     shadowColor: "#000",
-    shadowOffset: { 
-      width: 0, 
-      height: -2 
+    shadowOffset: {
+      width: 0,
+      height: -2,
     },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -397,17 +406,17 @@ const styles = StyleSheet.create({
     minHeight: height * 0.85,
   },
 
-  passengerRow: { 
-    flexDirection: "row", 
-    alignItems: "center", 
-    marginBottom: 16 
+  passengerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
   },
 
-  avatar: { 
-    width: 50, 
-    height: 50, 
-    borderRadius: 25, 
-    marginRight: 12 
+  avatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: 12,
   },
 
   avatarPlaceholder: {
@@ -420,20 +429,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
-  avatarInitial: { 
-    color: "#007AFF", 
-    fontSize: 20, 
-    fontWeight: "600" 
+  avatarInitial: {
+    color: "#007AFF",
+    fontSize: 20,
+    fontWeight: "600",
   },
 
-  passengerInfo: { 
-    flex: 1 
+  passengerInfo: {
+    flex: 1,
   },
 
-  passengerName: { 
-    fontSize: 18, 
-    fontWeight: "600", 
-    color: "#333" 
+  passengerName: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#333",
   },
 
   timeAwayText: {
@@ -442,14 +451,14 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  fareText: { 
-    fontSize: 20, 
-    fontWeight: "bold", 
-    color: "#333" 
+  fareText: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#333",
   },
 
-  locationSection: { 
-    marginBottom: 20 
+  locationSection: {
+    marginBottom: 20,
   },
 
   locationRow: {
@@ -462,18 +471,18 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
 
-  locationText: { 
-    fontSize: 14, 
-    flex: 1, 
-    color: "#333", 
-    marginLeft: 12 
+  locationText: {
+    fontSize: 14,
+    flex: 1,
+    color: "#333",
+    marginLeft: 12,
   },
 
-  distanceText: { 
-    fontSize: 12, 
-    color: "grey", 
-    marginLeft: 16, 
-    marginBottom: 8 
+  distanceText: {
+    fontSize: 12,
+    color: "grey",
+    marginLeft: 16,
+    marginBottom: 8,
   },
 
   acceptButton: {
@@ -484,35 +493,35 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
 
-  acceptText: { 
-    color: "#fff", 
-    fontWeight: "600", 
-    fontSize: 16 
+  acceptText: {
+    color: "#fff",
+    fontWeight: "600",
+    fontSize: 16,
   },
 
-  sendButton: { 
-    backgroundColor: "#4CAF50", 
+  sendButton: {
+    backgroundColor: "#4CAF50",
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 20, 
+    paddingHorizontal: 20,
     height: "100%",
-    borderTopLeftRadius: 12,   
-    borderBottomLeftRadius: 12, 
-    borderTopRightRadius: 12, 
+    borderTopLeftRadius: 12,
+    borderBottomLeftRadius: 12,
+    borderTopRightRadius: 12,
     borderBottomRightRadius: 12,
   },
 
-  sendText: { 
-    color: "#fff", 
-    fontWeight: "600", 
-    fontSize: 14 
+  sendText: {
+    color: "#fff",
+    fontWeight: "600",
+    fontSize: 14,
   },
 
-  offerText: { 
-    fontSize: 16, 
-    fontWeight: "600", 
-    color: "#333", 
-    marginBottom: 12 
+  offerText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 12,
   },
 
   counterRow: {
@@ -522,27 +531,26 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 20,
     height: 50,
-    overflow: "hidden", 
+    overflow: "hidden",
   },
 
-  rupeeIcon: { 
-    marginRight: 8 
+  rupeeIcon: {
+    marginRight: 8,
   },
 
-  currencyText: { 
-    fontSize: 16, 
-    color: "#333", 
-    paddingHorizontal: 12, 
+  currencyText: {
+    fontSize: 16,
+    color: "#333",
+    paddingHorizontal: 12,
   },
 
-  input: { 
-    flex: 1, 
-    fontSize: 16, 
-    color: "#333", 
-    height: "100%", 
+  input: {
+    flex: 1,
+    fontSize: 16,
+    color: "#333",
+    height: "100%",
     paddingHorizontal: 8,
   },
-});
-
+})
 
 export default RideRequestPage
