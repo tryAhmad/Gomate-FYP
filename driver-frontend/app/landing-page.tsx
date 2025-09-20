@@ -16,6 +16,7 @@ import { Ionicons } from "@expo/vector-icons"
 import * as Location from "expo-location"
 import { router } from "expo-router"
 import BurgerMenu from "@/components/burger-menu"
+import { calculateRideDistance, calculateTimeToPickup } from "@/utils/distanceCalculation"
 
 const { width } = Dimensions.get("window")
 
@@ -28,17 +29,15 @@ interface RideRequest {
   timeAway: string
   passengerName: string
   passengerPhone: string
+  isCalculating?: boolean
 }
 
-// Mock ride data
-const mockRides: RideRequest[] = [
+const mockRides: Omit<RideRequest, "distance" | "timeAway">[] = [
   {
     id: "1",
     pickup: "Garhi Shahu, Lahore",
     destination: "Faiz Road 12 (Muslim Town)",
     fare: 250,
-    distance: "1 KM",
-    timeAway: "2 min away",
     passengerName: "Adil",
     passengerPhone: "923164037719",
   },
@@ -47,8 +46,6 @@ const mockRides: RideRequest[] = [
     pickup: "Eden Villas",
     destination: "Roundabout, Block M 1 Lake City, Lahore",
     fare: 540,
-    distance: "2 KM",
-    timeAway: "5 min away",
     passengerName: "Ahmad",
     passengerPhone: "923164037719",
   },
@@ -57,8 +54,6 @@ const mockRides: RideRequest[] = [
     pickup: "Wapda Town",
     destination: "G1, Johar Town",
     fare: 400,
-    distance: "2.5 KM",
-    timeAway: "7 min away",
     passengerName: "Ali",
     passengerPhone: "923164037719",
   },
@@ -67,8 +62,6 @@ const mockRides: RideRequest[] = [
     pickup: "Nargis Block, Allama Iqbal Town",
     destination: "Kareem Block",
     fare: 750,
-    distance: "0.5 KM",
-    timeAway: "1 min away",
     passengerName: "Umer",
     passengerPhone: "923164037719",
   },
@@ -77,8 +70,6 @@ const mockRides: RideRequest[] = [
     pickup: "Nargis Block, Allama Iqbal Town",
     destination: "Overseas Enclave Sector B Bahria Town, Lahore",
     fare: 1120,
-    distance: "1 KM",
-    timeAway: "10 min away",
     passengerName: "Adil",
     passengerPhone: "923164037719",
   },
@@ -89,6 +80,7 @@ const DriverLandingPage: React.FC = () => {
   const [sidebarVisible, setSidebarVisible] = useState(false)
   const [availableRides, setAvailableRides] = useState<RideRequest[]>([])
   const [currentLocation, setCurrentLocation] = useState<string>("Getting location...")
+  const [driverCoordinates, setDriverCoordinates] = useState<{ latitude: number; longitude: number } | null>(null)
   const [slideAnim] = useState(new Animated.Value(-width * 0.7))
   const [isLocationLoaded, setIsLocationLoaded] = useState(false)
 
@@ -109,6 +101,11 @@ const DriverLandingPage: React.FC = () => {
         }
 
         const location = await Location.getCurrentPositionAsync({})
+        setDriverCoordinates({
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+        })
+
         const reverseGeocode = await Location.reverseGeocodeAsync({
           latitude: location.coords.latitude,
           longitude: location.coords.longitude,
@@ -131,19 +128,52 @@ const DriverLandingPage: React.FC = () => {
     getLocation()
   }, [])
 
-  // Simulating real-time ride updates
   useEffect(() => {
-    if (isOnline) {
-      setAvailableRides(mockRides)
-      // Simulating new rides coming in
-      const interval = setInterval(() => {
-        setAvailableRides((prev) => [...prev])
-      }, 10000)
-      return () => clearInterval(interval)
-    } else {
-      setAvailableRides([])
+    const calculateRideDetails = async () => {
+      if (isOnline && driverCoordinates) {
+        console.log("Calculating ride details with driver location:", driverCoordinates)
+
+        const ridesWithDetails = await Promise.all(
+          mockRides.map(async (ride) => {
+            try {
+              const rideDistance = await calculateRideDistance(ride.pickup, ride.destination)
+              const timeToPickup = await calculateTimeToPickup(driverCoordinates, ride.pickup)
+
+              return {
+                ...ride,
+                distance: rideDistance.distance,
+                timeAway: timeToPickup.timeAway,
+                isCalculating: false,
+              } as RideRequest
+            } catch (error) {
+              console.error(`Error calculating details for ride ${ride.id}:`, error)
+              return {
+                ...ride,
+                distance: "1 KM",
+                timeAway: "5 min away",
+                isCalculating: false,
+              } as RideRequest
+            }
+          }),
+        )
+
+        setAvailableRides(ridesWithDetails)
+      } else if (isOnline && !driverCoordinates) {
+        const ridesWithLoading = mockRides.map((ride) => ({
+          ...ride,
+          distance: "Calculating...",
+          timeAway: "Calculating...",
+          isCalculating: true,
+        })) as RideRequest[]
+
+        setAvailableRides(ridesWithLoading)
+      } else {
+        setAvailableRides([])
+      }
     }
-  }, [isOnline])
+
+    calculateRideDetails()
+  }, [isOnline, driverCoordinates])
 
   const handleToggleOnline = () => {
     if (isLocationLoaded) {
@@ -176,7 +206,6 @@ const DriverLandingPage: React.FC = () => {
   }
 
   const handleViewRide = (rideId: string) => {
-    // Find the ride data
     const selectedRide = availableRides.find((ride) => ride.id === rideId)
     if (selectedRide) {
       router.push({
@@ -190,6 +219,8 @@ const DriverLandingPage: React.FC = () => {
           timeAway: selectedRide.timeAway,
           passengerName: selectedRide.passengerName,
           passengerPhone: selectedRide.passengerPhone,
+          driverLat: driverCoordinates?.latitude.toString(),
+          driverLng: driverCoordinates?.longitude.toString(),
         },
       })
     }
@@ -229,8 +260,12 @@ const DriverLandingPage: React.FC = () => {
         </View>
       </View>
 
-      <TouchableOpacity style={styles.viewRideButton} onPress={() => handleViewRide(ride.id)}>
-        <Text style={styles.viewRideText}>View Ride</Text>
+      <TouchableOpacity
+        style={[styles.viewRideButton, ride.isCalculating && styles.viewRideButtonDisabled]}
+        onPress={() => handleViewRide(ride.id)}
+        disabled={ride.isCalculating}
+      >
+        <Text style={styles.viewRideText}>{ride.isCalculating ? "Calculating..." : "View Ride"}</Text>
       </TouchableOpacity>
     </View>
   )
@@ -255,7 +290,6 @@ const DriverLandingPage: React.FC = () => {
     <SafeAreaView style={styles.container}>
       <StatusBar backgroundColor="#fff" barStyle="dark-content" />
 
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.menuButton} onPress={openSidebar}>
           <Ionicons name="menu" size={24} color="#333" />
@@ -279,7 +313,6 @@ const DriverLandingPage: React.FC = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Content */}
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {isOnline ? (
           <>
@@ -481,6 +514,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 20,
     alignItems: "center",
+  },
+  viewRideButtonDisabled: {
+    backgroundColor: "#ccc",
   },
   viewRideText: {
     color: "#fff",

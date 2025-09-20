@@ -33,6 +33,8 @@ type PickupParams = {
   profilePhoto?: string
   timeAway?: string
   passengerPhone?: string
+  driverLat?: string
+  driverLng?: string
 }
 
 const PickupPage: React.FC = () => {
@@ -57,15 +59,23 @@ const PickupPage: React.FC = () => {
   }
 
   useEffect(() => {
-    requestLocationPermission()
+    if (params.driverLat && params.driverLng) {
+      setDriverLocation({
+        latitude: Number.parseFloat(params.driverLat),
+        longitude: Number.parseFloat(params.driverLng),
+      })
+      startLocationTracking()
+    } else {
+      requestLocationPermission()
+    }
     loadRouteData()
   }, [])
 
-  const requestLocationPermission = async () => {
+  const startLocationTracking = async () => {
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync()
+      const { status } = await Location.getForegroundPermissionsAsync()
+
       if (status === "granted") {
-        getCurrentLocation()
         const locationSubscription = await Location.watchPositionAsync(
           {
             accuracy: Location.Accuracy.High,
@@ -83,6 +93,24 @@ const PickupPage: React.FC = () => {
         return () => {
           locationSubscription.remove()
         }
+      }
+    } catch (error) {
+      console.error("Error starting location tracking:", error)
+    }
+  }
+
+  const requestLocationPermission = async () => {
+    try {
+      let { status } = await Location.getForegroundPermissionsAsync()
+
+      if (status !== "granted") {
+        const { status: newStatus } = await Location.requestForegroundPermissionsAsync()
+        status = newStatus
+      }
+
+      if (status === "granted") {
+        getCurrentLocation()
+        startLocationTracking()
       } else {
         Alert.alert("Permission Denied", "Location permission is required to show your current location.")
         setDriverLocation({

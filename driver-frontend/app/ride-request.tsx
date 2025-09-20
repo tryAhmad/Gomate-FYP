@@ -34,6 +34,8 @@ type RideParams = {
   profilePhoto?: string
   timeAway?: string
   passengerPhone?: string
+  driverLat?: string
+  driverLng?: string
 }
 
 const RideRequestPage: React.FC = () => {
@@ -146,6 +148,8 @@ const RideRequestPage: React.FC = () => {
         profilePhoto: params.profilePhoto,
         timeAway: params.timeAway,
         passengerPhone: params.passengerPhone,
+        driverLat: params.driverLat,
+        driverLng: params.driverLng,
       },
     })
     Alert.alert(
