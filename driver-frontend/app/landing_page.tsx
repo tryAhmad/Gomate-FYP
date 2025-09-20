@@ -1,160 +1,160 @@
-import React, { useState, useEffect } from 'react';
+"use client"
+
+import type React from "react"
+import { useState, useEffect } from "react"
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Modal,
   SafeAreaView,
   StatusBar,
   Switch,
   Dimensions,
   Animated,
-  Linking,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import * as Location from 'expo-location';
-import { router } from 'expo-router';
+} from "react-native"
+import { Ionicons } from "@expo/vector-icons"
+import * as Location from "expo-location"
+import { router } from "expo-router"
+import BurgerMenu from "@/components/burger-menu"
 
-const { width } = Dimensions.get('window');
+const { width } = Dimensions.get("window")
 
 interface RideRequest {
-  id: string;
-  pickup: string;
-  destination: string;
-  fare: number;
-  distance: string;
-  timeAway: string;   
-  passengerName: string;
+  id: string
+  pickup: string
+  destination: string
+  fare: number
+  distance: string
+  timeAway: string
+  passengerName: string
 }
 
 // Mock ride data
 const mockRides: RideRequest[] = [
   {
-    id: '1',
-    pickup: 'Garhi Shahu, Lahore',
-    destination: 'Faiz Road 12 (Muslim Town)',
+    id: "1",
+    pickup: "Garhi Shahu, Lahore",
+    destination: "Faiz Road 12 (Muslim Town)",
     fare: 250,
-    distance: '1 KM',
-    timeAway: '2 min away',
-    passengerName: 'Adil',
+    distance: "1 KM",
+    timeAway: "2 min away",
+    passengerName: "Adil",
   },
   {
-    id: '2',
-    pickup: 'Eden Villas',
-    destination: 'Roundabout, Block M 1 Lake City, Lahore',
+    id: "2",
+    pickup: "Eden Villas",
+    destination: "Roundabout, Block M 1 Lake City, Lahore",
     fare: 540,
-    distance: '2 KM',
-    timeAway: '5 min away',
-    passengerName: 'Ahmad',
+    distance: "2 KM",
+    timeAway: "5 min away",
+    passengerName: "Ahmad",
   },
   {
-    id: '3',
-    pickup: 'Wapda Town',
-    destination: 'G1, Johar Town',
+    id: "3",
+    pickup: "Wapda Town",
+    destination: "G1, Johar Town",
     fare: 400,
-    distance: '2.5 KM',
-    timeAway: '7 min away',
-    passengerName: 'Ali',
+    distance: "2.5 KM",
+    timeAway: "7 min away",
+    passengerName: "Ali",
   },
   {
-    id: '4',
-    pickup: 'Nargis Block, Allama Iqbal Town',
-    destination: 'Kareem Block',
+    id: "4",
+    pickup: "Nargis Block, Allama Iqbal Town",
+    destination: "Kareem Block",
     fare: 750,
-    distance: '0.5 KM',
-    timeAway: '1 min away',
-    passengerName: 'Umer',
+    distance: "0.5 KM",
+    timeAway: "1 min away",
+    passengerName: "Umer",
   },
   {
-    id: '5',
-    pickup: 'Nargis Block, Allama Iqbal Town',
-    destination: 'Overseas Enclave Sector B Bahria Town, Lahore',
+    id: "5",
+    pickup: "Nargis Block, Allama Iqbal Town",
+    destination: "Overseas Enclave Sector B Bahria Town, Lahore",
     fare: 1120,
-    distance: '1 KM',
-    timeAway: '10 min away',
-    passengerName: 'Adil',
+    distance: "1 KM",
+    timeAway: "10 min away",
+    passengerName: "Adil",
   },
-];
-
+]
 
 const DriverLandingPage: React.FC = () => {
-  const [isOnline, setIsOnline] = useState(false);
-  const [sidebarVisible, setSidebarVisible] = useState(false);
-  const [availableRides, setAvailableRides] = useState<RideRequest[]>([]);
-  const [currentLocation, setCurrentLocation] = useState<string>('Getting location...');
-  const [slideAnim] = useState(new Animated.Value(-width * 0.7));
-  const [isLocationLoaded, setIsLocationLoaded] = useState(false);
+  const [isOnline, setIsOnline] = useState(false)
+  const [sidebarVisible, setSidebarVisible] = useState(false)
+  const [availableRides, setAvailableRides] = useState<RideRequest[]>([])
+  const [currentLocation, setCurrentLocation] = useState<string>("Getting location...")
+  const [slideAnim] = useState(new Animated.Value(-width * 0.7))
+  const [isLocationLoaded, setIsLocationLoaded] = useState(false)
 
   useEffect(() => {
     const getLocation = async () => {
       try {
-        let { status } = await Location.getForegroundPermissionsAsync();
-        
+        let { status } = await Location.getForegroundPermissionsAsync()
 
-        if (status !== 'granted') {
-          const { status: newStatus } = await Location.requestForegroundPermissionsAsync();
-          status = newStatus;
+        if (status !== "granted") {
+          const { status: newStatus } = await Location.requestForegroundPermissionsAsync()
+          status = newStatus
         }
 
-        if (status !== 'granted') {
-          setCurrentLocation('Location permission denied');
-          setIsLocationLoaded(true);
-          return;
+        if (status !== "granted") {
+          setCurrentLocation("Location permission denied")
+          setIsLocationLoaded(true)
+          return
         }
 
-        let location = await Location.getCurrentPositionAsync({});
-        let reverseGeocode = await Location.reverseGeocodeAsync({
+        const location = await Location.getCurrentPositionAsync({})
+        const reverseGeocode = await Location.reverseGeocodeAsync({
           latitude: location.coords.latitude,
           longitude: location.coords.longitude,
-        });
+        })
 
         if (reverseGeocode.length > 0) {
-          const address = reverseGeocode[0];
-          const locationString = `${address.street || ''} ${address.city || ''}, ${address.region || ''}`.trim();
-          setCurrentLocation(locationString || 'Unknown location');
+          const address = reverseGeocode[0]
+          const locationString = `${address.street || ""} ${address.city || ""}, ${address.region || ""}`.trim()
+          setCurrentLocation(locationString || "Unknown location")
         }
-        
-        setIsLocationLoaded(true);
-        setIsOnline(true); 
-      } catch (error) {
-        setCurrentLocation('Unable to get location');
-        setIsLocationLoaded(true);
-      }
-    };
 
-    getLocation();
-  }, []);
+        setIsLocationLoaded(true)
+        setIsOnline(true)
+      } catch (error) {
+        setCurrentLocation("Unable to get location")
+        setIsLocationLoaded(true)
+      }
+    }
+
+    getLocation()
+  }, [])
 
   // Simulating real-time ride updates
   useEffect(() => {
     if (isOnline) {
-      setAvailableRides(mockRides);
+      setAvailableRides(mockRides)
       // Simulating new rides coming in
       const interval = setInterval(() => {
-        setAvailableRides(prev => [...prev]);
-      }, 10000);
-      return () => clearInterval(interval);
+        setAvailableRides((prev) => [...prev])
+      }, 10000)
+      return () => clearInterval(interval)
     } else {
-      setAvailableRides([]);
+      setAvailableRides([])
     }
-  }, [isOnline]);
+  }, [isOnline])
 
   const handleToggleOnline = () => {
     if (isLocationLoaded) {
-      setIsOnline(!isOnline);
+      setIsOnline(!isOnline)
     }
-  };
+  }
 
   const openSidebar = () => {
-    setSidebarVisible(true);
+    setSidebarVisible(true)
     Animated.timing(slideAnim, {
       toValue: 0,
       duration: 300,
       useNativeDriver: true,
-    }).start();
-  };
+    }).start()
+  }
 
   const closeSidebar = () => {
     Animated.timing(slideAnim, {
@@ -162,21 +162,21 @@ const DriverLandingPage: React.FC = () => {
       duration: 300,
       useNativeDriver: true,
     }).start(() => {
-      setSidebarVisible(false);
-    });
-  };
+      setSidebarVisible(false)
+    })
+  }
 
   const handleProfileClick = () => {
-    console.log('Opening profile...');
+    console.log("Opening profile...")
     // router.push('/profile'); // TODO
-  };
+  }
 
   const handleViewRide = (rideId: string) => {
     // Find the ride data
-    const selectedRide = availableRides.find(ride => ride.id === rideId);
+    const selectedRide = availableRides.find((ride) => ride.id === rideId)
     if (selectedRide) {
       router.push({
-        pathname: '/ride-request',
+        pathname: "/ride-request",
         params: {
           rideId: selectedRide.id,
           pickup: selectedRide.pickup,
@@ -185,96 +185,19 @@ const DriverLandingPage: React.FC = () => {
           distance: selectedRide.distance,
           timeAway: selectedRide.timeAway,
           passengerName: selectedRide.passengerName,
-        }
-      });
+        },
+      })
     }
-  };
+  }
 
-  const renderSidebar = () => (
-    <Modal
-      animationType="none"
-      transparent={true}
-      visible={sidebarVisible}
-      onRequestClose={closeSidebar}
-    >
-      <TouchableOpacity 
-        style={styles.modalOverlay}
-        activeOpacity={1}
-        onPress={closeSidebar}
-      >
-        <Animated.View 
-          style={[
-            styles.sidebar,
-            {
-              transform: [{ translateX: slideAnim }]
-            }
-          ]}
-        >
-          <TouchableOpacity 
-            activeOpacity={1} 
-            onPress={(e) => e.stopPropagation()}
-            style={{ flex: 1 }}
-          >
-            <View style={styles.sidebarHeader}>
-              <TouchableOpacity style={styles.profileSection} onPress={handleProfileClick}>
-                <View style={styles.profileImage}>
-                  <Text style={styles.profileInitial}>A</Text>
-                </View>
-                <View style={styles.profileInfo}>
-                  <Text style={styles.profileName}>Ahmad</Text>
-                  <View style={styles.ratingContainer}>
-                    {[...Array(5)].map((_, i) => (
-                      <Ionicons key={i} name="star" size={12} color="#FFD700" />
-                    ))}
-                  </View>
-                </View>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.menuItems}>
-              <TouchableOpacity style={styles.menuItem}>
-                <Ionicons name="time" size={20} color="black" />
-                <Text style={styles.menuText}>Ride History</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.menuItem}>
-                <Ionicons name="cash" size={20} color="black" />
-                <Text style={styles.menuText}>Earnings</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.menuItem}>
-                <Ionicons name="notifications" size={20} color="black" />
-                <Text style={styles.menuText}>Notifications</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.menuItem}>
-                <Ionicons name="call" size={20} color="black" />
-                <Text style={styles.menuText}>Support</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.menuItem}>
-                <Ionicons name="log-out" size={20} color="black" />
-                <Text style={[styles.menuText, { color: "red" }]}>Logout</Text>
-              </TouchableOpacity>
-            </View>
-
-            <TouchableOpacity style={styles.switchModeButton}>
-              <Text style={styles.switchModeText}>Switch to Rider mode</Text>
-            </TouchableOpacity>
-          </TouchableOpacity>
-        </Animated.View>
-      </TouchableOpacity>
-    </Modal>
-  );
+  const renderSidebar = () => <BurgerMenu isVisible={sidebarVisible} onClose={closeSidebar} slideAnim={slideAnim} />
 
   const renderRideCard = (ride: RideRequest) => (
     <View key={ride.id} style={styles.rideCard}>
       <View style={styles.rideHeader}>
         <View style={styles.passengerInfo}>
           <View style={styles.passengerAvatar}>
-            <Text style={styles.passengerInitial}>
-              {ride.passengerName.charAt(0)}
-            </Text>
+            <Text style={styles.passengerInitial}>{ride.passengerName.charAt(0)}</Text>
           </View>
           <View style={styles.passengerDetails}>
             <Text style={styles.passengerName}>{ride.passengerName}</Text>
@@ -301,58 +224,46 @@ const DriverLandingPage: React.FC = () => {
         </View>
       </View>
 
-      <TouchableOpacity
-        style={styles.viewRideButton}
-        onPress={() => handleViewRide(ride.id)}
-      >
+      <TouchableOpacity style={styles.viewRideButton} onPress={() => handleViewRide(ride.id)}>
         <Text style={styles.viewRideText}>View Ride</Text>
       </TouchableOpacity>
     </View>
-  );
+  )
 
   const renderOfflineContent = () => (
     <View style={styles.offlineContainer}>
       <Ionicons name="car-outline" size={80} color="#ccc" />
       <Text style={styles.offlineTitle}>You&apos;re Offline</Text>
-      <Text style={styles.offlineSubtitle}>
-        Turn online to start receiving ride requests
-      </Text>
+      <Text style={styles.offlineSubtitle}>Turn online to start receiving ride requests</Text>
     </View>
-  );
+  )
 
   const renderNoRidesContent = () => (
     <View style={styles.noRidesContainer}>
       <Ionicons name="car-outline" size={60} color="#ccc" />
       <Text style={styles.noRidesText}>No rides available</Text>
-      <Text style={styles.noRidesSubtext}>
-        Stay online and we&apos;ll notify you when rides are available
-      </Text>
+      <Text style={styles.noRidesSubtext}>Stay online and we&apos;ll notify you when rides are available</Text>
     </View>
-  );
+  )
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar backgroundColor="#fff" barStyle="dark-content" />
-      
+
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.menuButton}
-          onPress={openSidebar}
-        >
+        <TouchableOpacity style={styles.menuButton} onPress={openSidebar}>
           <Ionicons name="menu" size={24} color="#333" />
         </TouchableOpacity>
 
         <View style={styles.statusContainer}>
-          <Text style={styles.statusText}>
-            {isOnline ? 'Online' : 'Offline'}
-          </Text>
+          <Text style={styles.statusText}>{isOnline ? "Online" : "Offline"}</Text>
           <Switch
             value={isOnline}
             onValueChange={handleToggleOnline}
             disabled={!isLocationLoaded}
-            trackColor={{ false: '#767577', true: '#007AFF' }}
-            thumbColor={isOnline ? '#ffffff' : '#f4f3f4'}
+            trackColor={{ false: "#767577", true: "#007AFF" }}
+            thumbColor={isOnline ? "#ffffff" : "#f4f3f4"}
           />
         </View>
 
@@ -377,11 +288,7 @@ const DriverLandingPage: React.FC = () => {
               </View>
             </View>
             <View style={styles.spacer} />
-            {availableRides.length > 0 ? (
-              availableRides.map(renderRideCard)
-            ) : (
-              renderNoRidesContent()
-            )}
+            {availableRides.length > 0 ? availableRides.map(renderRideCard) : renderNoRidesContent()}
           </>
         ) : (
           renderOfflineContent()
@@ -390,36 +297,36 @@ const DriverLandingPage: React.FC = () => {
 
       {renderSidebar()}
     </SafeAreaView>
-  );
-};
+  )
+}
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: "#f5f5f5",
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: "#e0e0e0",
   },
   menuButton: {
     padding: 8,
   },
   statusContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
   },
   statusText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: "600",
+    color: "#333",
   },
   profileButton: {
     padding: 4,
@@ -428,13 +335,13 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#E0E0E0',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#E0E0E0",
+    alignItems: "center",
+    justifyContent: "center",
   },
   headerProfileInitial: {
-    color: '#007AFF',
-    fontWeight: '600',
+    color: "#007AFF",
+    fontWeight: "600",
     fontSize: 16,
   },
   content: {
@@ -442,254 +349,173 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   titleContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
     marginBottom: 8,
   },
   sectionTitle: {
     fontSize: 20,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: "600",
+    color: "#333",
     flex: 1,
   },
   currentLocationContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    maxWidth: '45%',
+    flexDirection: "row",
+    alignItems: "center",
+    maxWidth: "45%",
   },
   currentLocationText: {
     fontSize: 12,
-    color: '#666',
+    color: "#666",
     marginLeft: 4,
-    textAlign: 'right',
+    textAlign: "right",
   },
   spacer: {
     height: 16,
   },
   rideCard: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     elevation: 2,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
   rideHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 12,
   },
   passengerInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     flex: 1,
   },
   passengerAvatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#E0E0E0',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#E0E0E0",
+    alignItems: "center",
+    justifyContent: "center",
     marginRight: 12,
   },
   passengerInitial: {
-    fontWeight: '600',
+    fontWeight: "600",
     fontSize: 16,
-    color: '#007AFF',
+    color: "#007AFF",
   },
   passengerDetails: {
     flex: 1,
   },
   passengerName: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: "600",
+    color: "#333",
   },
   rideDistance: {
     fontSize: 12,
-    color: '#666',
+    color: "#666",
   },
   timeAway: {
     fontSize: 12,
-    color: '#666',
+    color: "#666",
   },
   fareAmount: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: "bold",
+    color: "#333",
   },
   locationContainer: {
     marginBottom: 16,
   },
   locationRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    alignItems: "flex-start",
     marginBottom: 8,
   },
   dotLineContainer: {
     width: 20,
-    alignItems: 'center',
+    alignItems: "center",
     marginRight: 8,
   },
   greenDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#4CAF50',
+    backgroundColor: "#4CAF50",
   },
   redDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#F44336',
+    backgroundColor: "#F44336",
   },
   verticalLine: {
     width: 2,
     height: 24,
-    backgroundColor: '#ccc',
+    backgroundColor: "#ccc",
     marginTop: 4,
     marginBottom: 4,
   },
   locationText: {
     fontSize: 14,
-    color: '#333',
+    color: "#333",
     flex: 1,
     marginTop: -2,
   },
   viewRideButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: "#007AFF",
     paddingVertical: 12,
     borderRadius: 8,
-    alignItems: 'center',
+    alignItems: "center",
   },
   viewRideText: {
-    color: '#fff',
-    fontWeight: '600',
+    color: "#fff",
+    fontWeight: "600",
     fontSize: 16,
   },
   offlineContainer: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 60,
   },
   offlineTitle: {
     fontSize: 24,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: "600",
+    color: "#333",
     marginTop: 16,
     marginBottom: 8,
   },
   offlineSubtitle: {
     fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
+    color: "#666",
+    textAlign: "center",
     marginBottom: 24,
   },
   noRidesContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 40,
   },
   noRidesText: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: "600",
+    color: "#333",
     marginTop: 16,
     marginBottom: 8,
   },
   noRidesSubtext: {
     fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
+    color: "#666",
+    textAlign: "center",
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-start',
-    alignItems: 'flex-start',
-  },
-  sidebar: {
-    width: width * 0.7,
-    height: '100%',
-    backgroundColor: '#fff',
-    paddingTop: 40,
-  },
-  sidebarHeader: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  profileSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  profileImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#E0E0E0',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  profileInitial: {
-    color: '#007AFF',
-    fontWeight: '600',
-    fontSize: 20,
-  },
-  profileInfo: {
-    flex: 1,
-  },
-  profileName: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 4,
-  },
-  ratingContainer: {
-    flexDirection: 'row',
-    gap: 2,
-    justifyContent: 'flex-start',
-  },
-  menuItems: {
-    paddingTop: 20,
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    gap: 16,
-  },
-  menuText: {
-    fontSize: 16,
-    color: '#333',
-  },
-  switchModeButton: {
-    margin: 20,
-    backgroundColor: '#007AFF',
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    position: 'absolute',
-    bottom: 40,
-    left: 0,
-    right: 0,
-  },
-  switchModeText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 16,
-  },
-});
+})
 
-export default DriverLandingPage;
+export default DriverLandingPage
