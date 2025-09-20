@@ -216,7 +216,7 @@ const PickupPage: React.FC = () => {
         text: "Yes, Cancel",
         style: "destructive",
         onPress: () => {
-          router.replace("/landing_page")
+          router.replace("/landing-page" as any)
         },
       },
     ])
@@ -232,28 +232,27 @@ const PickupPage: React.FC = () => {
 
   const handleWhatsApp = async () => {
     if (params.passengerPhone) {
-        const phone = params.passengerPhone.replace(/\D/g, ""); 
-        const message = `Hi ${params.passengerName || "there"}, I'm your driver and I'm on my way to pick you up.`;
+      const phone = params.passengerPhone.replace(/\D/g, "")
+      const message = `Hi ${params.passengerName || "there"}, I'm your driver and I'm on my way to pick you up.`
 
-        try {
-        const whatsappUrl = `whatsapp://send?phone=${phone}&text=${encodeURIComponent(message)}`;
-        const canOpen = await Linking.canOpenURL(whatsappUrl);
+      try {
+        const whatsappUrl = `whatsapp://send?phone=${phone}&text=${encodeURIComponent(message)}`
+        const canOpen = await Linking.canOpenURL(whatsappUrl)
 
         if (canOpen) {
-            await Linking.openURL(whatsappUrl);
+          await Linking.openURL(whatsappUrl)
         } else {
-            // Fallback: open in browser
-            const webWhatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
-            await Linking.openURL(webWhatsappUrl);
+          // Fallback: open in browser
+          const webWhatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
+          await Linking.openURL(webWhatsappUrl)
         }
-        } catch (error) {
-        Alert.alert("Error", "Could not open WhatsApp. Please make sure WhatsApp is installed.");
-        }
+      } catch (error) {
+        Alert.alert("Error", "Could not open WhatsApp. Please make sure WhatsApp is installed.")
+      }
     } else {
-        Alert.alert("Error", "Passenger phone number not available");
+      Alert.alert("Error", "Passenger phone number not available")
     }
-    };
-
+  }
 
   const getInitial = (name?: string) => name?.charAt(0).toUpperCase() || "P"
 
@@ -410,7 +409,7 @@ const styles = StyleSheet.create({
     left: 16,
     zIndex: 1000,
     backgroundColor: "#fff",
-    borderRadius: 25,
+    borderRadius: 30,
     padding: 8,
     elevation: 4,
     shadowColor: "#000",
@@ -420,6 +419,7 @@ const styles = StyleSheet.create({
   },
   menuButton: {
     padding: 4,
+    borderRadius: 20,
   },
   mapContainer: {
     flex: 1,
@@ -447,8 +447,8 @@ const styles = StyleSheet.create({
   bottomCard: {
     backgroundColor: "#E3F2FD",
     padding: 20,
-    borderTopLeftRadius: 35,
-    borderTopRightRadius: 35,
+    borderTopLeftRadius: 40,
+    borderTopRightRadius: 40,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
@@ -464,20 +464,20 @@ const styles = StyleSheet.create({
   avatar: {
     width: 50,
     height: 50,
-    borderRadius: 25,
+    borderRadius: 30,
     marginRight: 12,
   },
   avatarPlaceholder: {
     width: 50,
     height: 50,
-    borderRadius: 25,
+    borderRadius: 30,
     marginRight: 12,
     backgroundColor: "#E0E0E0",
     justifyContent: "center",
     alignItems: "center",
   },
   avatarInitial: {
-    color: "#007AFF",
+    color: "#0286FF",
     fontSize: 20,
     fontWeight: "600",
   },
@@ -496,15 +496,15 @@ const styles = StyleSheet.create({
   callButton: {
     width: 48,
     height: 48,
-    borderRadius: 24,
-    backgroundColor: "#007AFF",
+    borderRadius: 30,
+    backgroundColor: "#0286FF",
     justifyContent: "center",
     alignItems: "center",
   },
   whatsappButton: {
     width: 48,
     height: 48,
-    borderRadius: 24,
+    borderRadius: 30,
     backgroundColor: "#25D366",
     justifyContent: "center",
     alignItems: "center",
@@ -518,7 +518,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     backgroundColor: "#f8f8f8",
-    borderRadius: 12,
+    borderRadius: 24,
     marginBottom: 8,
   },
   locationText: {
@@ -539,9 +539,9 @@ const styles = StyleSheet.create({
   fareContainer: {
     backgroundColor: "#fff",
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 20,
     borderLeftWidth: 4,
-    borderLeftColor: "#007AFF",
+    borderLeftColor: "#0286FF",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -563,7 +563,7 @@ const styles = StyleSheet.create({
   currencySymbol: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#007AFF",
+    color: "#0286FF",
     marginRight: 4,
   },
   fareAmount: {
@@ -579,7 +579,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#f8f8f8",
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: 24,
     alignItems: "center",
     borderWidth: 1,
     borderColor: "#e0e0e0",
@@ -591,9 +591,9 @@ const styles = StyleSheet.create({
   },
   imHereButton: {
     flex: 1,
-    backgroundColor: "#007AFF",
+    backgroundColor: "#0286FF",
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: 24,
     alignItems: "center",
   },
   imHereButtonText: {
@@ -609,7 +609,7 @@ const styles = StyleSheet.create({
   carIcon: {
     width: 32,
     height: 32,
-    tintColor: "#007AFF",
+    tintColor: "#0286FF",
   },
 })
 

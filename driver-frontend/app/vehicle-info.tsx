@@ -185,7 +185,7 @@ export default function VehicleInfo() {
               <MaterialCommunityIcons
                 name={type.icon as any}
                 size={32}
-                color={vehicleType === type.label ? "#007BFF" : "#888"}
+                color={vehicleType === type.label ? "#0286FF" : "#888"}
               />
               <Text style={styles.iconLabel}>{type.label}</Text>
             </TouchableOpacity>
@@ -291,7 +291,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   iconBoxSelected: {
-    borderColor: "#007BFF",
+    borderColor: "#0286FF",
     backgroundColor: "#e6f0ff",
   },
   iconLabel: {

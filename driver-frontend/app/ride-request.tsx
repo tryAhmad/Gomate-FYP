@@ -33,7 +33,7 @@ type RideParams = {
   passengerName?: string
   profilePhoto?: string
   timeAway?: string
-  passengerPhone?: string 
+  passengerPhone?: string
 }
 
 const RideRequestPage: React.FC = () => {
@@ -135,19 +135,19 @@ const RideRequestPage: React.FC = () => {
 
   const handleAcceptRide = () => {
     router.push({
-              pathname: "/pickup",
-              params: {
-                rideId: params.rideId,
-                pickup: params.pickup,
-                destination: params.destination,
-                fare: params.fare,
-                distance: params.distance,
-                passengerName: params.passengerName,
-                profilePhoto: params.profilePhoto,
-                timeAway: params.timeAway,
-                passengerPhone: params.passengerPhone, 
-              },
-            })
+      pathname: "/pickup",
+      params: {
+        rideId: params.rideId,
+        pickup: params.pickup,
+        destination: params.destination,
+        fare: params.fare,
+        distance: params.distance,
+        passengerName: params.passengerName,
+        profilePhoto: params.profilePhoto,
+        timeAway: params.timeAway,
+        passengerPhone: params.passengerPhone,
+      },
+    })
     Alert.alert(
       "Ride Accepted",
       "Navigate to pickup location",
@@ -297,25 +297,27 @@ const RideRequestPage: React.FC = () => {
 
           {/* Offer Your Fare Section */}
           <Text style={styles.offerText}>Offer your Fare</Text>
-          <View style={styles.counterRow}>
-            <Text style={styles.currencyText}>Rs</Text>
-            <TextInput
-              ref={inputRef}
-              style={styles.input}
-              value={counterFare}
-              onChangeText={setCounterFare}
-              onFocus={focusOnInput}
-              onBlur={handleInputBlur}
-              keyboardType="numeric"
-              placeholder="Enter amount"
-              placeholderTextColor="#999"
-              returnKeyType="done"
-              onSubmitEditing={() => {
-                if (counterFare) {
-                  handleOfferFare()
-                }
-              }}
-            />
+          <View style={styles.fareInputContainer}>
+            <View style={styles.counterRow}>
+              <Text style={styles.currencyText}>Rs</Text>
+              <TextInput
+                ref={inputRef}
+                style={styles.input}
+                value={counterFare}
+                onChangeText={setCounterFare}
+                onFocus={focusOnInput}
+                onBlur={handleInputBlur}
+                keyboardType="numeric"
+                placeholder="Enter amount"
+                placeholderTextColor="#999"
+                returnKeyType="done"
+                onSubmitEditing={() => {
+                  if (counterFare) {
+                    handleOfferFare()
+                  }
+                }}
+              />
+            </View>
             <TouchableOpacity style={styles.sendButton} onPress={handleOfferFare}>
               <Text style={styles.sendText}>Send</Text>
             </TouchableOpacity>
@@ -387,8 +389,8 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: "#E3F2FD",
     padding: 20,
-    borderTopLeftRadius: 35,
-    borderTopRightRadius: 35,
+    borderTopLeftRadius: 40,
+    borderTopRightRadius: 40,
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
@@ -415,14 +417,14 @@ const styles = StyleSheet.create({
   avatar: {
     width: 50,
     height: 50,
-    borderRadius: 25,
+    borderRadius: 30,
     marginRight: 12,
   },
 
   avatarPlaceholder: {
     width: 50,
     height: 50,
-    borderRadius: 25,
+    borderRadius: 30,
     marginRight: 12,
     backgroundColor: "#E0E0E0",
     justifyContent: "center",
@@ -430,7 +432,7 @@ const styles = StyleSheet.create({
   },
 
   avatarInitial: {
-    color: "#007AFF",
+    color: "#0286FF",
     fontSize: 20,
     fontWeight: "600",
   },
@@ -467,7 +469,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     backgroundColor: "#f8f8f8",
-    borderRadius: 12,
+    borderRadius: 24,
     marginBottom: 8,
   },
 
@@ -486,9 +488,9 @@ const styles = StyleSheet.create({
   },
 
   acceptButton: {
-    backgroundColor: "#007AFF",
+    backgroundColor: "#0286FF",
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: 24,
     alignItems: "center",
     marginBottom: 20,
   },
@@ -499,24 +501,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 
-  sendButton: {
-    backgroundColor: "#4CAF50",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    height: "100%",
-    borderTopLeftRadius: 12,
-    borderBottomLeftRadius: 12,
-    borderTopRightRadius: 12,
-    borderBottomRightRadius: 12,
-  },
-
-  sendText: {
-    color: "#fff",
-    fontWeight: "600",
-    fontSize: 14,
-  },
-
   offerText: {
     fontSize: 16,
     fontWeight: "600",
@@ -524,18 +508,21 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
 
+  fareInputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 20,
+    gap: 12,
+  },
+
   counterRow: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#f8f8f8",
-    borderRadius: 12,
-    marginBottom: 20,
-    height: 50,
+    borderRadius: 24,
+    height: 45,
     overflow: "hidden",
-  },
-
-  rupeeIcon: {
-    marginRight: 8,
   },
 
   currencyText: {
@@ -550,6 +537,23 @@ const styles = StyleSheet.create({
     color: "#333",
     height: "100%",
     paddingHorizontal: 8,
+    paddingRight: 12,
+  },
+
+  sendButton: {
+    backgroundColor: "#4CAF50",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 30,
+    height: 45,
+    borderRadius: 24,
+    minWidth: 100,
+  },
+
+  sendText: {
+    color: "#fff",
+    fontWeight: "600",
+    fontSize: 16,
   },
 })
 

@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
   },
   estimateText: {
     fontSize: 14,
-    color: '#007AFF',
+    color: '#0286FF',
     fontWeight: '600',
     marginTop: 8,
   },
@@ -234,7 +234,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#007AFF',
+    backgroundColor: '#0286FF',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -261,7 +261,7 @@ const styles = StyleSheet.create({
   },
   statusTextActive: {
     fontSize: 14,
-    color: '#007AFF',
+    color: '#0286FF',
     fontWeight: '600',
   },
   statusTextPending: {

@@ -322,6 +322,7 @@ const styles = StyleSheet.create({
   },
   menuButton: {
     padding: 8,
+    borderRadius: 20,
   },
   statusContainer: {
     flexDirection: "row",
@@ -335,17 +336,18 @@ const styles = StyleSheet.create({
   },
   profileButton: {
     padding: 4,
+    borderRadius: 20,
   },
   headerProfileImage: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: 24,
     backgroundColor: "#E0E0E0",
     alignItems: "center",
     justifyContent: "center",
   },
   headerProfileInitial: {
-    color: "#007AFF",
+    color: "#0286FF",
     fontWeight: "600",
     fontSize: 16,
   },
@@ -381,7 +383,7 @@ const styles = StyleSheet.create({
   },
   rideCard: {
     backgroundColor: "#fff",
-    borderRadius: 12,
+    borderRadius: 20,
     padding: 16,
     marginBottom: 12,
     elevation: 2,
@@ -404,7 +406,7 @@ const styles = StyleSheet.create({
   passengerAvatar: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: 25,
     backgroundColor: "#E0E0E0",
     alignItems: "center",
     justifyContent: "center",
@@ -413,7 +415,7 @@ const styles = StyleSheet.create({
   passengerInitial: {
     fontWeight: "600",
     fontSize: 16,
-    color: "#007AFF",
+    color: "#0286FF",
   },
   passengerDetails: {
     flex: 1,
@@ -475,9 +477,9 @@ const styles = StyleSheet.create({
     marginTop: -2,
   },
   viewRideButton: {
-    backgroundColor: "#007AFF",
+    backgroundColor: "#0286FF",
     paddingVertical: 12,
-    borderRadius: 8,
+    borderRadius: 20,
     alignItems: "center",
   },
   viewRideText: {
