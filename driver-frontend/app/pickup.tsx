@@ -18,6 +18,7 @@ import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons"
 import { useRouter, useLocalSearchParams } from "expo-router"
 import MapView, { PROVIDER_GOOGLE, Marker, Polyline } from "react-native-maps"
 import { getCoordinatesFromAddress, getRouteCoordinates } from "@/utils/getRoute"
+import { calculateDistanceAndTime } from "@/utils/distanceCalculation"
 import BurgerMenu from "@/components/burger-menu"
 import * as Location from "expo-location"
 
@@ -46,10 +47,12 @@ const PickupPage: React.FC = () => {
   const [destinationCoord, setDestinationCoord] = useState<{ latitude: number; longitude: number } | null>(null)
   const [routeCoords, setRouteCoords] = useState<{ latitude: number; longitude: number }[]>([])
   const [driverRouteCoords, setDriverRouteCoords] = useState<{ latitude: number; longitude: number }[]>([])
+  const [remainingRouteCoords, setRemainingRouteCoords] = useState<{ latitude: number; longitude: number }[]>([])
   const [driverLocation, setDriverLocation] = useState<{ latitude: number; longitude: number } | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [sidebarVisible, setSidebarVisible] = useState(false)
   const [slideAnim] = useState(new Animated.Value(-width * 0.7))
+  const [hasArrived, setHasArrived] = useState(false)
 
   const DEFAULT_REGION = {
     latitude: 31.5204,
@@ -83,10 +86,15 @@ const PickupPage: React.FC = () => {
             distanceInterval: 10,
           },
           (location) => {
-            setDriverLocation({
+            const newLocation = {
               latitude: location.coords.latitude,
               longitude: location.coords.longitude,
-            })
+            }
+            setDriverLocation(newLocation)
+
+            if (!hasArrived) {
+              consumeRouteSegments(newLocation)
+            }
           },
         )
 
@@ -160,6 +168,7 @@ const PickupPage: React.FC = () => {
         if (driverLocation) {
           const driverRoute = await getRouteCoordinates(driverLocation, pickupCoords)
           setDriverRouteCoords(driverRoute)
+          setRemainingRouteCoords(driverRoute)
         }
 
         setTimeout(() => {
@@ -183,16 +192,17 @@ const PickupPage: React.FC = () => {
   }
 
   useEffect(() => {
-    if (driverLocation && pickupCoord) {
+    if (driverLocation && pickupCoord && !hasArrived) {
       updateDriverRoute()
     }
   }, [driverLocation, pickupCoord])
 
   const updateDriverRoute = async () => {
-    if (driverLocation && pickupCoord) {
+    if (driverLocation && pickupCoord && !hasArrived) {
       try {
         const driverRoute = await getRouteCoordinates(driverLocation, pickupCoord)
         setDriverRouteCoords(driverRoute)
+        setRemainingRouteCoords(driverRoute)
       } catch (error) {
         console.error("Error updating driver route:", error)
       }
@@ -225,13 +235,42 @@ const PickupPage: React.FC = () => {
       [
         {
           text: "OK",
-          onPress: () => {
+          onPress: async () => {
             console.log("Driver marked as arrived")
+            setHasArrived(true) // change button
+
+            if (pickupCoord && destinationCoord) {
+              try {
+                // Get route coordinates from pickup to destination
+                const pickupToDestinationRoute = await getRouteCoordinates(pickupCoord, destinationCoord)
+                setRouteCoords(pickupToDestinationRoute)
+
+                // Move car marker to pickup location
+                setDriverLocation(pickupCoord)
+
+                setDriverRouteCoords([])
+                setRemainingRouteCoords([])
+
+                // Fit map to show pickup to destination route
+                setTimeout(() => {
+                  mapRef.current?.fitToCoordinates([pickupCoord, destinationCoord], {
+                    edgePadding: { top: 80, right: 80, bottom: 80, left: 80 },
+                    animated: true,
+                  })
+                }, 500)
+              } catch (error) {
+                console.error("Error loading pickup to destination route:", error)
+              }
+            }
           },
         },
       ],
       { cancelable: false },
     )
+  }
+
+  const handleStartRide = () => {
+    Alert.alert("Ride Started", "Navigate to the destination location.")
   }
 
   const handleCancel = () => {
@@ -283,6 +322,46 @@ const PickupPage: React.FC = () => {
   }
 
   const getInitial = (name?: string) => name?.charAt(0).toUpperCase() || "P"
+
+  const consumeRouteSegments = async (currentLocation: { latitude: number; longitude: number }) => {
+    if (remainingRouteCoords.length === 0 || !pickupCoord) return
+
+    const CONSUMPTION_THRESHOLD = 50 // meters - how close driver needs to be to consume a segment
+
+    try {
+      const distanceResult = await calculateDistanceAndTime(
+        "", // origin address not needed since we're using driver location
+        params.pickup || "",
+        currentLocation,
+      )
+
+      // If driver is very close to pickup (within threshold), consume more route segments
+      if (distanceResult.distanceValue <= CONSUMPTION_THRESHOLD) {
+        // Remove a larger portion of the route when very close
+        const segmentsToRemove = Math.min(5, remainingRouteCoords.length)
+        const newRemainingCoords = remainingRouteCoords.slice(segmentsToRemove)
+        setRemainingRouteCoords(newRemainingCoords)
+        setDriverRouteCoords(newRemainingCoords)
+      } else {
+        // Progressive consumption based on distance - closer means more consumption
+        const consumptionRate = Math.max(1, Math.floor(remainingRouteCoords.length / 20))
+        const distanceBasedConsumption = distanceResult.distanceValue < 500 ? consumptionRate * 2 : consumptionRate
+
+        if (remainingRouteCoords.length > distanceBasedConsumption) {
+          const newRemainingCoords = remainingRouteCoords.slice(distanceBasedConsumption)
+          setRemainingRouteCoords(newRemainingCoords)
+          setDriverRouteCoords(newRemainingCoords)
+        }
+      }
+    } catch (error) {
+      console.error("Error in Google API route consumption:", error)
+      if (remainingRouteCoords.length > 1) {
+        const newRemainingCoords = remainingRouteCoords.slice(1)
+        setRemainingRouteCoords(newRemainingCoords)
+        setDriverRouteCoords(newRemainingCoords)
+      }
+    }
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -343,14 +422,25 @@ const PickupPage: React.FC = () => {
             </Marker>
           )}
 
-          {driverRouteCoords.length > 0 && (
+          {remainingRouteCoords.length > 0 && !hasArrived && (
             <Polyline
-              coordinates={driverRouteCoords}
+              coordinates={remainingRouteCoords}
               strokeWidth={5}
               strokeColor="#808080"
               lineCap="round"
               lineJoin="round"
               zIndex={2}
+            />
+          )}
+
+          {routeCoords.length > 0 && (
+            <Polyline
+              coordinates={routeCoords}
+              strokeWidth={5}
+              strokeColor="#4CAF50"
+              lineCap="round"
+              lineJoin="round"
+              zIndex={3}
             />
           )}
         </MapView>
@@ -415,9 +505,15 @@ const PickupPage: React.FC = () => {
             <Text style={styles.cancelButtonText}>Cancel</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.imHereButton} onPress={handleImHere}>
-            <Text style={styles.imHereButtonText}>I&apos;m here</Text>
-          </TouchableOpacity>
+          {hasArrived ? (
+            <TouchableOpacity style={styles.imHereButton} onPress={handleStartRide}>
+              <Text style={styles.imHereButtonText}>Start Ride</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity style={styles.imHereButton} onPress={handleImHere}>
+              <Text style={styles.imHereButtonText}>I&apos;m here</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
