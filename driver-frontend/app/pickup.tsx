@@ -53,6 +53,7 @@ const PickupPage: React.FC = () => {
   const [sidebarVisible, setSidebarVisible] = useState(false)
   const [slideAnim] = useState(new Animated.Value(-width * 0.7))
   const [hasArrived, setHasArrived] = useState(false)
+  const [rideStarted, setRideStarted] = useState(false) // New state for ride started
 
   const DEFAULT_REGION = {
     latitude: 31.5204,
@@ -228,49 +229,66 @@ const PickupPage: React.FC = () => {
     })
   }
 
-  const handleImHere = () => {
+  const handleImHere = async () => {
+    console.log("Driver marked as arrived")
+    setHasArrived(true)
+
     Alert.alert(
       "Passenger Notified",
       "The passenger has been notified that you have arrived at the pickup location.",
-      [
-        {
-          text: "OK",
-          onPress: async () => {
-            console.log("Driver marked as arrived")
-            setHasArrived(true) // change button
-
-            if (pickupCoord && destinationCoord) {
-              try {
-                // Get route coordinates from pickup to destination
-                const pickupToDestinationRoute = await getRouteCoordinates(pickupCoord, destinationCoord)
-                setRouteCoords(pickupToDestinationRoute)
-
-                // Move car marker to pickup location
-                setDriverLocation(pickupCoord)
-
-                setDriverRouteCoords([])
-                setRemainingRouteCoords([])
-
-                // Fit map to show pickup to destination route
-                setTimeout(() => {
-                  mapRef.current?.fitToCoordinates([pickupCoord, destinationCoord], {
-                    edgePadding: { top: 80, right: 80, bottom: 80, left: 80 },
-                    animated: true,
-                  })
-                }, 500)
-              } catch (error) {
-                console.error("Error loading pickup to destination route:", error)
-              }
-            }
-          },
-        },
-      ],
+      [{ text: "OK" }],
       { cancelable: false },
     )
+
+    // Handle route updates
+    if (pickupCoord && destinationCoord) {
+      try {
+        // Get route coordinates from pickup to destination
+        const pickupToDestinationRoute = await getRouteCoordinates(pickupCoord, destinationCoord)
+        setRouteCoords(pickupToDestinationRoute)
+
+        // Move car marker to pickup location
+        setDriverLocation(pickupCoord)
+
+        setDriverRouteCoords([])
+        setRemainingRouteCoords([])
+
+        // Fit map to show pickup to destination route
+        setTimeout(() => {
+          mapRef.current?.fitToCoordinates([pickupCoord, destinationCoord], {
+            edgePadding: { top: 80, right: 80, bottom: 80, left: 80 },
+            animated: true,
+          })
+        }, 500)
+      } catch (error) {
+        console.error("Error loading pickup to destination route:", error)
+      }
+    }
   }
 
   const handleStartRide = () => {
-    Alert.alert("Ride Started", "Navigate to the destination location.")
+    console.log("Setting ride started to true") 
+    setRideStarted(true) 
+
+    Alert.alert("Ride Started", "Navigate to the destination location.", [
+      { text: "OK" },
+    ])
+  }
+
+  const handleEndRide = () => {
+    Alert.alert("End Ride", "Are you sure you want to end this ride?", [
+      {
+        text: "Cancel",
+        style: "cancel",
+      },
+      {
+        text: "End Ride",
+        style: "destructive",
+        onPress: () => {
+          router.replace("/" as any)
+        },
+      },
+    ])
   }
 
   const handleCancel = () => {
@@ -466,14 +484,17 @@ const PickupPage: React.FC = () => {
             <Text style={styles.passengerName}>{params.passengerName || "Passenger"}</Text>
           </View>
 
-          <View style={styles.contactButtons}>
-            <TouchableOpacity style={styles.callButton} onPress={handleCall}>
-              <Ionicons name="call" size={24} color="#fff" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.whatsappButton} onPress={handleWhatsApp}>
-              <Ionicons name="logo-whatsapp" size={24} color="#fff" />
-            </TouchableOpacity>
-          </View>
+          {/* Hide contact buttons when ride has started */}
+          {!rideStarted && (
+            <View style={styles.contactButtons}>
+              <TouchableOpacity style={styles.callButton} onPress={handleCall}>
+                <Ionicons name="call" size={24} color="#fff" />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.whatsappButton} onPress={handleWhatsApp}>
+                <Ionicons name="logo-whatsapp" size={24} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
         <View style={styles.locationSection}>
@@ -500,21 +521,32 @@ const PickupPage: React.FC = () => {
           </View>
         </View>
 
-        <View style={styles.actionButtons}>
-          <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
-            <Text style={styles.cancelButtonText}>Cancel</Text>
-          </TouchableOpacity>
+        {/* Conditional rendering of action buttons based on ride state */}
+        {rideStarted ? (
+          // Show only End Ride button when ride has started
+          <View style={styles.singleButtonContainer}>
+            <TouchableOpacity style={styles.endRideButton} onPress={handleEndRide}>
+              <Text style={styles.endRideButtonText}>End Ride</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          // Show original action buttons before ride starts
+          <View style={styles.actionButtons}>
+            <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
 
-          {hasArrived ? (
-            <TouchableOpacity style={styles.imHereButton} onPress={handleStartRide}>
-              <Text style={styles.imHereButtonText}>Start Ride</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity style={styles.imHereButton} onPress={handleImHere}>
-              <Text style={styles.imHereButtonText}>I&apos;m here</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+            {hasArrived ? (
+              <TouchableOpacity style={styles.imHereButton} onPress={handleStartRide}>
+                <Text style={styles.imHereButtonText}>Start Ride</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity style={styles.imHereButton} onPress={handleImHere}>
+                <Text style={styles.imHereButtonText}>I&apos;m here</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
       </View>
 
       <BurgerMenu isVisible={sidebarVisible} onClose={closeSidebar} slideAnim={slideAnim} />
@@ -725,6 +757,25 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontSize: 16,
   },
+  // New styles for the End Ride button
+  singleButtonContainer: {
+    alignItems: "center",
+  },
+  endRideButton: {
+    backgroundColor: "#f8f8f8",
+    paddingVertical: 16,
+    paddingHorizontal: 40,
+    borderRadius: 24,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+    minWidth: 200,
+  },
+  endRideButtonText: {
+    color: "#FF4444",
+    fontWeight: "600",
+    fontSize: 16,
+  },
   driverMarker: {
     backgroundColor: "transparent",
     alignItems: "center",
@@ -733,7 +784,7 @@ const styles = StyleSheet.create({
   carIcon: {
     width: 32,
     height: 32,
-    tintColor: "#0286FF",
+    tintColor: "#000000ff",
   },
 })
 
