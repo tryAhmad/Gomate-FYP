@@ -105,7 +105,7 @@ const newHome = () => {
   const [showDropoffSuggestions, setShowDropoffSuggestions] = useState(false);
   const [driverArrived, setDriverArrived] = useState(false);
   const [rideStatus, setRideStatus] = useState<
-    "idle" | "driver_arrived" | "started"
+    "idle" | "driver_arrived" | "started" | "completed"
   >("idle");
 
   const [currentLocation, setCurrentLocation] =
@@ -161,6 +161,36 @@ const newHome = () => {
     socket.on("rideStarted", (data) => {
       console.log("Ride started:", data.message);
       setRideStatus("started");
+    });
+
+    // ✅ Listen for ride completion
+    socket.on("rideCompleted", (data) => {
+      console.log("Ride completed:", data.message);
+      setRideStatus("completed");
+
+      Notifications.scheduleNotificationAsync({
+        content: {
+          title: "Ride Completed ✅",
+          body: `Your ride has been completed successfully.`,
+        },
+        trigger: null,
+      });
+      // ✅ Collect ride details
+      // inside rideCompleted socket listener
+      const rideData = {
+        driverName:
+          `${acceptedDriver?.firstname ?? ""} ${acceptedDriver?.lastname ?? ""}`.trim(),
+        driverCarCompany: acceptedDriver?.car?.company ?? "",
+        driverCarModel: acceptedDriver?.car?.model ?? "",
+        pickup: pickup ?? "",
+        dropoff: dropoff ?? "",
+        fare: fare?.toString() ?? "0",
+      };
+
+      router.push({
+        pathname: "/(screens)/ratingScreen",
+        params: rideData,
+      });
     });
 
     socket.on("disconnect", () => {
@@ -874,7 +904,7 @@ const newHome = () => {
 
               {rideStatus === "started" && (
                 <View className="flex-row justify-center items-center p-1 mb-2">
-                  <Text className="text-3xl font-JakartaExtraBold p-2">
+                  <Text className="text-2xl font-JakartaExtraBold p-2">
                     Ride in Progress
                   </Text>
                 </View>
