@@ -168,6 +168,18 @@ export class RideRequestService {
     );
   }
 
+  async completeRide(rideId: string) {
+    return await this.rideRequestModel.findByIdAndUpdate(
+      rideId,
+      {
+        $set: {
+          status: 'completed',
+        },
+      },
+      { new: true },
+    );
+  }
+
   async getPassengerRideHistory(passengerId: string) {
     const rides = await this.rideRequestModel
       .find({ passengerID: passengerId })

@@ -59,10 +59,10 @@ export default function RideHistoryScreen() {
     const fetchHistory = async () => {
       try {
         const res = await axios.get(
-          "http://192.168.1.44:3000/ride-request/history",
+          "http://192.168.1.49:3000/ride-request/history",
           {
             headers: {
-              Authorization: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFobWFkQGV4YW1wbGUuY29tIiwic3ViIjoiNjg4YzY5ZjIwNjUzZWMwZjQzZGY2ZTJjIiwicm9sZSI6InBhc3NlbmdlciIsImlhdCI6MTc1ODI2MzU2NywiZXhwIjoxNzU4MzQ5OTY3fQ.U1IUGTEujs4yUM6tyHn5qNBZu074T97i6nA0b7LVGSM`,
+              Authorization: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFobWFkQGV4YW1wbGUuY29tIiwic3ViIjoiNjg4YzY5ZjIwNjUzZWMwZjQzZGY2ZTJjIiwicm9sZSI6InBhc3NlbmdlciIsImlhdCI6MTc1ODYwNjk1NiwiZXhwIjoxNzU4NjkzMzU2fQ.49u9P_NVGSMFn6BPW9XuJrFfMTSQdb-D0iTYVmkQCKE`,
             },
           }
         );

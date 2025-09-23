@@ -31,7 +31,7 @@ const SupportScreen = () => {
   // Email
   const handleEmail = async () => {
     const email = "support@gomate.com";
-    const url = `mailto:${email}?subject=Support&body=Hello,%20I%20need%20help.`;
+    const url = `mailto:${email}?subject=Support&body=Hello,%20I%20need%20Support.`;
     try {
       const supported = await Linking.canOpenURL(url);
       if (supported) {
@@ -128,7 +128,7 @@ const SupportScreen = () => {
         <View className="bg-white shadow-md rounded-2xl p-5 mb-5">
           <TouchableOpacity
             onPress={handleWhatsApp}
-            className="flex-row items-center justify-center bg-green-600 p-4 rounded-2xl"
+            className="flex-row items-center justify-center bg-green-500 p-4 rounded-2xl"
           >
             <Ionicons name="logo-whatsapp" size={26} color="white" />
             <Text className="text-white text-xl font-JakartaSemiBold ml-2">

@@ -80,10 +80,10 @@ export default function RideDetailModal({ visible, onClose, ride }: Props) {
       try {
         setLoadingDriver(true);
         const res = await axios.get(
-          `http://192.168.1.44:3000/drivers/${ride.driverID}`,
+          `http://192.168.1.49:3000/drivers/${ride.driverID}`,
           {
             headers: {
-              Authorization: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFobWFkQGV4YW1wbGUuY29tIiwic3ViIjoiNjg4YzY5ZjIwNjUzZWMwZjQzZGY2ZTJjIiwicm9sZSI6InBhc3NlbmdlciIsImlhdCI6MTc1ODI2MzU2NywiZXhwIjoxNzU4MzQ5OTY3fQ.U1IUGTEujs4yUM6tyHn5qNBZu074T97i6nA0b7LVGSM`, // adjust if JWT needed
+              Authorization: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFobWFkQGV4YW1wbGUuY29tIiwic3ViIjoiNjg4YzY5ZjIwNjUzZWMwZjQzZGY2ZTJjIiwicm9sZSI6InBhc3NlbmdlciIsImlhdCI6MTc1ODYwNjk1NiwiZXhwIjoxNzU4NjkzMzU2fQ.49u9P_NVGSMFn6BPW9XuJrFfMTSQdb-D0iTYVmkQCKE`, // adjust if JWT needed
             },
           }
         );
@@ -126,6 +126,8 @@ export default function RideDetailModal({ visible, onClose, ride }: Props) {
           <MapView
             ref={mapRef}
             style={{ flex: 1 }}
+            zoomEnabled={false}
+            scrollEnabled={false}
             initialRegion={{
               latitude: pickupCoords?.latitude || 0,
               longitude: pickupCoords?.longitude || 0,

@@ -104,6 +104,9 @@ const newHome = () => {
   const [showPickupSuggestions, setShowPickupSuggestions] = useState(false);
   const [showDropoffSuggestions, setShowDropoffSuggestions] = useState(false);
   const [driverArrived, setDriverArrived] = useState(false);
+  const [rideStatus, setRideStatus] = useState<
+    "idle" | "driver_arrived" | "started"
+  >("idle");
 
   const [currentLocation, setCurrentLocation] =
     useState<Location.LocationObject | null>(null);
@@ -145,6 +148,7 @@ const newHome = () => {
     socket.on("driverArrived", (data) => {
       console.log("Driver arrived:", data.message);
       setDriverArrived(true);
+      setRideStatus("driver_arrived");
       Notifications.scheduleNotificationAsync({
         content: {
           title: "Driver Arrived 🚗",
@@ -152,6 +156,11 @@ const newHome = () => {
         },
         trigger: null,
       });
+    });
+
+    socket.on("rideStarted", (data) => {
+      console.log("Ride started:", data.message);
+      setRideStatus("started");
     });
 
     socket.on("disconnect", () => {
@@ -316,7 +325,7 @@ const newHome = () => {
 
         // Animate map
         const region: Region = {
-          latitude: coords.latitude - 0.0020,
+          latitude: coords.latitude - 0.002,
           longitude: coords.longitude,
           latitudeDelta: 0.01,
           longitudeDelta: 0.01,
@@ -397,7 +406,7 @@ const newHome = () => {
 
       // Apply latitude offset so marker is centered better
       const region: Region = {
-        latitude: coords.latitude - 0.0020, // 👈 shift upward
+        latitude: coords.latitude - 0.002, // 👈 shift upward
         longitude: coords.longitude,
         latitudeDelta: 0.01,
         longitudeDelta: 0.01,
@@ -421,7 +430,7 @@ const newHome = () => {
       setDropoffCoord(coords);
 
       const region: Region = {
-        latitude: coords.latitude - 0.0020, // 👈 same offset
+        latitude: coords.latitude - 0.002, // 👈 same offset
         longitude: coords.longitude,
         latitudeDelta: 0.01,
         longitudeDelta: 0.01,
@@ -508,7 +517,7 @@ const newHome = () => {
   const returnToCurrentLocation = async () => {
     if (currentLocation) {
       const region = {
-        latitude: currentLocation.coords.latitude - 0.0020,
+        latitude: currentLocation.coords.latitude - 0.002,
         longitude: currentLocation.coords.longitude,
         latitudeDelta: 0.01,
         longitudeDelta: 0.01,
@@ -555,12 +564,12 @@ const newHome = () => {
     console.log(dropoffCoord.latitude, dropoffCoord.longitude);
 
     try {
-      const response = await fetch("http://192.168.1.44:3000/ride-request", {
+      const response = await fetch("http://192.168.1.49:3000/ride-request", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization:
-            "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFobWFkQGV4YW1wbGUuY29tIiwic3ViIjoiNjg4YzY5ZjIwNjUzZWMwZjQzZGY2ZTJjIiwicm9sZSI6InBhc3NlbmdlciIsImlhdCI6MTc1ODI2MzU2NywiZXhwIjoxNzU4MzQ5OTY3fQ.U1IUGTEujs4yUM6tyHn5qNBZu074T97i6nA0b7LVGSM",
+            "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFobWFkQGV4YW1wbGUuY29tIiwic3ViIjoiNjg4YzY5ZjIwNjUzZWMwZjQzZGY2ZTJjIiwicm9sZSI6InBhc3NlbmdlciIsImlhdCI6MTc1ODYwNjk1NiwiZXhwIjoxNzU4NjkzMzU2fQ.49u9P_NVGSMFn6BPW9XuJrFfMTSQdb-D0iTYVmkQCKE",
         },
         body: JSON.stringify({
           pickupLocation: {
@@ -616,7 +625,7 @@ const newHome = () => {
 
       // Animate map to driver location
       const region: Region = {
-        latitude: acceptedDriver.location.lat - 0.0020, // same offset for centering
+        latitude: acceptedDriver.location.lat - 0.002, // same offset for centering
         longitude: acceptedDriver.location.lng,
         latitudeDelta: 0.01,
         longitudeDelta: 0.01,
@@ -753,7 +762,7 @@ const newHome = () => {
             coordinate={pickupCoord}
             title="Pickup Location"
             description={pickup || "Current Location"}
-            pinColor="#000000"
+            pinColor="red"
             //image={icons.pin}
             draggable={true}
             onDragEnd={(e) => handlePickupMarkerDrag(e.nativeEvent.coordinate)}
@@ -777,7 +786,7 @@ const newHome = () => {
               coordinate={dropoffCoord}
               title="Drop-off Location"
               description={dropoff}
-              pinColor="red"
+              pinColor="green"
               draggable={true}
               onDragEnd={(e) =>
                 handleDropoffMarkerDrag(e.nativeEvent.coordinate)
@@ -835,31 +844,41 @@ const newHome = () => {
         {acceptedDriver ? (
           <>
             <View className="p-5">
-              <View className="flex-row justify-between items-center p-1 mb-4">
-                <DriverBanner driverArrived={driverArrived}>
-                  <Text className="text-3xl font-JakartaExtraBold p-2">
-                    {driverArrived
-                      ? "Driver has arrived!"
-                      : "Driver is on the way"}
-                  </Text>
-                </DriverBanner>
-                <View className="flex-row">
-                  <TouchableOpacity className="p-2 rounded-full bg-blue-500 shadow-sm border-[1px] border-white">
-                    <MaterialCommunityIcons
-                      name={"phone"}
-                      size={44}
-                      color="white"
-                    />
-                  </TouchableOpacity>
-                  <TouchableOpacity className="p-2 ml-6 rounded-full bg-green-500 shadow-sm border-[1px] border-white">
-                    <MaterialCommunityIcons
-                      name={"whatsapp"}
-                      size={44}
-                      color="white"
-                    />
-                  </TouchableOpacity>
+              {rideStatus !== "started" && (
+                <View className="flex-row justify-between items-center p-1 mb-4">
+                  <DriverBanner driverArrived={driverArrived}>
+                    <Text className="text-3xl font-JakartaExtraBold p-2">
+                      {driverArrived
+                        ? "Driver has arrived!"
+                        : "Driver is on the way"}
+                    </Text>
+                  </DriverBanner>
+                  <View className="flex-row">
+                    <TouchableOpacity className="p-2 rounded-full bg-blue-500 shadow-sm border-[1px] border-white">
+                      <MaterialCommunityIcons
+                        name={"phone"}
+                        size={44}
+                        color="white"
+                      />
+                    </TouchableOpacity>
+                    <TouchableOpacity className="p-2 ml-6 rounded-full bg-green-500 shadow-sm border-[1px] border-white">
+                      <MaterialCommunityIcons
+                        name={"whatsapp"}
+                        size={44}
+                        color="white"
+                      />
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              </View>
+              )}
+
+              {rideStatus === "started" && (
+                <View className="flex-row justify-center items-center p-1 mb-2">
+                  <Text className="text-3xl font-JakartaExtraBold p-2">
+                    Ride in Progress
+                  </Text>
+                </View>
+              )}
 
               {/* Driver Info */}
               <View className="flex-row items-center space-x-4 mb-4">

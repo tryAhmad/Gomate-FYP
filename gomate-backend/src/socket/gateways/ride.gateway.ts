@@ -258,45 +258,132 @@ export class RideGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @ConnectedSocket() client: Socket,
   ) {
     console.log(
-      `Driver ${data.driverId} has reached pickup location for ride ${data.rideId}`,
+      `Driver ${data.driverId} reached pickup for ride ${data.rideId}`,
     );
 
-    // Verify the driver is connected and matches the socket
     const driverInfo = this.connectedDrivers.get(data.driverId);
     if (!driverInfo || driverInfo.socketId !== client.id) {
-      console.log(`Unauthorized driver reach attempt for ride ${data.rideId}`);
       return { success: false, message: 'Unauthorized' };
     }
 
-    // Update ride status to "started"
-    const updatedRide = await this.rideRequestService.startRide(data.rideId);
-
-    if (!updatedRide) {
-      console.log(`Failed to start ride ${data.rideId}`);
-      return { success: false, message: 'Failed to start ride' };
-    }
-
-    // Notify passenger that driver has arrived and ride is starting
+    // Notify passenger
     const passengerSocketId = this.connectedPassengers.get(data.passengerId);
     if (passengerSocketId) {
       this.server.to(passengerSocketId).emit('driverArrived', {
         rideId: data.rideId,
-        message: 'Your driver has arrived! The ride is now starting.',
-        status: 'started',
+        message: 'Your driver has reached the pickup location.',
+        status: 'driver_reached', // client-side status only
       });
-      console.log(`Notified passenger ${data.passengerId} that driver arrived`);
+      console.log(`Passenger ${data.passengerId} notified that driver arrived`);
     }
 
-    // Confirm to driver that ride has started
+    // Confirm to driver
+    this.server.to(client.id).emit('waitingForPassenger', {
+      rideId: data.rideId,
+      message: 'Waiting for passenger to board.',
+      status: 'driver_reached',
+    });
+
+    return {
+      success: true,
+      message: 'Driver arrival event emitted',
+    };
+  }
+
+  @SubscribeMessage('startRide')
+  async handleStartRide(
+    @MessageBody()
+    data: {
+      driverId: string;
+      passengerId: string;
+      rideId: string;
+    },
+    @ConnectedSocket() client: Socket,
+  ) {
+    console.log(`Driver ${data.driverId} starting ride ${data.rideId}`);
+
+    const driverInfo = this.connectedDrivers.get(data.driverId);
+    if (!driverInfo || driverInfo.socketId !== client.id) {
+      return { success: false, message: 'Unauthorized' };
+    }
+
+    // Update DB → ride started
+    const updatedRide = await this.rideRequestService.startRide(data.rideId);
+
+    if (!updatedRide) {
+      return { success: false, message: 'Failed to start ride' };
+    }
+
+    // Notify passenger
+    const passengerSocketId = this.connectedPassengers.get(data.passengerId);
+    if (passengerSocketId) {
+      this.server.to(passengerSocketId).emit('rideStarted', {
+        rideId: data.rideId,
+        message: 'Your ride has started.',
+        status: 'started',
+      });
+    }
+
+    // Confirm to driver
     this.server.to(client.id).emit('rideStarted', {
       rideId: data.rideId,
-      message: 'Ride has been started successfully',
+      message: 'Ride started successfully.',
       status: 'started',
     });
 
     return {
       success: true,
       message: 'Ride started successfully',
+      ride: updatedRide,
+    };
+  }
+
+  @SubscribeMessage('endRide')
+  async handleEndRide(
+    @MessageBody()
+    data: {
+      driverId: string;
+      passengerId: string;
+      rideId: string;
+    },
+    @ConnectedSocket() client: Socket,
+  ) {
+    console.log(`Driver ${data.driverId} ending ride ${data.rideId}`);
+
+    // Validate driver is authorized
+    const driverInfo = this.connectedDrivers.get(data.driverId);
+    if (!driverInfo || driverInfo.socketId !== client.id) {
+      return { success: false, message: 'Unauthorized' };
+    }
+
+    // Update DB → ride completed
+    const updatedRide = await this.rideRequestService.completeRide(data.rideId);
+
+    if (!updatedRide) {
+      console.log(`Failed to complete ride ${data.rideId}`);
+      return { success: false, message: 'Failed to complete ride' };
+    }
+
+    // Notify passenger
+    const passengerSocketId = this.connectedPassengers.get(data.passengerId);
+    if (passengerSocketId) {
+      this.server.to(passengerSocketId).emit('rideCompleted', {
+        rideId: data.rideId,
+        message: 'Your ride has been completed. Thank you for riding with us!',
+        status: 'completed',
+      });
+    }
+
+    // Confirm to driver
+    this.server.to(client.id).emit('rideCompleted', {
+      rideId: data.rideId,
+      message: 'Ride completed successfully.',
+      status: 'completed',
+    });
+
+    return {
+      success: true,
+      message: 'Ride completed successfully',
       ride: updatedRide,
     };
   }
