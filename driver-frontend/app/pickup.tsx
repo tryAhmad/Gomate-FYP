@@ -1,3 +1,5 @@
+"use client"
+
 import type React from "react"
 import { useState, useEffect, useRef } from "react"
 import {
@@ -53,7 +55,15 @@ const PickupPage: React.FC = () => {
   const [sidebarVisible, setSidebarVisible] = useState(false)
   const [slideAnim] = useState(new Animated.Value(-width * 0.7))
   const [hasArrived, setHasArrived] = useState(false)
-  const [rideStarted, setRideStarted] = useState(false) // New state for ride started
+  const [rideStarted, setRideStarted] = useState(false)
+
+  const [isOffRoute, setIsOffRoute] = useState(false)
+  const [alternateRouteCoords, setAlternateRouteCoords] = useState<{ latitude: number; longitude: number }[]>([])
+  const [lastRouteCheckLocation, setLastRouteCheckLocation] = useState<{ latitude: number; longitude: number } | null>(
+    null,
+  )
+  const [locationSubscription, setLocationSubscription] = useState<Location.LocationSubscription | null>(null)
+  const [carRotation, setCarRotation] = useState(0)
 
   const DEFAULT_REGION = {
     latitude: 31.5204,
@@ -62,54 +72,201 @@ const PickupPage: React.FC = () => {
     longitudeDelta: 0.1,
   }
 
+  const LOCATION_UPDATE_INTERVAL = 5000 // 5 seconds
+  const ROUTE_DEVIATION_THRESHOLD = 100 // meters - distance from route to consider off-route
+  const ROUTE_CONSUMPTION_THRESHOLD = 50 // meters - how close to consume route segments
+  const MAP_FOLLOW_ZOOM_LEVEL = 0.01 // zoom level for following driver
+
   useEffect(() => {
+    console.log("[TRACKING] Component mounted, initializing...")
     if (params.driverLat && params.driverLng) {
-      setDriverLocation({
+      const initialLocation = {
         latitude: Number.parseFloat(params.driverLat),
         longitude: Number.parseFloat(params.driverLng),
-      })
-      startLocationTracking()
+      }
+      setDriverLocation(initialLocation)
+      console.log("[TRACKING] Initial driver location set:", initialLocation)
+      startRealTimeTracking()
     } else {
       requestLocationPermission()
     }
     loadRouteData()
+
+    // Cleanup on unmount
+    return () => {
+      console.log("[TRACKING] Component unmounting, cleaning up location subscription")
+      if (locationSubscription) {
+        locationSubscription.remove()
+      }
+    }
   }, [])
 
-  const startLocationTracking = async () => {
+  const startRealTimeTracking = async () => {
     try {
+      console.log("[TRACKING] Starting real-time tracking...")
       const { status } = await Location.getForegroundPermissionsAsync()
 
       if (status === "granted") {
-        const locationSubscription = await Location.watchPositionAsync(
+        const subscription = await Location.watchPositionAsync(
           {
             accuracy: Location.Accuracy.High,
-            timeInterval: 2000,
-            distanceInterval: 10,
+            timeInterval: LOCATION_UPDATE_INTERVAL, // 5 seconds
+            distanceInterval: 10, // 10 meters minimum movement
           },
           (location) => {
             const newLocation = {
               latitude: location.coords.latitude,
               longitude: location.coords.longitude,
             }
+
+            console.log("[TRACKING] Location updated:", newLocation)
+            console.log("[TRACKING] Speed:", location.coords.speed, "m/s")
+            console.log("[TRACKING] Heading:", location.coords.heading, "degrees")
+
+            // Feature 1: Update car icon position
             setDriverLocation(newLocation)
 
-            if (!hasArrived) {
+            // Update car rotation based on heading
+            if (location.coords.heading !== null && location.coords.heading !== undefined) {
+              setCarRotation(location.coords.heading)
+              console.log("[TRACKING] Car rotation updated:", location.coords.heading)
+            }
+
+            // Feature 3: Focus map on driver's location
+            focusMapOnDriver(newLocation)
+
+            // Feature 2: Dynamic route consumption
+            if (!hasArrived || rideStarted) {
               consumeRouteSegments(newLocation)
             }
+
+            // Feature 4: Check for route deviation and alternate routes
+            checkRouteDeviation(newLocation)
           },
         )
 
-        return () => {
-          locationSubscription.remove()
+        setLocationSubscription(subscription)
+        console.log("[TRACKING] Real-time tracking started successfully")
+      } else {
+        console.error("[TRACKING] Location permission not granted")
+      }
+    } catch (error) {
+      console.error("[TRACKING] Error starting real-time tracking:", error)
+    }
+  }
+
+  const focusMapOnDriver = (location: { latitude: number; longitude: number }) => {
+    console.log("[MAP_FOCUS] Focusing map on driver location:", location)
+
+    if (mapRef.current) {
+      mapRef.current.animateToRegion(
+        {
+          latitude: location.latitude,
+          longitude: location.longitude,
+          latitudeDelta: MAP_FOLLOW_ZOOM_LEVEL,
+          longitudeDelta: MAP_FOLLOW_ZOOM_LEVEL,
+        },
+        1000,
+      ) // 1 second animation
+    }
+  }
+
+  const checkRouteDeviation = async (currentLocation: { latitude: number; longitude: number }) => {
+    try {
+      const currentRoute = rideStarted ? routeCoords : remainingRouteCoords
+      const targetDestination = rideStarted ? destinationCoord : pickupCoord
+
+      if (currentRoute.length === 0 || !targetDestination) {
+        return
+      }
+
+      let minDistance = Number.MAX_VALUE
+      let closestPointIndex = 0
+
+      for (let i = 0; i < currentRoute.length; i++) {
+        try {
+          // Calculate distance from current location to each route point using Google Maps API
+          const routePointResult = await calculateDistanceAndTime(
+            "", // origin address not needed
+            "", // destination address not needed
+            currentLocation, // use current location as origin
+          )
+
+          // Use the distance value from Google Maps API
+          const distance = routePointResult.distanceValue
+
+          if (distance < minDistance) {
+            minDistance = distance
+            closestPointIndex = i
+          }
+        } catch (error) {
+          console.error(`[ROUTE_DEVIATION] Error calculating distance to route point ${i}:`, error)
+          // Skip this point if calculation fails
+          continue
+        }
+      }
+
+      console.log("[ROUTE_DEVIATION] Distance to closest route point:", minDistance, "meters")
+      console.log("[ROUTE_DEVIATION] Closest point index:", closestPointIndex)
+
+      // Check if driver is off route
+      if (minDistance > ROUTE_DEVIATION_THRESHOLD) {
+        console.log("[ROUTE_DEVIATION] Driver is off route! Distance:", minDistance)
+
+        if (!isOffRoute) {
+          setIsOffRoute(true)
+
+          // Show popup warning
+          Alert.alert(
+            "Route Deviation",
+            "You must follow the route marked on the map. Calculating alternate route...",
+            [{ text: "OK" }],
+            { cancelable: false },
+          )
+
+          // Calculate alternate route from current location to destination
+          await calculateAlternateRoute(currentLocation, targetDestination)
+        }
+      } else {
+        // Driver is back on route
+        if (isOffRoute) {
+          console.log("[ROUTE_DEVIATION] Driver is back on route")
+          setIsOffRoute(false)
+          setAlternateRouteCoords([])
         }
       }
     } catch (error) {
-      console.error("Error starting location tracking:", error)
+      console.error("[ROUTE_DEVIATION] Error checking route deviation:", error)
+    }
+  }
+
+  const calculateAlternateRoute = async (
+    currentLocation: { latitude: number; longitude: number },
+    destination: { latitude: number; longitude: number },
+  ) => {
+    try {
+      console.log("[ALTERNATE_ROUTE] Calculating alternate route from:", currentLocation, "to:", destination)
+
+      const alternateRoute = await getRouteCoordinates(currentLocation, destination)
+      setAlternateRouteCoords(alternateRoute)
+
+      console.log("[ALTERNATE_ROUTE] Alternate route calculated with", alternateRoute.length, "points")
+
+      // Update the remaining route to the alternate route
+      if (rideStarted) {
+        setRouteCoords(alternateRoute)
+      } else {
+        setRemainingRouteCoords(alternateRoute)
+        setDriverRouteCoords(alternateRoute)
+      }
+    } catch (error) {
+      console.error("[ALTERNATE_ROUTE] Error calculating alternate route:", error)
     }
   }
 
   const requestLocationPermission = async () => {
     try {
+      console.log("[PERMISSION] Requesting location permission...")
       let { status } = await Location.getForegroundPermissionsAsync()
 
       if (status !== "granted") {
@@ -118,9 +275,11 @@ const PickupPage: React.FC = () => {
       }
 
       if (status === "granted") {
+        console.log("[PERMISSION] Location permission granted")
         getCurrentLocation()
-        startLocationTracking()
+        startRealTimeTracking()
       } else {
+        console.log("[PERMISSION] Location permission denied")
         Alert.alert("Permission Denied", "Location permission is required to show your current location.")
         setDriverLocation({
           latitude: 31.5304,
@@ -128,7 +287,7 @@ const PickupPage: React.FC = () => {
         })
       }
     } catch (error) {
-      console.error("Error requesting location permission:", error)
+      console.error("[PERMISSION] Error requesting location permission:", error)
       setDriverLocation({
         latitude: 31.5304,
         longitude: 74.3487,
@@ -138,20 +297,24 @@ const PickupPage: React.FC = () => {
 
   const getCurrentLocation = async () => {
     try {
+      console.log("[LOCATION] Getting current location...")
       const location = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.High,
       })
-      setDriverLocation({
+      const currentLocation = {
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
-      })
+      }
+      setDriverLocation(currentLocation)
+      console.log("[LOCATION] Current location obtained:", currentLocation)
     } catch (error) {
-      console.error("Error getting current location:", error)
+      console.error("[LOCATION] Error getting current location:", error)
     }
   }
 
   const loadRouteData = async () => {
     try {
+      console.log("[ROUTE_LOAD] Loading route data...")
       setIsLoading(true)
 
       if (!params.pickup || !params.destination) {
@@ -159,17 +322,24 @@ const PickupPage: React.FC = () => {
         return
       }
 
+      console.log("[ROUTE_LOAD] Pickup:", params.pickup)
+      console.log("[ROUTE_LOAD] Destination:", params.destination)
+
       const pickupCoords = await getCoordinatesFromAddress(params.pickup)
       const destinationCoords = await getCoordinatesFromAddress(params.destination)
 
       if (pickupCoords && destinationCoords) {
         setPickupCoord(pickupCoords)
         setDestinationCoord(destinationCoords)
+        console.log("[ROUTE_LOAD] Pickup coordinates:", pickupCoords)
+        console.log("[ROUTE_LOAD] Destination coordinates:", destinationCoords)
 
         if (driverLocation) {
+          console.log("[ROUTE_LOAD] Calculating driver to pickup route...")
           const driverRoute = await getRouteCoordinates(driverLocation, pickupCoords)
           setDriverRouteCoords(driverRoute)
           setRemainingRouteCoords(driverRoute)
+          console.log("[ROUTE_LOAD] Driver route calculated with", driverRoute.length, "points")
         }
 
         setTimeout(() => {
@@ -186,6 +356,7 @@ const PickupPage: React.FC = () => {
         Alert.alert("Error", "Could not fetch coordinates for the given locations.")
       }
     } catch (error) {
+      console.error("[ROUTE_LOAD] Error loading route data:", error)
       Alert.alert("Error", "Failed to load route information.")
     } finally {
       setIsLoading(false)
@@ -201,11 +372,13 @@ const PickupPage: React.FC = () => {
   const updateDriverRoute = async () => {
     if (driverLocation && pickupCoord && !hasArrived) {
       try {
+        console.log("[ROUTE_UPDATE] Updating driver route...")
         const driverRoute = await getRouteCoordinates(driverLocation, pickupCoord)
         setDriverRouteCoords(driverRoute)
         setRemainingRouteCoords(driverRoute)
+        console.log("[ROUTE_UPDATE] Driver route updated with", driverRoute.length, "points")
       } catch (error) {
-        console.error("Error updating driver route:", error)
+        console.error("[ROUTE_UPDATE] Error updating driver route:", error)
       }
     }
   }
@@ -230,7 +403,7 @@ const PickupPage: React.FC = () => {
   }
 
   const handleImHere = async () => {
-    console.log("Driver marked as arrived")
+    console.log("[RIDE_STATE] Driver marked as arrived")
     setHasArrived(true)
 
     Alert.alert(
@@ -243,6 +416,7 @@ const PickupPage: React.FC = () => {
     // Handle route updates
     if (pickupCoord && destinationCoord) {
       try {
+        console.log("[RIDE_STATE] Loading pickup to destination route...")
         // Get route coordinates from pickup to destination
         const pickupToDestinationRoute = await getRouteCoordinates(pickupCoord, destinationCoord)
         setRouteCoords(pickupToDestinationRoute)
@@ -260,19 +434,19 @@ const PickupPage: React.FC = () => {
             animated: true,
           })
         }, 500)
+
+        console.log("[RIDE_STATE] Pickup to destination route loaded with", pickupToDestinationRoute.length, "points")
       } catch (error) {
-        console.error("Error loading pickup to destination route:", error)
+        console.error("[RIDE_STATE] Error loading pickup to destination route:", error)
       }
     }
   }
 
   const handleStartRide = () => {
-    console.log("Setting ride started to true") 
-    setRideStarted(true) 
+    console.log("[RIDE_STATE] Setting ride started to true")
+    setRideStarted(true)
 
-    Alert.alert("Ride Started", "Navigate to the destination location.", [
-      { text: "OK" },
-    ])
+    Alert.alert("Ride Started", "Navigate to the destination location.", [{ text: "OK" }])
   }
 
   const handleEndRide = () => {
@@ -285,6 +459,11 @@ const PickupPage: React.FC = () => {
         text: "End Ride",
         style: "destructive",
         onPress: () => {
+          console.log("[RIDE_STATE] Ride ended, cleaning up...")
+          // Cleanup location subscription
+          if (locationSubscription) {
+            locationSubscription.remove()
+          }
           router.replace("/" as any)
         },
       },
@@ -301,6 +480,11 @@ const PickupPage: React.FC = () => {
         text: "Yes, Cancel",
         style: "destructive",
         onPress: () => {
+          console.log("[RIDE_STATE] Ride cancelled, cleaning up...")
+          // Cleanup location subscription
+          if (locationSubscription) {
+            locationSubscription.remove()
+          }
           router.replace("/landing-page" as any)
         },
       },
@@ -342,41 +526,79 @@ const PickupPage: React.FC = () => {
   const getInitial = (name?: string) => name?.charAt(0).toUpperCase() || "P"
 
   const consumeRouteSegments = async (currentLocation: { latitude: number; longitude: number }) => {
-    if (remainingRouteCoords.length === 0 || !pickupCoord) return
+    const currentRoute = rideStarted ? routeCoords : remainingRouteCoords
+    const targetDestination = rideStarted ? destinationCoord : pickupCoord
 
-    const CONSUMPTION_THRESHOLD = 50 // meters - how close driver needs to be to consume a segment
+    if (currentRoute.length === 0 || !targetDestination) {
+      console.log("[ROUTE_CONSUMPTION] No route or destination available")
+      return
+    }
+
+    console.log("[ROUTE_CONSUMPTION] Current route has", currentRoute.length, "points")
+    console.log("[ROUTE_CONSUMPTION] Driver location:", currentLocation)
 
     try {
       const distanceResult = await calculateDistanceAndTime(
         "", // origin address not needed since we're using driver location
-        params.pickup || "",
+        rideStarted ? params.destination || "" : params.pickup || "",
         currentLocation,
       )
 
-      // If driver is very close to pickup (within threshold), consume more route segments
-      if (distanceResult.distanceValue <= CONSUMPTION_THRESHOLD) {
-        // Remove a larger portion of the route when very close
-        const segmentsToRemove = Math.min(5, remainingRouteCoords.length)
-        const newRemainingCoords = remainingRouteCoords.slice(segmentsToRemove)
-        setRemainingRouteCoords(newRemainingCoords)
-        setDriverRouteCoords(newRemainingCoords)
-      } else {
-        // Progressive consumption based on distance - closer means more consumption
-        const consumptionRate = Math.max(1, Math.floor(remainingRouteCoords.length / 20))
-        const distanceBasedConsumption = distanceResult.distanceValue < 500 ? consumptionRate * 2 : consumptionRate
+      console.log("[ROUTE_CONSUMPTION] Distance to target:", distanceResult.distanceValue, "meters")
+      console.log("[ROUTE_CONSUMPTION] Time to target:", distanceResult.timeAway)
 
-        if (remainingRouteCoords.length > distanceBasedConsumption) {
-          const newRemainingCoords = remainingRouteCoords.slice(distanceBasedConsumption)
+      // Enhanced consumption logic
+      if (distanceResult.distanceValue <= ROUTE_CONSUMPTION_THRESHOLD) {
+        // Very close to destination - consume more aggressively
+        const segmentsToRemove = Math.min(8, currentRoute.length)
+        console.log("[ROUTE_CONSUMPTION] Very close! Consuming", segmentsToRemove, "segments")
+
+        const newRemainingCoords = currentRoute.slice(segmentsToRemove)
+
+        if (rideStarted) {
+          setRouteCoords(newRemainingCoords)
+        } else {
           setRemainingRouteCoords(newRemainingCoords)
           setDriverRouteCoords(newRemainingCoords)
         }
+      } else {
+        // Progressive consumption based on distance and speed
+        let consumptionRate = Math.max(1, Math.floor(currentRoute.length / 25))
+
+        // Increase consumption rate when closer
+        if (distanceResult.distanceValue < 500) {
+          consumptionRate *= 3
+        } else if (distanceResult.distanceValue < 1000) {
+          consumptionRate *= 2
+        }
+
+        console.log("[ROUTE_CONSUMPTION] Consuming", consumptionRate, "segments")
+
+        if (currentRoute.length > consumptionRate) {
+          const newRemainingCoords = currentRoute.slice(consumptionRate)
+
+          if (rideStarted) {
+            setRouteCoords(newRemainingCoords)
+          } else {
+            setRemainingRouteCoords(newRemainingCoords)
+            setDriverRouteCoords(newRemainingCoords)
+          }
+
+          console.log("[ROUTE_CONSUMPTION] Route consumed, remaining points:", newRemainingCoords.length)
+        }
       }
     } catch (error) {
-      console.error("Error in Google API route consumption:", error)
-      if (remainingRouteCoords.length > 1) {
-        const newRemainingCoords = remainingRouteCoords.slice(1)
-        setRemainingRouteCoords(newRemainingCoords)
-        setDriverRouteCoords(newRemainingCoords)
+      console.error("[ROUTE_CONSUMPTION] Error in route consumption:", error)
+      // Fallback consumption
+      if (currentRoute.length > 1) {
+        const newRemainingCoords = currentRoute.slice(1)
+        if (rideStarted) {
+          setRouteCoords(newRemainingCoords)
+        } else {
+          setRemainingRouteCoords(newRemainingCoords)
+          setDriverRouteCoords(newRemainingCoords)
+        }
+        console.log("[ROUTE_CONSUMPTION] Fallback consumption applied")
       }
     }
   }
@@ -390,6 +612,13 @@ const PickupPage: React.FC = () => {
           <Ionicons name="menu" size={24} color="#000" />
         </TouchableOpacity>
       </View>
+
+      {isOffRoute && (
+        <View style={styles.deviationWarning}>
+          <MaterialCommunityIcons name="alert" size={20} color="#FF4444" />
+          <Text style={styles.deviationText}>Off Route - Follow the marked path</Text>
+        </View>
+      )}
 
       <View style={styles.mapContainer}>
         <MapView
@@ -408,7 +637,7 @@ const PickupPage: React.FC = () => {
               description="Driver current location"
               anchor={{ x: 0.5, y: 0.5 }}
               flat={true}
-              rotation={0}
+              rotation={carRotation}
             >
               <View style={styles.driverMarker}>
                 <Image source={require("@/assets/car-marker.png")} style={styles.carIcon} resizeMode="contain" />
@@ -444,7 +673,7 @@ const PickupPage: React.FC = () => {
             <Polyline
               coordinates={remainingRouteCoords}
               strokeWidth={5}
-              strokeColor="#808080"
+              strokeColor={isOffRoute ? "#FF8800" : "#808080"}
               lineCap="round"
               lineJoin="round"
               zIndex={2}
@@ -455,10 +684,22 @@ const PickupPage: React.FC = () => {
             <Polyline
               coordinates={routeCoords}
               strokeWidth={5}
-              strokeColor="#4CAF50"
+              strokeColor={isOffRoute ? "#FF8800" : "#4CAF50"}
               lineCap="round"
               lineJoin="round"
               zIndex={3}
+            />
+          )}
+
+          {alternateRouteCoords.length > 0 && isOffRoute && (
+            <Polyline
+              coordinates={alternateRouteCoords}
+              strokeWidth={4}
+              strokeColor="#FF4444"
+              // strokePattern={[10, 5]}
+              lineCap="round"
+              lineJoin="round"
+              zIndex={4}
             />
           )}
         </MapView>
@@ -576,6 +817,30 @@ const styles = StyleSheet.create({
   menuButton: {
     padding: 4,
     borderRadius: 20,
+  },
+  deviationWarning: {
+    position: "absolute",
+    top: 50,
+    right: 16,
+    zIndex: 1000,
+    backgroundColor: "#FFF3CD",
+    borderRadius: 20,
+    padding: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: "#FF4444",
+  },
+  deviationText: {
+    color: "#FF4444",
+    fontWeight: "600",
+    fontSize: 12,
+    marginLeft: 4,
   },
   mapContainer: {
     flex: 1,
