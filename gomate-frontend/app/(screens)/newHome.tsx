@@ -97,6 +97,7 @@ const newHome = () => {
 
   const [driverOffers, setDriverOffers] = useState<any[]>([]);
   const [acceptedDriver, setAcceptedDriver] = useState<any>(null);
+  const [rideId, setRideId] = useState<string | null>(null);
 
   // Autocomplete states
   const [pickupSuggestions, setPickupSuggestions] = useState<string[]>([]);
@@ -105,7 +106,7 @@ const newHome = () => {
   const [showDropoffSuggestions, setShowDropoffSuggestions] = useState(false);
   const [driverArrived, setDriverArrived] = useState(false);
   const [rideStatus, setRideStatus] = useState<
-    "idle" | "driver_arrived" | "started" | "completed"
+    "idle" | "driver_arrived" | "started" | "completed" | "cancelled"
   >("idle");
 
   const [currentLocation, setCurrentLocation] =
@@ -620,11 +621,16 @@ const newHome = () => {
         Alert.alert("Error", errorData.message || "Something went wrong");
         return;
       }
-
       const data = await response.json();
       console.log("Ride request created:", data);
+      const rideId = data.ride._id;
+      console.log("Ride ID:", rideId);
+
+      // Store the ride ID for later use
+      setRideId(rideId);
 
       // show modal with offers
+      setShowOffersModal(true);
       setShowOffersModal(true);
     } catch (err) {
       console.error("Network error creating ride:", err);
@@ -736,6 +742,32 @@ const newHome = () => {
       />
     </View>
   );
+
+  const handleCancelRide = () => {
+    if (!rideId || !passengerId || !acceptedDriver?.id) {
+      if (!rideId) console.log("❌ Missing rideId");
+      if (!passengerId) console.log("❌ Missing passengerId");
+      if (!acceptedDriver?.id)
+        console.log("❌ Missing driverId (acceptedDriver.id)");
+
+      return; // stop execution if something is missing
+    }
+
+    socket.emit("cancelRide", {
+      rideId,
+      cancelledBy: "passenger",
+      passengerId,
+      driverId: acceptedDriver.id,
+      reason: "Passenger cancelled the ride",
+    });
+
+    setRideStatus("cancelled");
+    setFare("");
+    setAcceptedDriver(null);
+    setDriverOffers([]);
+    setRideId(null);
+    setDriverArrived(false);
+  };
 
   function onClearPickup(_: GestureResponderEvent): void {
     // Clear pickup text and any visible suggestions
@@ -904,7 +936,7 @@ const newHome = () => {
 
               {rideStatus === "started" && (
                 <View className="flex-row justify-center items-center p-1 mb-2">
-                  <Text className="text-2xl font-JakartaExtraBold p-2">
+                  <Text className="text-3xl font-JakartaExtraBold p-2">
                     Ride in Progress
                   </Text>
                 </View>
@@ -961,8 +993,7 @@ const newHome = () => {
                 title="Cancel Ride"
                 className="bg-red-500"
                 onPress={() => {
-                  setAcceptedDriver(null); // reset state
-                  // TODO: emit cancel to backend
+                  handleCancelRide();
                 }}
               />
             </View>

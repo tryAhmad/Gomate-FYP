@@ -191,4 +191,22 @@ export class RideRequestService {
       rides,
     };
   }
+
+  async cancelRide(
+    rideId: string,
+    cancelledBy: 'passenger' | 'driver',
+    reason?: string,
+  ) {
+    return await this.rideRequestModel.findByIdAndUpdate(
+      rideId,
+      {
+        $set: {
+          status: 'cancelled',
+          cancelledBy,
+          cancellationReason: reason || null,
+        },
+      },
+      { new: true },
+    );
+  }
 }

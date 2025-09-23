@@ -33,15 +33,15 @@
         console.log('Driver received new ride request:', rideData);
 
         // 👉 no auto counter-offer here
-        console.log(
-          'To send a counter offer manually, run this in console:\n',
-          `socket.emit("sendCounterOffer", {
-            driverId: "${driverId}",
-            passengerId: "${rideData.passengerId}",
-            rideId: "${rideData.rideId}",
-            counterFare: 759
-          });`,
-        );
+        // console.log(
+        //   'To send a counter offer manually, run this in console:\n',
+        //   `socket.emit("sendCounterOffer", {
+        //     driverId: "${driverId}",
+        //     passengerId: "${rideData.passengerId}",
+        //     rideId: "${rideData.rideId}",
+        //     counterFare: 759
+        //   });`,
+        // );
       });
 
       // 👉 Listen for when passenger accepts this driver’s offer
@@ -53,6 +53,12 @@
       socket.on('rideStarted', (data) => {
         console.log('Ride started:', data.message);
         // Update driver UI to show ride is active
+      });
+
+      // Handle cancellation
+      socket.on('rideCancelled', (data) => {
+        console.log('Ride cancelled:', data.reason);
+        // Update driver UI to show ride was cancelled
       });
 
       socket.on('disconnect', () => {

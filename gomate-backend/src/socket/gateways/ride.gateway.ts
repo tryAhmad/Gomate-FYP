@@ -387,4 +387,86 @@ export class RideGateway implements OnGatewayConnection, OnGatewayDisconnect {
       ride: updatedRide,
     };
   }
+
+  @SubscribeMessage('cancelRide')
+  async handleCancelRide(
+    @MessageBody()
+    data: {
+      rideId: string;
+      cancelledBy: 'passenger' | 'driver';
+      passengerId: string;
+      driverId: string;
+      reason?: string;
+    },
+    @ConnectedSocket() client: Socket,
+  ) {
+    console.log(
+      `${data.cancelledBy} cancelled ride ${data.rideId}. Reason: ${data.reason}`,
+    );
+
+    // Validate driver if cancellation is from driver
+    if (data.cancelledBy === 'driver') {
+      const driverInfo = this.connectedDrivers.get(data.driverId);
+      if (!driverInfo || driverInfo.socketId !== client.id) {
+        return { success: false, message: 'Unauthorized driver' };
+      }
+    }
+
+    // Validate passenger if cancellation is from passenger
+    if (data.cancelledBy === 'passenger') {
+      const passengerSocketId = this.connectedPassengers.get(data.passengerId);
+      if (!passengerSocketId || passengerSocketId !== client.id) {
+        return { success: false, message: 'Unauthorized passenger' };
+      }
+    }
+
+    // ✅ Update DB → ride cancelled
+    const updatedRide = await this.rideRequestService.cancelRide(
+      data.rideId,
+      data.cancelledBy,
+      data.reason,
+    );
+
+    if (!updatedRide) {
+      console.log(`Failed to cancel ride ${data.rideId}`);
+      return { success: false, message: 'Failed to cancel ride' };
+    }
+
+    // ✅ Notify the other party
+    if (data.cancelledBy === 'passenger') {
+      const driverInfo = this.connectedDrivers.get(data.driverId);
+      if (driverInfo) {
+        this.server.to(driverInfo.socketId).emit('rideCancelled', {
+          rideId: data.rideId,
+          cancelledBy: 'passenger',
+          reason: data.reason || 'Passenger cancelled the ride.',
+          status: 'cancelled',
+        });
+      }
+    } else if (data.cancelledBy === 'driver') {
+      const passengerSocketId = this.connectedPassengers.get(data.passengerId);
+      if (passengerSocketId) {
+        this.server.to(passengerSocketId).emit('rideCancelled', {
+          rideId: data.rideId,
+          cancelledBy: 'driver',
+          reason: data.reason || 'Driver cancelled the ride.',
+          status: 'cancelled',
+        });
+      }
+    }
+
+    // ✅ Confirm to the canceller
+    this.server.to(client.id).emit('rideCancelled', {
+      rideId: data.rideId,
+      cancelledBy: data.cancelledBy,
+      reason: data.reason,
+      status: 'cancelled',
+    });
+
+    return {
+      success: true,
+      message: 'Ride cancelled successfully',
+      ride: updatedRide,
+    };
+  }
 }
