@@ -94,7 +94,7 @@ export default function NotificationsScreen() {
                 <Ionicons
                   name="checkmark-circle"
                   size={28}
-                  color={item.read ? "blue" : "gray"}
+                  color={item.read ? "grey" : "blue"}
                 />
               ) : (
                 <Ionicons name="ticket" size={28} color="green" />
@@ -118,7 +118,18 @@ export default function NotificationsScreen() {
       {/* Modal */}
       <Modal visible={!!selectedNotification} transparent animationType="fade">
         <View className="flex-1 bg-black/40 justify-center items-center">
-          <View className="bg-white w-[85%] rounded-xl p-6 shadow-md">
+          <View className="bg-white w-[85%] rounded-xl justify-center items-center p-6 shadow-md">
+            <View className="rounded-full bg-gray-100 items-center justify-center p-2 shadow-md mb-4">
+              {selectedNotification?.type === "System" ? (
+                <Ionicons
+                  name="checkmark-circle"
+                  size={64}
+                  color={selectedNotification.read ? "grey" : "blue"}
+                />
+              ) : (
+                <Ionicons name="ticket" size={64} color="green" />
+              )}
+            </View>
             <Text className="text-3xl font-JakartaExtraBold text-center mb-2">
               {selectedNotification?.title}
             </Text>
