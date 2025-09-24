@@ -1,3 +1,13 @@
 {
-  "CodeGPT.apiKey": "Gemini CLI"
+  "CodeGPT.apiKey": "Gemini CLI",
+  "cSpell.words": [
+    "APIKEY",
+    "chatbubble",
+    "crosshairs",
+    "dropoff",
+    "firstname",
+    "lastname",
+    "mapbox",
+    "XVCJ"
+  ]
 }

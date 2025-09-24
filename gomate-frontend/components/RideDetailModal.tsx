@@ -53,8 +53,8 @@ export default function RideDetailModal({ visible, onClose, ride }: Props) {
       );
 
       // Add padding to ensure both points are visible
-      const paddedLatDelta = latDelta * 1.8;
-      const paddedLngDelta = lngDelta * 1.8;
+      const paddedLatDelta = latDelta * 1.7;
+      const paddedLngDelta = lngDelta * 1.7;
 
       // Set minimum zoom level
       const minDelta = 0.01;
@@ -83,7 +83,7 @@ export default function RideDetailModal({ visible, onClose, ride }: Props) {
           `http://192.168.1.49:3000/drivers/${ride.driverID}`,
           {
             headers: {
-              Authorization: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFobWFkQGV4YW1wbGUuY29tIiwic3ViIjoiNjg4YzY5ZjIwNjUzZWMwZjQzZGY2ZTJjIiwicm9sZSI6InBhc3NlbmdlciIsImlhdCI6MTc1ODYwNjk1NiwiZXhwIjoxNzU4NjkzMzU2fQ.49u9P_NVGSMFn6BPW9XuJrFfMTSQdb-D0iTYVmkQCKE`, // adjust if JWT needed
+              Authorization: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFobWFkQGV4YW1wbGUuY29tIiwic3ViIjoiNjg4YzY5ZjIwNjUzZWMwZjQzZGY2ZTJjIiwicm9sZSI6InBhc3NlbmdlciIsImlhdCI6MTc1ODY5NzAzOSwiZXhwIjoxNzU4NzgzNDM5fQ.v7shJgB8qxOgqMqjyB8D67QFlyzROMth3ijZtOtgEd8`, // adjust if JWT needed
             },
           }
         );
@@ -114,7 +114,7 @@ export default function RideDetailModal({ visible, onClose, ride }: Props) {
         </TouchableOpacity>
 
         {/* Date */}
-        <Text className="text-black text-2xl font-JakartaExtraBold mt-14 text-center">
+        <Text className="text-black text-3xl font-JakartaExtraBold mt-14 text-center">
           {new Date(ride.createdAt).toDateString()}
         </Text>
 
@@ -128,6 +128,8 @@ export default function RideDetailModal({ visible, onClose, ride }: Props) {
             style={{ flex: 1 }}
             zoomEnabled={false}
             scrollEnabled={false}
+            rotateEnabled={false}
+            pitchEnabled={false}
             initialRegion={{
               latitude: pickupCoords?.latitude || 0,
               longitude: pickupCoords?.longitude || 0,
@@ -163,7 +165,7 @@ export default function RideDetailModal({ visible, onClose, ride }: Props) {
               color="#3b82f6"
               style={{ marginRight: 8 }}
             />
-            <Text className="text-black text-xl font-JakartaBold flex-1">
+            <Text className="text-black text-xl font-JakartaSemiBold flex-1">
               {ride.pickupLocation.address}
             </Text>
           </View>
@@ -175,7 +177,7 @@ export default function RideDetailModal({ visible, onClose, ride }: Props) {
               color="#22c55e"
               style={{ marginRight: 8 }}
             />
-            <Text className="text-black text-xl font-JakartaBold flex-1">
+            <Text className="text-black text-xl font-JakartaSemiBold flex-1">
               {ride.dropoffLocation.address}
             </Text>
           </View>
@@ -192,13 +194,13 @@ export default function RideDetailModal({ visible, onClose, ride }: Props) {
               <Text className="text-3xl text-center text-black font-JakartaExtraBold mb-2 mt-6">
                 Driver Details
               </Text>
-              <Text className="text-black text-2xl font-JakartaSemiBold mb-3">
+              <Text className="text-black text-2xl font-JakartaMedium mb-3">
                 <Text className="font-JakartaExtraBold text-2xl text-black">
                   Name:{" "}
                 </Text>
                 {driver.fullname.firstname} {driver.fullname.lastname}
               </Text>
-              <Text className="text-black text-2xl font-JakartaSemiBold mb-3 ">
+              <Text className="text-black text-2xl font-JakartaMedium mb-3 ">
                 <Text className="font-JakartaExtraBold text-black">
                   Vehicle:{" "}
                 </Text>
@@ -209,7 +211,7 @@ export default function RideDetailModal({ visible, onClose, ride }: Props) {
                 )
               </Text>
 
-              <Text className="text-black text-2xl font-JakartaSemiBold">
+              <Text className="text-black text-2xl font-JakartaMedium">
                 <Text className="font-JakartaExtraBold text-black">
                   Plate:{" "}
                 </Text>

@@ -62,7 +62,7 @@ export default function RideHistoryScreen() {
           "http://192.168.1.49:3000/ride-request/history",
           {
             headers: {
-              Authorization: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFobWFkQGV4YW1wbGUuY29tIiwic3ViIjoiNjg4YzY5ZjIwNjUzZWMwZjQzZGY2ZTJjIiwicm9sZSI6InBhc3NlbmdlciIsImlhdCI6MTc1ODYwNjk1NiwiZXhwIjoxNzU4NjkzMzU2fQ.49u9P_NVGSMFn6BPW9XuJrFfMTSQdb-D0iTYVmkQCKE`,
+              Authorization: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFobWFkQGV4YW1wbGUuY29tIiwic3ViIjoiNjg4YzY5ZjIwNjUzZWMwZjQzZGY2ZTJjIiwicm9sZSI6InBhc3NlbmdlciIsImlhdCI6MTc1ODY5NzAzOSwiZXhwIjoxNzU4NzgzNDM5fQ.v7shJgB8qxOgqMqjyB8D67QFlyzROMth3ijZtOtgEd8`,
             },
           }
         );
@@ -129,8 +129,8 @@ export default function RideHistoryScreen() {
 
   if (error) {
     return (
-      <View className="flex-1 justify-center items-center bg-black">
-        <Text className="text-red-400">{error}</Text>
+      <View className="flex-1 justify-center items-center bg-white">
+        <Text className="text-red-400 text-3xl font-JakartaExtraBold">{error}</Text>
       </View>
     );
   }
@@ -159,13 +159,14 @@ export default function RideHistoryScreen() {
         <FlatList
           data={rides}
           keyExtractor={(item) => item._id}
+          initialNumToRender={10}
           renderItem={({ item }) => (
             <TouchableOpacity
               onPress={() => {
                 setSelectedRide(item);
                 setModalVisible(true);
               }}
-              className="border-b border-gray-700 pb-4 mb-4"
+              className="border-b border-gray-700 p-4 mb-4"
             >
               {/* Date + Fare */}
               <View className="flex-row justify-between items-center mb-2">
@@ -187,13 +188,13 @@ export default function RideHistoryScreen() {
               <View className="ml-2">
                 <View className="flex-row items-center mb-1">
                   <Ionicons name="radio-button-on" size={20} color="#3b82f6" />
-                  <Text className="ml-2 text-black text-lg font-JakartaMedium">
+                  <Text className="ml-2 text-black text-base font-JakartaMedium">
                     {item.pickupLocation?.address ?? "Unknown"}
                   </Text>
                 </View>
                 <View className="flex-row items-center">
                   <Ionicons name="radio-button-on" size={20} color="#22c55e" />
-                  <Text className="ml-2 text-black text-lg font-JakartaMedium">
+                  <Text className="ml-2 text-black text-base font-JakartaMedium">
                     {item.dropoffLocation?.address ?? "Unknown"}
                   </Text>
                 </View>
@@ -213,7 +214,7 @@ export default function RideHistoryScreen() {
                             : item.status === "completed"
                               ? "bg-purple-600 text-white"
                               : item.status === "cancelled"
-                                ? "bg-gray-700 text-gray-300"
+                                ? "bg-gray-700 text-gray-100"
                                 : "bg-gray-500 text-white"
                     }`}
                   >

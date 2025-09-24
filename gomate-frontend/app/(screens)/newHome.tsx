@@ -20,6 +20,7 @@ import {
   ActivityIndicator,
   Image,
   Vibration,
+  Linking,
 } from "react-native";
 import MapView, {
   PROVIDER_GOOGLE,
@@ -600,7 +601,7 @@ const newHome = () => {
         headers: {
           "Content-Type": "application/json",
           Authorization:
-            "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFobWFkQGV4YW1wbGUuY29tIiwic3ViIjoiNjg4YzY5ZjIwNjUzZWMwZjQzZGY2ZTJjIiwicm9sZSI6InBhc3NlbmdlciIsImlhdCI6MTc1ODYwNjk1NiwiZXhwIjoxNzU4NjkzMzU2fQ.49u9P_NVGSMFn6BPW9XuJrFfMTSQdb-D0iTYVmkQCKE",
+            "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFobWFkQGV4YW1wbGUuY29tIiwic3ViIjoiNjg4YzY5ZjIwNjUzZWMwZjQzZGY2ZTJjIiwicm9sZSI6InBhc3NlbmdlciIsImlhdCI6MTc1ODY5NzAzOSwiZXhwIjoxNzU4NzgzNDM5fQ.v7shJgB8qxOgqMqjyB8D67QFlyzROMth3ijZtOtgEd8",
         },
         body: JSON.stringify({
           pickupLocation: {
@@ -743,6 +744,31 @@ const newHome = () => {
     </View>
   );
 
+  const handleCall = async () => {
+    const phoneNumber = acceptedDriver?.phoneNumber;
+    const url = `tel:${phoneNumber}`;
+    try {
+      await Linking.openURL(url);
+    } catch (error) {
+      Alert.alert("Error", "Unable to make a call.");
+    }
+  };
+
+  const handleWhatsApp = async () => {
+    const phoneNumber = acceptedDriver?.phoneNumber;
+    const url = `https://wa.me/${phoneNumber}?text=Hello%20${acceptedDriver?.firstname},%20I%20am%20your%20gomate%20passenger.`;
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert("Error", "WhatsApp is not installed on your device.");
+      }
+    } catch (error) {
+      Alert.alert("Error", "Unable to open WhatsApp.");
+    }
+  };
+
   const handleCancelRide = () => {
     if (!rideId || !passengerId || !acceptedDriver?.id) {
       if (!rideId) console.log("❌ Missing rideId");
@@ -861,8 +887,8 @@ const newHome = () => {
         {pickupCoord && dropoffCoord && routeCoords.length > 0 && (
           <Polyline
             coordinates={routeCoords}
-            strokeWidth={3}
-            strokeColor="black"
+            strokeWidth={5}
+            strokeColor="#0486FE"
           />
         )}
       </MapView>
@@ -907,7 +933,7 @@ const newHome = () => {
           <>
             <View className="p-5">
               {rideStatus !== "started" && (
-                <View className="flex-row justify-between items-center p-1 mb-4">
+                <View className="flex-row justify-between items-center p-1 mb-2">
                   <DriverBanner driverArrived={driverArrived}>
                     <Text className="text-3xl font-JakartaExtraBold p-2">
                       {driverArrived
@@ -916,14 +942,20 @@ const newHome = () => {
                     </Text>
                   </DriverBanner>
                   <View className="flex-row">
-                    <TouchableOpacity className="p-2 rounded-full bg-blue-500 shadow-sm border-[1px] border-white">
+                    <TouchableOpacity
+                      onPress={handleCall}
+                      className="p-2 rounded-full bg-blue-500 shadow-sm border-[1px] border-white"
+                    >
                       <MaterialCommunityIcons
                         name={"phone"}
                         size={44}
                         color="white"
                       />
                     </TouchableOpacity>
-                    <TouchableOpacity className="p-2 ml-6 rounded-full bg-green-500 shadow-sm border-[1px] border-white">
+                    <TouchableOpacity
+                      onPress={handleWhatsApp}
+                      className="p-2 ml-6 rounded-full bg-green-500 shadow-sm border-[1px] border-white"
+                    >
                       <MaterialCommunityIcons
                         name={"whatsapp"}
                         size={44}

@@ -43,6 +43,13 @@ export class Driver {
   })
   password: string;
 
+
+  @Prop({
+    type: String,
+    required: true,
+  })
+  phoneNumber: string;
+
   @Prop({
     type: String,
     enum: ['active', 'inactive'],

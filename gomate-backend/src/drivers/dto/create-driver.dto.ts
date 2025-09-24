@@ -53,6 +53,10 @@ export class CreateDriverDto {
   @MinLength(6, { message: 'Password must be at least 6 characters long' })
   password: string;
 
+  @IsString()
+  @MinLength(10, { message: 'Phone number must be at least 10 characters long' })
+  phoneNumber: string;
+
   @IsOptional()
   @IsIn(['active', 'inactive'], {
     message: 'Status must be either active or inactive',

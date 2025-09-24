@@ -46,7 +46,7 @@ const SupportScreen = () => {
 
   // Call
   const handleCall = async () => {
-    const phoneNumber = "923106350941";
+    const phoneNumber = "923390484822";
     const url = `tel:${phoneNumber}`;
     try {
       await Linking.openURL(url);
