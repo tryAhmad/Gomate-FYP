@@ -1,5 +1,3 @@
-"use client"
-
 import type React from "react"
 import { useState, useEffect, useRef } from "react"
 import {
@@ -167,7 +165,7 @@ const PickupPage: React.FC = () => {
           longitudeDelta: MAP_FOLLOW_ZOOM_LEVEL,
         },
         1000,
-      ) // 1 second animation
+      ) 
     }
   }
 
@@ -464,7 +462,17 @@ const PickupPage: React.FC = () => {
           if (locationSubscription) {
             locationSubscription.remove()
           }
-          router.replace("/" as any)
+
+          router.replace({
+            pathname: "/ride-completed",
+            params: {
+              pickup: params.pickup,
+              destination: params.destination,
+              fare: params.fare,
+              passengerName: params.passengerName,
+              profilePhoto: params.profilePhoto,
+            }
+          } as any)
         },
       },
     ])

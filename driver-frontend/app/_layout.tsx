@@ -36,6 +36,7 @@ export default function RootLayout() {
             <Stack.Screen name="landing_page" options={{ headerShown: false }} />
             <Stack.Screen name="ride-request" options={{ title: 'Ride Request Details' }} />
             <Stack.Screen name="pickup" options={{ headerShown: false }} />
+            <Stack.Screen name="ride-completed" options={{ headerShown: false }} />
           </Stack>
           <StatusBar style="dark" />
         </SafeAreaView>
