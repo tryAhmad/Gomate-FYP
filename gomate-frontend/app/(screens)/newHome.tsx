@@ -2,7 +2,7 @@ import CustomButton from "@/components/CustomButton";
 import DriverOffersModal from "@/components/DriverOffersModal";
 import InputField from "@/components/InputField";
 import { icons, images } from "@/constants";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useState, useEffect } from "react";
 import {
@@ -35,6 +35,7 @@ import * as Location from "expo-location";
 import {
   getAutoCompleteSuggestions,
   getAddressCoordinate,
+  getDistanceTime,
 } from "@/utils/mapsApi";
 import socket from "@/utils/socket";
 import Animated, {
@@ -128,6 +129,11 @@ const newHome = () => {
   const [routeCoords, setRouteCoords] = useState<
     { latitude: number; longitude: number }[]
   >([]);
+
+  // Add state for ride distance and duration
+  const [rideDistance, setRideDistance] = useState<string>("");
+  const [rideDuration, setRideDuration] = useState<string>("");
+  const [loadingDistanceTime, setLoadingDistanceTime] = useState(false);
 
   const DEFAULT_REGION: Region = {
     latitude: 31.5204, // Lahore fallback
@@ -240,84 +246,6 @@ const newHome = () => {
     return <Animated.View style={animatedStyle}>{children}</Animated.View>;
   };
 
-  // // Get current location on component mount
-  // useEffect(() => {
-  //   (async () => {
-  //     try {
-  //       setIsLoadingLocation(true);
-
-  //       // Request location permissions
-  //       const { status } = await Location.requestForegroundPermissionsAsync();
-  //       if (status !== "granted") {
-  //         Alert.alert(
-  //           "Permission denied",
-  //           "Location permission is required to get your current location"
-  //         );
-  //         setIsLoadingLocation(false);
-  //         return;
-  //       }
-
-  //       // Get current location
-  //       const location = await Location.getCurrentPositionAsync({
-  //         accuracy: Location.Accuracy.Balanced,
-  //       });
-  //       const { coords } = location;
-  //       if (!coords) {
-  //         Alert.alert("Error", "Unable to fetch current location");
-  //         setIsLoadingLocation(false);
-  //         return;
-  //       }
-
-  //       // Set current location first
-  //       setCurrentLocation(location);
-
-  //       // Set pickup coordinates to current location
-  //       const currentCoords = {
-  //         latitude: coords.latitude,
-  //         longitude: coords.longitude,
-  //       };
-  //       setPickupCoord(currentCoords);
-
-  //       // Define region
-  //       const region: Region = {
-  //         latitude: coords.latitude,
-  //         longitude: coords.longitude,
-  //         latitudeDelta: 0.01,
-  //         longitudeDelta: 0.01,
-  //       };
-
-  //       // Animate map to current location with delay to ensure map is ready
-  //       setTimeout(() => {
-  //         mapRef.current?.animateToRegion(region, 1000);
-  //       }, 100);
-
-  //       // Reverse geocode to get address
-  //       try {
-  //         const [place] = await Location.reverseGeocodeAsync(coords);
-  //         if (place) {
-  //           const formattedAddress = [place.name, place.street, place.city]
-  //             .filter(Boolean)
-  //             .join(", ");
-
-  //           setPickup(formattedAddress);
-  //         }
-  //       } catch (geocodeError) {
-  //         console.error("Error reverse geocoding:", geocodeError);
-  //         // Set a fallback address if reverse geocoding fails
-  //         setPickup(
-  //           `${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)}`
-  //         );
-  //       }
-
-  //       setIsLoadingLocation(false);
-  //     } catch (error) {
-  //       console.error("Error getting current location:", error);
-  //       Alert.alert("Error", "Unable to get current location");
-  //       setIsLoadingLocation(false);
-  //     }
-  //   })();
-  // }, []);
-
   useEffect(() => {
     (async () => {
       try {
@@ -390,6 +318,37 @@ const newHome = () => {
       }
     })();
   }, []);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      const fetchDistanceTime = async () => {
+        if (pickup && dropoff) {
+          try {
+            setLoadingDistanceTime(true);
+            const result = await getDistanceTime(pickup, dropoff);
+
+            if (result) {
+              setRideDistance(result.distance.text);
+              setRideDuration(result.duration.text);
+            }
+          } catch (error) {
+            setRideDistance("");
+            setRideDuration("");
+          } finally {
+            setLoadingDistanceTime(false);
+          }
+        } else {
+          setRideDistance("");
+          setRideDuration("");
+          setLoadingDistanceTime(false);
+        }
+      };
+
+      fetchDistanceTime();
+    }, 1000); // debounce delay
+
+    return () => clearTimeout(timeout);
+  }, [pickup, dropoff]);
 
   // Handle pickup text change with autocomplete
   const handlePickupChange = async (text: string) => {
@@ -607,16 +566,12 @@ const newHome = () => {
             .filter(Boolean)
             .join(", ");
           setPickup(formattedAddress);
+          console.log("Set pickup to current location:", formattedAddress);
         } else {
-          setPickup(
-            `${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)}`
-          );
+          console.log("Reverse geocode returned no results");
         }
       } catch (error) {
         console.error("Error reverse geocoding pickup:", error);
-        setPickup(
-          `${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)}`
-        );
       }
     }
   };
@@ -642,10 +597,9 @@ const newHome = () => {
             .filter(Boolean)
             .join(", ");
           setDropoff(formattedAddress);
+          console.log("Set dropoff to current location:", formattedAddress);
         } else {
-          setDropoff(
-            `${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)}`
-          );
+          console.log("Reverse geocode returned no results");
         }
       } catch (error) {
         console.error("Error reverse geocoding dropoff:", error);
@@ -1248,6 +1202,24 @@ const newHome = () => {
                       handleDropoffSuggestionSelect
                     )}
                 </View>
+                {!loadingDistanceTime && rideDistance && rideDuration && (
+                  <View className="flex-row items-center justify-center space-x-4 ">
+                    <MaterialCommunityIcons
+                      name="map-marker-distance"
+                      size={24}
+                      color="gray"
+                    />
+                    <Text className="text-gray-600 text-lg text-center font-JakartaMedium mr-16">
+                      {": "}
+                      {rideDistance}
+                    </Text>
+                    <Ionicons name="time-sharp" size={24} color="gray" />
+                    <Text className="text-gray-600 text-lg text-center font-JakartaMedium">
+                      {": "}
+                      {rideDuration}
+                    </Text>
+                  </View>
+                )}
 
                 <InputField
                   placeholder="Enter Fare"

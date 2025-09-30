@@ -244,7 +244,7 @@ const DriverOffersModal: React.FC<DriverOffersModalProps> = ({
                   <Animated.View
                     key={offer.driver.id || index}
                     style={{ transform: [{ translateX: anim }] }}
-                    className="bg-white rounded-2xl p-5 mb-4 mx-4 shadow-sm border border-gray-200"
+                    className="bg-white rounded-2xl p-5 mb-4 mx-4 shadow-sm border-2 border-gray-200"
                   >
                     <View className="flex-row items-center justify-between">
                       <View className="flex-row items-center flex-1">
@@ -284,7 +284,7 @@ const DriverOffersModal: React.FC<DriverOffersModalProps> = ({
                       </View>
 
                       <View className="items-end">
-                        <Text className="text-2xl font-JakartaExtraBold text-green-600">
+                        <Text className="text-3xl font-JakartaExtraBold text-green-600">
                           Rs {offer.counterFare}
                         </Text>
                       </View>
