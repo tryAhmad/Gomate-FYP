@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import CustomButton from "@/components/CustomButton";
 import { Ionicons } from "@expo/vector-icons";
+import { reverseGeocode, getDistanceTime } from "@/utils/mapsApi";
 
 const { width } = Dimensions.get("window");
 
@@ -42,7 +43,6 @@ interface DriverOffer {
   driver: Driver;
 }
 
-
 interface RawOffer {
   counterFare: string;
   driverId: string;
@@ -71,9 +71,56 @@ const DriverOffersModal: React.FC<DriverOffersModalProps> = ({
 }) => {
   const [loading, setLoading] = useState(false);
   const [fareOffer, setFareOffer] = useState<number>(0);
+  const [driverDistances, setDriverDistances] = useState<{
+    [key: string]: { distance: string; duration: string };
+  }>({});
 
   // animation values (1 per driver card)
   const slideAnimsRef = useRef<Animated.Value[]>([]);
+
+  // Function to get driver address and calculate distance/time
+  const calculateDriverDistances = async () => {
+    if (!rideDetails?.pickup || offers.length === 0) return;
+
+    const distances: { [key: string]: { distance: string; duration: string } } =
+      {};
+
+    for (const offer of offers) {
+      try {
+        // Reverse geocode driver location to get address
+        const driverAddress = await reverseGeocode(
+          offer.driver.location.lat,
+          offer.driver.location.lng
+        );
+
+        if (driverAddress) {
+          // Get distance and time between driver and pickup
+          const distanceData = await getDistanceTime(
+            driverAddress,
+            rideDetails.pickup
+          );
+
+          if (distanceData && distanceData.status === "OK") {
+            distances[offer.driver.id] = {
+              distance: distanceData.distance?.text || "N/A",
+              duration: distanceData.duration?.text || "N/A",
+            };
+          }
+        }
+      } catch (error) {
+        console.error(
+          `Error calculating distance for driver ${offer.driver.id}:`,
+          error
+        );
+        distances[offer.driver.id] = {
+          distance: "N/A",
+          duration: "N/A",
+        };
+      }
+    }
+
+    setDriverDistances(distances);
+  };
 
   // rebuild anim array whenever offers change
   useEffect(() => {
@@ -88,7 +135,10 @@ const DriverOffersModal: React.FC<DriverOffersModalProps> = ({
 
       slideAnimsRef.current.forEach((anim) => anim.setValue(-width));
 
-      const timer = setTimeout(() => {
+      const timer = setTimeout(async () => {
+        // Calculate distances first
+        await calculateDriverDistances();
+
         setLoading(false);
         slideAnimsRef.current.forEach((anim, index) => {
           Animated.timing(anim, {
@@ -199,24 +249,37 @@ const DriverOffersModal: React.FC<DriverOffersModalProps> = ({
                     <View className="flex-row items-center justify-between">
                       <View className="flex-row items-center flex-1">
                         <View className="w-16 h-16 rounded-full bg-gray-200 mr-4 items-center justify-center">
-                          <Text className="text-gray-500 font-bold">D</Text>
+                          <Text className="text-gray-500 font-JakartaBold text-2xl">
+                            {offer.driver.firstname?.slice(0, 1).toUpperCase()}
+                          </Text>
                         </View>
 
                         <View className="flex-1">
                           <Text className="text-xl font-JakartaBold text-gray-800">
                             {offer.driver.firstname} {offer.driver.lastname}
                           </Text>
-                          <Text className="text-gray-600 font-JakartaMedium">
-                            Ride ID: {offer.rideId}
-                          </Text>
-                          <Text className="text-gray-600 font-JakartaMedium">
+                          <Text className="text-gray-600 font-JakartaMedium text-lg">
                             {offer.driver.vehicle.color}{" "}
                             {offer.driver.vehicle.company}{" "}
-                            {offer.driver.vehicle.model}{" "}
+                            {offer.driver.vehicle.model}
                           </Text>
-                          <Text className="text-gray-600 font-JakartaMedium">
+                          <Text className="text-gray-600 font-JakartaMedium text-lg">
                             {offer.driver.vehicle.plate}
                           </Text>
+                          <View className="flex-row items-center mt-1">
+                            <Ionicons
+                              name="time-outline"
+                              size={20}
+                              color="#666"
+                            />
+                            <Text className="text-gray-600 font-JakartaMedium text-lg ml-1">
+                              {driverDistances[offer.driver.id]?.duration ||
+                                "Calculating..."}{" "}
+                              •{" "}
+                              {driverDistances[offer.driver.id]?.distance ||
+                                "..."}
+                            </Text>
+                          </View>
                         </View>
                       </View>
 

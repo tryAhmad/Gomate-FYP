@@ -120,7 +120,7 @@ export default function RideDetailModal({ visible, onClose, ride }: Props) {
 
         {/* Map */}
         <View
-          className="w-[90%] mx-auto mt-6 rounded-2xl overflow-hidden border border-gray-700 shadow-lg"
+          className="w-[90%] mx-auto mt-6 rounded-2xl overflow-hidden border-2 border-gray-300 shadow-lg"
           style={{ height: 250 }}
         >
           <MapView
