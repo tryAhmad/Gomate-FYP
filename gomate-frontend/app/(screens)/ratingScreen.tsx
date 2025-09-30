@@ -56,7 +56,7 @@ export default function RatingScreen() {
         <View className="flex-row items-center mb-3">
           <Ionicons name="location-sharp" size={36} color="red" />
           <Text className="ml-2 text-xl font-JakartaBold text-gray-800">
-            COMSATS University
+            Harbanspura
           </Text>
         </View>
 
@@ -72,7 +72,7 @@ export default function RatingScreen() {
         <View className="flex-row items-center">
           <Ionicons name="receipt-outline" size={36} color="#0486FE" />
           <Text className="ml-2 text-4xl font-JakartaExtraBold text-gray-900">
-            PKR 250
+            PKR 600
           </Text>
         </View>
       </View>

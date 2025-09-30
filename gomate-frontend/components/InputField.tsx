@@ -63,12 +63,7 @@ const InputField = ({
 
             {/* Right-side icon*/}
             {rightIcon && (
-              <TouchableOpacity
-                activeOpacity={0.7}
-                className="mr-3 p-2 rounded-full"
-              >
-                {rightIcon}
-              </TouchableOpacity>
+              <View className="flex-row items-center mr-4">{rightIcon}</View>
             )}
 
             {/* Password toggle */}

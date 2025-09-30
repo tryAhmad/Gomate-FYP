@@ -80,10 +80,10 @@ export default function RideDetailModal({ visible, onClose, ride }: Props) {
       try {
         setLoadingDriver(true);
         const res = await axios.get(
-          `http://192.168.1.49:3000/drivers/${ride.driverID}`,
+          `http://192.168.1.43:3000/drivers/${ride.driverID}`,
           {
             headers: {
-              Authorization: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFobWFkQGV4YW1wbGUuY29tIiwic3ViIjoiNjg4YzY5ZjIwNjUzZWMwZjQzZGY2ZTJjIiwicm9sZSI6InBhc3NlbmdlciIsImlhdCI6MTc1ODY5NzAzOSwiZXhwIjoxNzU4NzgzNDM5fQ.v7shJgB8qxOgqMqjyB8D67QFlyzROMth3ijZtOtgEd8`, // adjust if JWT needed
+              Authorization: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFobWFkQGV4YW1wbGUuY29tIiwic3ViIjoiNjg4YzY5ZjIwNjUzZWMwZjQzZGY2ZTJjIiwicm9sZSI6InBhc3NlbmdlciIsImlhdCI6MTc1OTIxMjQxMywiZXhwIjoxNzU5Mjk4ODEzfQ.Vwmr5kmUFQWkB5mVoUrOfWKWW2dLuj7fzIzr-EBdqo4`, // adjust if JWT needed
             },
           }
         );

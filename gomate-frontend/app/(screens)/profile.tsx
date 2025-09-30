@@ -35,10 +35,10 @@ export default function Profile() {
     const fetchProfile = async () => {
       try {
         const res = await axios.get(
-          `http://192.168.1.49:3000/passengers/${passengerId}`,
+          `http://192.168.1.43:3000/passengers/${passengerId}`,
           {
             headers: {
-              Authorization: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFobWFkQGV4YW1wbGUuY29tIiwic3ViIjoiNjg4YzY5ZjIwNjUzZWMwZjQzZGY2ZTJjIiwicm9sZSI6InBhc3NlbmdlciIsImlhdCI6MTc1ODY5NzAzOSwiZXhwIjoxNzU4NzgzNDM5fQ.v7shJgB8qxOgqMqjyB8D67QFlyzROMth3ijZtOtgEd8`,
+              Authorization: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFobWFkQGV4YW1wbGUuY29tIiwic3ViIjoiNjg4YzY5ZjIwNjUzZWMwZjQzZGY2ZTJjIiwicm9sZSI6InBhc3NlbmdlciIsImlhdCI6MTc1OTIxMjQxMywiZXhwIjoxNzU5Mjk4ODEzfQ.Vwmr5kmUFQWkB5mVoUrOfWKWW2dLuj7fzIzr-EBdqo4`,
             },
           }
         );
@@ -60,14 +60,14 @@ export default function Profile() {
   const handleSave = async () => {
     try {
       const res = await axios.patch(
-        `http://192.168.1.49:3000/passengers/${passengerId}`,
+        `http://192.168.1.43:3000/passengers/${passengerId}`,
         {
           username,
           phoneNumber,
         },
         {
           headers: {
-            Authorization: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFobWFkQGV4YW1wbGUuY29tIiwic3ViIjoiNjg4YzY5ZjIwNjUzZWMwZjQzZGY2ZTJjIiwicm9sZSI6InBhc3NlbmdlciIsImlhdCI6MTc1ODY5NzAzOSwiZXhwIjoxNzU4NzgzNDM5fQ.v7shJgB8qxOgqMqjyB8D67QFlyzROMth3ijZtOtgEd8`,
+            Authorization: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFobWFkQGV4YW1wbGUuY29tIiwic3ViIjoiNjg4YzY5ZjIwNjUzZWMwZjQzZGY2ZTJjIiwicm9sZSI6InBhc3NlbmdlciIsImlhdCI6MTc1OTIxMjQxMywiZXhwIjoxNzU5Mjk4ODEzfQ.Vwmr5kmUFQWkB5mVoUrOfWKWW2dLuj7fzIzr-EBdqo4`,
           },
         }
       );

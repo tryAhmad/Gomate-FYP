@@ -586,6 +586,76 @@ const newHome = () => {
     }
   };
 
+  const handleUseCurrentPickup = async () => {
+    if (currentLocation) {
+      const region = {
+        latitude: currentLocation.coords.latitude - 0.002,
+        longitude: currentLocation.coords.longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      };
+      mapRef.current?.animateToRegion(region, 800);
+      const coords = {
+        latitude: currentLocation.coords.latitude,
+        longitude: currentLocation.coords.longitude,
+      };
+      setPickupCoord(coords);
+      try {
+        const [place] = await Location.reverseGeocodeAsync(coords);
+        if (place) {
+          const formattedAddress = [place.name, place.street, place.city]
+            .filter(Boolean)
+            .join(", ");
+          setPickup(formattedAddress);
+        } else {
+          setPickup(
+            `${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)}`
+          );
+        }
+      } catch (error) {
+        console.error("Error reverse geocoding pickup:", error);
+        setPickup(
+          `${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)}`
+        );
+      }
+    }
+  };
+
+  const handleUseCurrentDropoff = async () => {
+    if (currentLocation) {
+      const region = {
+        latitude: currentLocation.coords.latitude - 0.002,
+        longitude: currentLocation.coords.longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      };
+      mapRef.current?.animateToRegion(region, 800);
+      const coords = {
+        latitude: currentLocation.coords.latitude,
+        longitude: currentLocation.coords.longitude,
+      };
+      setDropoffCoord(coords);
+      try {
+        const [place] = await Location.reverseGeocodeAsync(coords);
+        if (place) {
+          const formattedAddress = [place.name, place.street, place.city]
+            .filter(Boolean)
+            .join(", ");
+          setDropoff(formattedAddress);
+        } else {
+          setDropoff(
+            `${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)}`
+          );
+        }
+      } catch (error) {
+        console.error("Error reverse geocoding dropoff:", error);
+        setDropoff(
+          `${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)}`
+        );
+      }
+    }
+  };
+
   const handleFindRide = async () => {
     if (!selectedRideType || !pickupCoord || !dropoffCoord || !fare) {
       Alert.alert("Missing info", "Please fill in pickup, dropoff, and fare");
@@ -596,12 +666,12 @@ const newHome = () => {
     console.log(dropoffCoord.latitude, dropoffCoord.longitude);
 
     try {
-      const response = await fetch("http://192.168.1.49:3000/ride-request", {
+      const response = await fetch("http://192.168.1.43:3000/ride-request", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization:
-            "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFobWFkQGV4YW1wbGUuY29tIiwic3ViIjoiNjg4YzY5ZjIwNjUzZWMwZjQzZGY2ZTJjIiwicm9sZSI6InBhc3NlbmdlciIsImlhdCI6MTc1ODY5NzAzOSwiZXhwIjoxNzU4NzgzNDM5fQ.v7shJgB8qxOgqMqjyB8D67QFlyzROMth3ijZtOtgEd8",
+            "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFobWFkQGV4YW1wbGUuY29tIiwic3ViIjoiNjg4YzY5ZjIwNjUzZWMwZjQzZGY2ZTJjIiwicm9sZSI6InBhc3NlbmdlciIsImlhdCI6MTc1OTIxMjQxMywiZXhwIjoxNzU5Mjk4ODEzfQ.Vwmr5kmUFQWkB5mVoUrOfWKWW2dLuj7fzIzr-EBdqo4",
         },
         body: JSON.stringify({
           pickupLocation: {
@@ -1095,15 +1165,27 @@ const newHome = () => {
                         onChangeText={handlePickupChange}
                         onFocus={() => setShowDropoffSuggestions(false)}
                         rightIcon={
-                          pickup.length > 0 && (
-                            <TouchableOpacity onPress={onClearPickup}>
-                              <MaterialCommunityIcons
-                                name="close-circle"
-                                size={26}
-                                color="gray"
-                              />
-                            </TouchableOpacity>
-                          )
+                          <View className="flex-row items-center space-x-4">
+                            {pickup.length > 0 ? (
+                              <TouchableOpacity onPress={onClearPickup}>
+                                <MaterialCommunityIcons
+                                  name="close-circle"
+                                  size={26}
+                                  color="gray"
+                                />
+                              </TouchableOpacity>
+                            ) : (
+                              <TouchableOpacity
+                                onPress={handleUseCurrentPickup}
+                              >
+                                <MaterialCommunityIcons
+                                  name="crosshairs-gps"
+                                  size={26}
+                                  color="gray"
+                                />
+                              </TouchableOpacity>
+                            )}
+                          </View>
                         }
                       />
                     </View>
@@ -1134,15 +1216,27 @@ const newHome = () => {
                         onChangeText={handleDropoffChange}
                         onFocus={() => setShowPickupSuggestions(false)}
                         rightIcon={
-                          dropoff.length > 0 && (
-                            <TouchableOpacity onPress={onClearDropoff}>
-                              <MaterialCommunityIcons
-                                name="close-circle"
-                                size={26}
-                                color="gray"
-                              />
-                            </TouchableOpacity>
-                          )
+                          <View className="flex-row items-center space-x-4">
+                            {dropoff.length > 0 ? (
+                              <TouchableOpacity onPress={onClearDropoff}>
+                                <MaterialCommunityIcons
+                                  name="close-circle"
+                                  size={26}
+                                  color="gray"
+                                />
+                              </TouchableOpacity>
+                            ) : (
+                              <TouchableOpacity
+                                onPress={handleUseCurrentDropoff}
+                              >
+                                <MaterialCommunityIcons
+                                  name="crosshairs-gps"
+                                  size={26}
+                                  color="gray"
+                                />
+                              </TouchableOpacity>
+                            )}
+                          </View>
                         }
                       />
                     </View>
@@ -1175,7 +1269,7 @@ const newHome = () => {
 
                 <CustomButton
                   title="Find Ride"
-                  className="mt-4 font-JakartaBold"
+                  className="mt-4 font-JakartaBold mb-6"
                   onPress={handleFindRide}
                 />
               </View>
