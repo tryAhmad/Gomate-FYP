@@ -1,5 +1,4 @@
-import type React from "react"
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,57 +8,80 @@ import {
   StatusBar,
   Dimensions,
   Image,
-} from "react-native"
-import { MaterialCommunityIcons } from "@expo/vector-icons"
-import { useRouter, useLocalSearchParams } from "expo-router"
+} from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const { width, height } = Dimensions.get("window")
+const { width, height } = Dimensions.get("window");
 
 type RideCompleteParams = {
-  pickup?: string
-  destination?: string
-  fare?: string
-  passengerName?: string
-  profilePhoto?: string
-}
+  pickup?: string;
+  destination?: string;
+  fare?: string;
+  passengerName?: string;
+  profilePhoto?: string;
+};
 
 const RideCompleteScreen: React.FC = () => {
-  const router = useRouter()
-  const params = useLocalSearchParams() as RideCompleteParams
+  const router = useRouter();
+  const params = useLocalSearchParams() as RideCompleteParams;
 
   const [rideDetails, setRideDetails] = useState({
     pickup: params.pickup || "Unknown Pickup",
-    destination: params.destination || "Unknown Destination", 
+    destination: params.destination || "Unknown Destination",
     fare: params.fare || "250",
     passengerName: params.passengerName || "Passenger",
     profilePhoto: params.profilePhoto || "",
-  })
+  });
 
   useEffect(() => {
-    // Here you could fetch additional ride details from your API if needed
-    console.log("[RIDE_COMPLETE] Ride completed with details:", rideDetails)
-    
-    // Optional: Send completion status to backend
-    // submitRideCompletion(rideDetails)
-  }, [])
+    console.log("[RIDE_COMPLETE] Ride completed with details:", rideDetails);
+
+    const saveRide = async () => {
+      try {
+        const cached = await AsyncStorage.getItem("driverRideHistory");
+        let rides = cached ? JSON.parse(cached) : [];
+
+        const newRide = {
+          _id: Date.now().toString(),
+          pickupLocation: { address: rideDetails.pickup },
+          dropoffLocation: { address: rideDetails.destination },
+          fare: parseFloat(rideDetails.fare) || 0,
+          passengerName: rideDetails.passengerName,
+          profilePhoto: rideDetails.profilePhoto,
+          createdAt: new Date().toISOString(),
+          status: "completed",
+        };
+
+        rides = [newRide, ...rides];
+        await AsyncStorage.setItem("driverRideHistory", JSON.stringify(rides));
+
+        console.log("[RIDE_COMPLETE] Saved ride to history");
+      } catch (err) {
+        console.error("Error saving ride history:", err);
+      }
+    };
+
+    saveRide();
+  }, []);
 
   const handleBookAnotherRide = () => {
-    console.log("[RIDE_COMPLETE] Navigating to landing page for new ride")
-    router.replace("/landing-page" as any)
-  }
+    console.log("[RIDE_COMPLETE] Navigating to landing page for new ride");
+    router.replace("/landing-page" as any);
+  };
 
-  const getInitial = (name?: string) => name?.charAt(0).toUpperCase() || "P"
+  const getInitial = (name?: string) => name?.charAt(0).toUpperCase() || "P";
 
   const formatFare = (fare: string) => {
-    // Remove any existing currency symbols and format
-    const numericFare = fare.replace(/[^\d]/g, "")
-    return numericFare || "250"
-  }
+    const numericFare = fare.replace(/[^\d]/g, "");
+    return numericFare || "250";
+  };
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar backgroundColor="#0286FF" barStyle="light-content" />
-      
+
       {/* Success Header */}
       <View style={styles.headerSection}>
         <View style={styles.successIconContainer}>
@@ -133,8 +155,10 @@ const RideCompleteScreen: React.FC = () => {
         </TouchableOpacity>
       </View>
     </SafeAreaView>
-  )
-}
+  );
+};
+
+export default RideCompleteScreen;
 
 const styles = StyleSheet.create({
   container: {
@@ -145,7 +169,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingTop: 40,
     paddingBottom: 30,
-    backgroundColor: "#fff",
   },
   successIconContainer: {
     marginBottom: 16,
@@ -305,6 +328,4 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginLeft: 12,
   },
-})
-
-export default RideCompleteScreen
+});
