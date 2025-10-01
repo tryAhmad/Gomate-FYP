@@ -35,7 +35,7 @@ export default function DriverRideHistoryScreen() {
   const [selectedRide, setSelectedRide] = useState<Ride | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
 
-  // sidebar states
+  // burgermenu states
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const slideAnim = useState(new Animated.Value(-width * 0.7))[0];
 
@@ -185,10 +185,20 @@ const statusStyles: Record<string, any> = {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff", paddingHorizontal: 16 },
-  centered: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#fff" },
-  loadingText: { marginTop: 10, fontSize: 16, color: "#333" },
+  // Layout Containers
+  container: { 
+    flex: 1, 
+    backgroundColor: "#fff", 
+    paddingHorizontal: 16 
+  },
+  centered: { 
+    flex: 1, 
+    justifyContent: "center", 
+    alignItems: "center", 
+    backgroundColor: "#fff" 
+  },
 
+  // Header
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -197,11 +207,30 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     marginBottom: 10,
   },
-  menuButton: { padding: 8, borderRadius: 20 },
-  title: { fontSize: 24, fontWeight: "bold", color: "#0286FF", textAlign: "center" },
+  menuButton: { 
+    padding: 8, 
+    borderRadius: 20 
+  },
+  title: { 
+    fontSize: 24, 
+    fontWeight: "bold", 
+    color: "#0286FF", 
+    textAlign: "center" 
+  },
 
-  emptyText: { textAlign: "center", fontSize: 16, color: "gray" },
+  // Empty state
+  loadingText: { 
+    marginTop: 10, 
+    fontSize: 16, 
+    color: "#333" 
+  },
+  emptyText: { 
+    textAlign: "center", 
+    fontSize: 16, 
+    color: "gray" 
+  },
 
+  // Ride Card
   card: {
     marginTop: 12,
     backgroundColor: "#F3F4F6",
@@ -213,13 +242,35 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  date: { fontSize: 17, fontWeight: "700", color: "#111", marginBottom: 8 },
-  rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
+  date: { 
+    fontSize: 17, 
+    fontWeight: "700", 
+    color: "#111", 
+    marginBottom: 8 
+  },
+  rowBetween: { 
+    flexDirection: "row", 
+    justifyContent: "space-between", 
+    alignItems: "center", 
+    marginBottom: 8 
+  },
+  fare: { 
+    fontSize: 18, 
+    fontWeight: "bold", 
+    color: "#0286FF" 
+  },
 
-  fare: { fontSize: 18, fontWeight: "bold", color: "#0286FF" },
-
-  passengerSection: { flexDirection: "row", alignItems: "center" },
-  avatar: { width: 40, height: 40, borderRadius: 20, marginRight: 10 },
+  // Passenger Section
+  passengerSection: { 
+    flexDirection: "row", 
+    alignItems: "center" 
+  },
+  avatar: { 
+    width: 40, 
+    height: 40, 
+    borderRadius: 20, 
+    marginRight: 10 
+  },
   avatarPlaceholder: {
     width: 40,
     height: 40,
@@ -229,13 +280,33 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginRight: 10,
   },
-  avatarInitial: { fontSize: 16, color: "#0286FF", fontWeight: "600" },
-  passengerName: { fontSize: 16, fontWeight: "600", color: "#333" },
+  avatarInitial: { 
+    fontSize: 16, 
+    fontWeight: "600", 
+    color: "#0286FF" 
+  },
+  passengerName: { 
+    fontSize: 16, 
+    fontWeight: "600", 
+    color: "#333" 
+  },
 
-  locationRow: { flexDirection: "row", alignItems: "center", marginTop: 2 },
-  locationText: { marginLeft: 6, fontSize: 14, color: "#444" },
+  // Locations
+  locationRow: { 
+    flexDirection: "row", 
+    alignItems: "center", 
+    marginTop: 2 
+  },
+  locationText: { 
+    marginLeft: 6, 
+    fontSize: 14, 
+    color: "#444" 
+  },
 
-  statusContainer: { marginTop: 10 },
+  // Status
+  statusContainer: { 
+    marginTop: 10 
+  },
   status: {
     paddingHorizontal: 10,
     paddingVertical: 4,
