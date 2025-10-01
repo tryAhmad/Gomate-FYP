@@ -52,6 +52,8 @@ export default {
     },
     extra: {
       MAPS_API_KEY: process.env.MAPS_API_KEY,
+      USER_IP: process.env.USER_IP,
+      USER_TOKEN: process.env.USER_TOKEN,
       router: {},
       eas: {
         projectId: "a5880b66-c286-4142-9f6e-58f14d7ce086",

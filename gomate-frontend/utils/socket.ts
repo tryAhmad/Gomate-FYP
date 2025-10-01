@@ -1,7 +1,11 @@
 // utils/socket.ts
+import Constants from "expo-constants";
 import { io } from "socket.io-client";
 
-const socket = io("http://192.168.1.43:3000", {
+const userip = Constants.expoConfig?.extra?.USER_IP?.trim(); // trim to remove spaces/newlines
+console.log("USER_IP:", userip); // check what you get
+
+const socket = io(`http://${userip}:3000`, {
   transports: ["websocket"],
   autoConnect: false,
   reconnection: true,

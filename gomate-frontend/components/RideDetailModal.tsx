@@ -13,6 +13,9 @@ import MapViewDirections from "react-native-maps-directions";
 import axios from "axios";
 
 const GOOGLE_MAPS_APIKEY = Constants.expoConfig?.extra?.MAPS_API_KEY;
+const userip = Constants.expoConfig?.extra?.USER_IP?.trim();
+const usertoken = Constants.expoConfig?.extra?.USER_TOKEN?.trim();
+
 
 interface Props {
   visible: boolean;
@@ -80,10 +83,10 @@ export default function RideDetailModal({ visible, onClose, ride }: Props) {
       try {
         setLoadingDriver(true);
         const res = await axios.get(
-          `http://192.168.1.43:3000/drivers/${ride.driverID}`,
+          `http://${userip}:3000/drivers/${ride.driverID}`,
           {
             headers: {
-              Authorization: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFobWFkQGV4YW1wbGUuY29tIiwic3ViIjoiNjg4YzY5ZjIwNjUzZWMwZjQzZGY2ZTJjIiwicm9sZSI6InBhc3NlbmdlciIsImlhdCI6MTc1OTIxMjQxMywiZXhwIjoxNzU5Mjk4ODEzfQ.Vwmr5kmUFQWkB5mVoUrOfWKWW2dLuj7fzIzr-EBdqo4`, // adjust if JWT needed
+              Authorization: `Bearer ${usertoken}`, // adjust if JWT needed
             },
           }
         );
@@ -105,17 +108,20 @@ export default function RideDetailModal({ visible, onClose, ride }: Props) {
   return (
     <Modal visible={visible} animationType="slide">
       <View className="flex-1 bg-gray-100">
-        {/* Close button */}
         <TouchableOpacity
           onPress={onClose}
-          className="absolute top-6 left-6 z-10 bg-gray-500 p-2 rounded-full border-[1px] shadow-md"
+          className="absolute top-6 left-6 z-10 bg-gray-400 p-2 rounded-full border-[1px] border-gray-500 shadow-md"
         >
-          <Ionicons name="close" size={20} color="white" />
+          <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
 
         {/* Date */}
-        <Text className="text-black text-3xl font-JakartaExtraBold mt-14 text-center">
-          {new Date(ride.createdAt).toDateString()}
+        <Text className="text-black text-3xl font-JakartaExtraBold mt-6 pt-1 text-center">
+          {new Date(ride.createdAt).toLocaleDateString("en-US", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+          })}
         </Text>
 
         {/* Map */}

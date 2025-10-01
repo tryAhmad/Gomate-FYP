@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   forwardRef,
   Inject,
   Injectable,
@@ -208,5 +209,61 @@ export class RideRequestService {
       },
       { new: true },
     );
+  }
+
+  calculateFareFromDistanceTime(
+    distanceMeters: number,
+    durationSeconds: number,
+    rideType?: 'auto' | 'car' | 'moto',
+  ) {
+    if (distanceMeters == null || durationSeconds == null) {
+      throw new BadRequestException(
+        'Both distance (meters) and duration (seconds) are required',
+      );
+    }
+
+    const baseFare = {
+      auto: 30,
+      car: 50,
+      moto: 20,
+    } as const;
+
+    const perKmRate = {
+      auto: 10,
+      car: 15,
+      moto: 8,
+    } as const;
+
+    const perMinuteRate = {
+      auto: 2,
+      car: 3,
+      moto: 1.5,
+    } as const;
+
+    const calc = (type: 'auto' | 'car' | 'moto') =>
+      Math.round(
+        baseFare[type] +
+          (distanceMeters / 1000) * perKmRate[type] +
+          (durationSeconds / 60) * perMinuteRate[type],
+      );
+
+    const fares = {
+      auto: calc('auto'),
+      car: calc('car'),
+      moto: calc('moto'),
+    };
+
+    if (rideType && ['auto', 'car', 'moto'].includes(rideType)) {
+      return {
+        message: 'Fare calculated successfully',
+        rideType,
+        fare: fares[rideType],
+      };
+    }
+
+    return {
+      message: 'Fare calculated successfully',
+      fares,
+    };
   }
 }

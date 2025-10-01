@@ -19,6 +19,7 @@ import { UpdateRideRequestDto } from './dto/update-ride-request.dto';
 import { RolesGuard } from 'src/common/guards/roles.guard';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { RideMode } from 'src/common/enums/ride-mode.enum';
+import { CalculateFareDto } from './dto/calculate-fare.dto';
 
 @ApiTags('ride-request')
 @Controller('ride-request')
@@ -99,5 +100,19 @@ export class RideRequestController {
   @ApiOperation({ summary: 'Update ride request by ID' })
   async update(@Param('id') id: string, @Body() dto: UpdateRideRequestDto) {
     return this.rideRequestService.updateRideRequest(id, dto);
+  }
+
+  @Post('fare')
+  @ApiOperation({
+    summary:
+      'Calculate fare from distance and duration (frontend provides distance & time)',
+  })
+  async calculateFare(@Body() dto: CalculateFareDto) {
+    // dto.distance = meters, dto.duration = seconds
+    return this.rideRequestService.calculateFareFromDistanceTime(
+      dto.distance,
+      dto.duration,
+      dto.rideType,
+    );
   }
 }

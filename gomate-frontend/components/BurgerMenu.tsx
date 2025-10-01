@@ -55,7 +55,7 @@ export default function BurgerMenu({
         className={`absolute ${style} w-12 h-12 rounded-full bg-white justify-center items-center shadow-md z-0`}
         onPress={openMenu}
       >
-        <Ionicons name="menu" size={28} color="black" />
+        <Ionicons name="menu" size={34} color="black" />
       </TouchableOpacity>
 
       {/* Overlay + Sliding Menu */}

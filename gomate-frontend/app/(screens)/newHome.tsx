@@ -47,6 +47,10 @@ import Animated, {
 } from "react-native-reanimated";
 import BurgerMenu from "@/components/BurgerMenu";
 
+const userip = Constants.expoConfig?.extra?.USER_IP?.trim();
+const usertoken = Constants.expoConfig?.extra?.USER_TOKEN?.trim();
+
+
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowBanner: true,
@@ -620,12 +624,11 @@ const newHome = () => {
     console.log(dropoffCoord.latitude, dropoffCoord.longitude);
 
     try {
-      const response = await fetch("http://192.168.1.43:3000/ride-request", {
+      const response = await fetch(`http://${userip}:3000/ride-request`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization:
-            "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFobWFkQGV4YW1wbGUuY29tIiwic3ViIjoiNjg4YzY5ZjIwNjUzZWMwZjQzZGY2ZTJjIiwicm9sZSI6InBhc3NlbmdlciIsImlhdCI6MTc1OTIxMjQxMywiZXhwIjoxNzU5Mjk4ODEzfQ.Vwmr5kmUFQWkB5mVoUrOfWKWW2dLuj7fzIzr-EBdqo4",
+          Authorization: `Bearer ${usertoken}`,
         },
         body: JSON.stringify({
           pickupLocation: {
@@ -840,11 +843,11 @@ const newHome = () => {
   return (
     <SafeAreaView className="flex-1 bg-white">
       <StatusBar
-        barStyle="light-content"
+        barStyle="dark-content"
         translucent
         backgroundColor="transparent"
       />
-      {/* Fake background for StatusBar */}
+      {/* Fake background for StatusBar
       <View
         style={{
           height: (StatusBar.currentHeight ? StatusBar.currentHeight : 0) * 0.8, // status bar height on Android
@@ -855,7 +858,7 @@ const newHome = () => {
           right: 0,
           zIndex: 1,
         }}
-      />
+      /> */}
       <MapView
         ref={mapRef}
         style={{ flex: 1 }}

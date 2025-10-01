@@ -14,6 +14,11 @@ import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import InputField from "@/components/InputField";
 import CustomButton from "@/components/CustomButton";
+import Constants from "expo-constants";
+
+const userip = Constants.expoConfig?.extra?.USER_IP?.trim();
+const usertoken = Constants.expoConfig?.extra?.USER_TOKEN?.trim();
+
 
 export default function Profile() {
   const router = useRouter();
@@ -35,10 +40,10 @@ export default function Profile() {
     const fetchProfile = async () => {
       try {
         const res = await axios.get(
-          `http://192.168.1.43:3000/passengers/${passengerId}`,
+          `http://${userip}:3000/passengers/${passengerId}`,
           {
             headers: {
-              Authorization: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFobWFkQGV4YW1wbGUuY29tIiwic3ViIjoiNjg4YzY5ZjIwNjUzZWMwZjQzZGY2ZTJjIiwicm9sZSI6InBhc3NlbmdlciIsImlhdCI6MTc1OTIxMjQxMywiZXhwIjoxNzU5Mjk4ODEzfQ.Vwmr5kmUFQWkB5mVoUrOfWKWW2dLuj7fzIzr-EBdqo4`,
+              Authorization: `Bearer ${usertoken}`,
             },
           }
         );
@@ -60,14 +65,14 @@ export default function Profile() {
   const handleSave = async () => {
     try {
       const res = await axios.patch(
-        `http://192.168.1.43:3000/passengers/${passengerId}`,
+        `http://${userip}:3000/passengers/${passengerId}`,
         {
           username,
           phoneNumber,
         },
         {
           headers: {
-            Authorization: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFobWFkQGV4YW1wbGUuY29tIiwic3ViIjoiNjg4YzY5ZjIwNjUzZWMwZjQzZGY2ZTJjIiwicm9sZSI6InBhc3NlbmdlciIsImlhdCI6MTc1OTIxMjQxMywiZXhwIjoxNzU5Mjk4ODEzfQ.Vwmr5kmUFQWkB5mVoUrOfWKWW2dLuj7fzIzr-EBdqo4`,
+            Authorization: `Bearer ${usertoken}`,
           },
         }
       );
