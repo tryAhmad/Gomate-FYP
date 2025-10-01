@@ -38,6 +38,7 @@ export default function RootLayout() {
             <Stack.Screen name="pickup" options={{ headerShown: false }} />
             <Stack.Screen name="ride-completed" options={{ headerShown: false }} />
             <Stack.Screen name="ride-history" options={{ headerShown: false }} />
+            <Stack.Screen name="earnings" options={{ headerShown: false }} />
           </Stack>
           <StatusBar style="dark" />
         </SafeAreaView>

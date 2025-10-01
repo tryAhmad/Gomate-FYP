@@ -33,7 +33,8 @@ const BurgerMenu: React.FC<BurgerMenuProps> = ({ isVisible, onClose, slideAnim }
 
   const handleEarnings = () => {
     console.log("Opening earnings...")
-    // router.push("/earnings") 
+    router.push("/earnings") 
+    onClose()
   }
 
   const handleNotifications = () => {
