@@ -223,15 +223,15 @@ export class RideRequestService {
     }
 
     const baseFare = {
-      auto: 30,
-      car: 50,
-      moto: 20,
+      auto: 40,
+      car: 70,
+      moto: 25,
     } as const;
 
     const perKmRate = {
-      auto: 10,
-      car: 15,
-      moto: 8,
+      auto: 15,
+      car: 25,
+      moto: 10,
     } as const;
 
     const perMinuteRate = {

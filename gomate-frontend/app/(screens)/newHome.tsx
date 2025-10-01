@@ -21,6 +21,7 @@ import {
   Image,
   Vibration,
   Linking,
+  Modal,
 } from "react-native";
 import MapView, {
   PROVIDER_GOOGLE,
@@ -49,7 +50,6 @@ import BurgerMenu from "@/components/BurgerMenu";
 
 const userip = Constants.expoConfig?.extra?.USER_IP?.trim();
 const usertoken = Constants.expoConfig?.extra?.USER_TOKEN?.trim();
-
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -100,7 +100,7 @@ const newHome = () => {
   const [choosingType, setChoosingType] = useState<"pickup" | "dropoff" | null>(
     null
   );
-
+  const [calculatedFare, setCalculatedFare] = useState<number | null>(null);
   const [driverOffers, setDriverOffers] = useState<any[]>([]);
   const [acceptedDriver, setAcceptedDriver] = useState<any>(null);
   const [rideId, setRideId] = useState<string | null>(null);
@@ -138,6 +138,8 @@ const newHome = () => {
   const [rideDistance, setRideDistance] = useState<string>("");
   const [rideDuration, setRideDuration] = useState<string>("");
   const [loadingDistanceTime, setLoadingDistanceTime] = useState(false);
+
+  const [showFareModal, setShowFareModal] = useState(false);
 
   const DEFAULT_REGION: Region = {
     latitude: 31.5204, // Lahore fallback
@@ -334,6 +336,35 @@ const newHome = () => {
             if (result) {
               setRideDistance(result.distance.text);
               setRideDuration(result.duration.text);
+              console.log("Distance:", result.distance.value);
+              console.log("Duration:", result.duration.value);
+              try {
+                const res = await fetch(
+                  `http://${userip}:3000/ride-request/fare`,
+                  {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                      distance: result.distance.value, // in meters
+                      duration: result.duration.value, // in seconds
+                      rideType: selectedRideType,
+                    }),
+                  }
+                );
+                const data = await res.json();
+                if (res.ok) {
+                  console.log("Ride fare fetched successfully:", data);
+                  setCalculatedFare(data.fare);
+                } else {
+                  console.error("Error fetching ride fare:", data);
+                  setCalculatedFare(null);
+                }
+              } catch (error) {
+                console.error("Error fetching ride fare:", error);
+                setCalculatedFare(null);
+              }
             }
           } catch (error) {
             setRideDistance("");
@@ -345,6 +376,7 @@ const newHome = () => {
           setRideDistance("");
           setRideDuration("");
           setLoadingDistanceTime(false);
+          setCalculatedFare(null);
         }
       };
 
@@ -618,6 +650,12 @@ const newHome = () => {
     if (!selectedRideType || !pickupCoord || !dropoffCoord || !fare) {
       Alert.alert("Missing info", "Please fill in pickup, dropoff, and fare");
       return;
+    }
+
+    // Check if fare < calculatedFare
+    if (Number(fare) < calculatedFare!) {
+      setShowFareModal(true); // show modal
+      return; // stop execution
     }
 
     console.log(pickupCoord.latitude, pickupCoord.longitude);
@@ -1228,6 +1266,11 @@ const newHome = () => {
                   placeholder="Enter Fare"
                   placeholderTextColor="grey"
                   keyboardType="numeric"
+                  containerStyle={
+                    fare !== "" && Number(fare) < calculatedFare!
+                      ? "border-2 border-red-500"
+                      : "border border-gray-300"
+                  }
                   icon={
                     <MaterialCommunityIcons
                       name="currency-rupee"
@@ -1241,6 +1284,11 @@ const newHome = () => {
                     setFare(numeric);
                   }}
                 />
+                {calculatedFare !== null && (
+                  <Text className="text-gray-600 text-lg text-center font-JakartaMedium">
+                    Suggested Fare: PKR {calculatedFare}
+                  </Text>
+                )}
 
                 <CustomButton
                   title="Find Ride"
@@ -1261,6 +1309,31 @@ const newHome = () => {
         rideDetails={rideDetails}
         offers={driverOffers}
       />
+
+      <Modal visible={showFareModal} transparent animationType="fade">
+        <View className="flex-1 bg-black/40 justify-center items-center">
+          <View className="bg-white w-[85%] rounded-xl justify-center items-center p-6 shadow-md">
+            <View className="rounded-full bg-gray-100 items-center justify-center p-2 shadow-md mb-4">
+              <Ionicons name="alert-circle" size={64} color="red" />
+            </View>
+            <Text className="text-2xl font-JakartaExtraBold text-center mb-2">
+              Minimum Fare Required
+            </Text>
+            <Text className="text-lg font-JakartaMedium text-center text-gray-700 mb-6">
+              The minimum fare for this ride is{" "}
+              <Text className="font-bold text-red-500">Rs {calculatedFare}</Text>
+            </Text>
+
+            {/* Close button */}
+            <TouchableOpacity
+              onPress={() => setShowFareModal(false)}
+              className="self-center bg-blue-500 px-6 py-3 rounded-full"
+            >
+              <Text className="text-white font-JakartaBold text-xl">Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
