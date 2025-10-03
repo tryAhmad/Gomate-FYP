@@ -1,77 +1,118 @@
-import type React from "react"
-import { View, Text, StyleSheet, TouchableOpacity, Modal, Dimensions, Animated } from "react-native"
-import { Ionicons } from "@expo/vector-icons"
-import { router } from "expo-router"   
+// In your burger-menu.tsx, update the profile section and add profile data loading
+import React, { useState, useEffect } from "react";
+import { View, Text, StyleSheet, TouchableOpacity, Modal, Dimensions, Animated, Image } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const { width } = Dimensions.get("window")
+const { width } = Dimensions.get("window");
 
 interface BurgerMenuProps {
-  isVisible: boolean
-  onClose: () => void
-  slideAnim: Animated.Value
+  isVisible: boolean;
+  onClose: () => void;
+  slideAnim: Animated.Value;
+}
+
+interface DriverProfile {
+  profilePhoto?: string;
+  username: string;
+  email: string;
+  phone: string;
+  vehicle: {
+    company: string;
+    model: string;
+    registrationNumber: string;
+    color: string;
+  };
 }
 
 const BurgerMenu: React.FC<BurgerMenuProps> = ({ isVisible, onClose, slideAnim }) => {
-  
-  // Handlers for menu buttons
+  const [profile, setProfile] = useState<DriverProfile | null>(null);
+
+  useEffect(() => {
+    if (isVisible) {
+      loadProfile();
+    }
+  }, [isVisible]);
+
+  const loadProfile = async () => {
+    try {
+      const savedProfile = await AsyncStorage.getItem("driverProfile");
+      if (savedProfile) {
+        setProfile(JSON.parse(savedProfile));
+      } else {
+        // Set default profile before the admin integration 
+        const defaultProfile: DriverProfile = {
+          username: "Ahmad",
+          email: "ahmad@example.com",
+          phone: "+92 300 1234567",
+          vehicle: {
+            company: "Toyota",
+            model: "Corolla",
+            registrationNumber: "ABC-123",
+            color: "White"
+          }
+        };
+        setProfile(defaultProfile);
+      }
+    } catch (error) {
+      console.error("Error loading profile:", error);
+    }
+  };
+
   const handleProfileClick = () => {
-    console.log("Opening profile...")
-    // router.push("/profile") 
-  }
+    router.push("/profile");
+    onClose();
+  };
 
   const handleBookRide = () => {
-    console.log("Navigating to Book Ride...")
-    onClose()
-    router.push("/landing-page" as any) 
-  }
+    router.push("/landing-page" as any);
+    onClose();
+  };
 
   const handleRideHistory = () => {
-    console.log("Opening ride history...")
-    router.push("/ride-history") 
-    onClose()
-  }
+    router.push("/ride-history");
+    onClose();
+  };
 
   const handleEarnings = () => {
-    console.log("Opening earnings...")
-    router.push("/earnings") 
-    onClose()
-  }
+    router.push("/earnings");
+    onClose();
+  };
 
   const handleNotifications = () => {
-    console.log("Opening notifications...")
-    // router.push("/notifications")
-  }
+    console.log("Opening notifications...");
+  };
 
   const handleSupport = () => {
-    console.log("Opening support...")
-    // router.push("/support")
-  }
+    console.log("Opening support...");
+  };
 
   const handleLogout = () => {
-    console.log("Logging out...")
-    // add logout logic here
-  }
+    console.log("Logging out...");
+  };
+
+  const getInitial = (name: string) => name?.charAt(0).toUpperCase() || "D";
 
   return (
     <Modal animationType="none" transparent={true} visible={isVisible} onRequestClose={onClose}>
       <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={onClose}>
-        <Animated.View
-          style={[
-            styles.sidebar,
-            {
-              transform: [{ translateX: slideAnim }],
-            },
-          ]}
-        >
+        <Animated.View style={[styles.sidebar, { transform: [{ translateX: slideAnim }] }]}>
           <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()} style={{ flex: 1 }}>
             {/* Profile Section */}
             <View style={styles.sidebarHeader}>
               <TouchableOpacity style={styles.profileSection} onPress={handleProfileClick}>
-                <View style={styles.profileImage}>
-                  <Text style={styles.profileInitial}>A</Text>
-                </View>
+                {profile?.profilePhoto ? (
+                  <Image source={{ uri: profile.profilePhoto }} style={styles.profileImage} />
+                ) : (
+                  <View style={styles.profileImage}>
+                    <Text style={styles.profileInitial}>
+                      {getInitial(profile?.username || "Driver")}
+                    </Text>
+                  </View>
+                )}
                 <View style={styles.profileInfo}>
-                  <Text style={styles.profileName}>Ahmad</Text>
+                  <Text style={styles.profileName}>{profile?.username || "Driver"}</Text>
                   <View style={styles.ratingContainer}>
                     {[...Array(5)].map((_, i) => (
                       <Ionicons key={i} name="star" size={12} color="#FFD700" />
@@ -118,8 +159,8 @@ const BurgerMenu: React.FC<BurgerMenuProps> = ({ isVisible, onClose, slideAnim }
         </Animated.View>
       </TouchableOpacity>
     </Modal>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   modalOverlay: {
@@ -134,10 +175,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     paddingTop: 40,
     shadowColor: "#000",
-    shadowOffset: {
-      width: 2,
-      height: 0,
-    },
+    shadowOffset: { width: 2, height: 0 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
@@ -195,6 +233,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#333",
   },
-})
+});
 
-export default BurgerMenu
+export default BurgerMenu;

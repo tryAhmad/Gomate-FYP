@@ -19,7 +19,7 @@ import { useRouter, useLocalSearchParams } from "expo-router"
 import MapView, { PROVIDER_GOOGLE, Marker, Polyline } from "react-native-maps"
 import { getCoordinatesFromAddress, getRouteCoordinates } from "@/utils/getRoute"
 import { calculateDistanceAndTime } from "@/utils/distanceCalculation"
-import BurgerMenu from "@/components/burger-menu"
+import BurgerMenu from "@/components/BurgerMenu"
 import * as Location from "expo-location"
 
 const { width, height } = Dimensions.get("window")

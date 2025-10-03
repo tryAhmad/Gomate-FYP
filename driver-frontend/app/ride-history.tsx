@@ -14,7 +14,7 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import DriverRideDetailModal from "@/components/DriverRideDetailModal";
-import BurgerMenu from "@/components/burger-menu";
+import BurgerMenu from "@/components/BurgerMenu";
 
 const { width } = Dimensions.get("window");
 

@@ -16,7 +16,7 @@ import {
 import { Ionicons } from "@expo/vector-icons"
 import * as Location from "expo-location"
 import { router } from "expo-router"
-import BurgerMenu from "@/components/burger-menu"
+import BurgerMenu from "@/components/BurgerMenu"
 import { calculateRideDistance, calculateTimeToPickup } from "@/utils/distanceCalculation"
 
 const { width } = Dimensions.get("window")

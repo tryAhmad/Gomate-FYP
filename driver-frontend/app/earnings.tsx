@@ -12,7 +12,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter, useFocusEffect } from "expo-router"; 
-import BurgerMenu from "@/components/burger-menu";
+import BurgerMenu from "@/components/BurgerMenu";
 
 const { width, height } = Dimensions.get("window");
 
