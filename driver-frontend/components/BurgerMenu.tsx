@@ -82,6 +82,8 @@ const BurgerMenu: React.FC<BurgerMenuProps> = ({ isVisible, onClose, slideAnim }
 
   const handleNotifications = () => {
     console.log("Opening notifications...");
+    router.push("/notifications");
+    onClose();
   };
 
   const handleSupport = () => {
