@@ -88,6 +88,8 @@ const BurgerMenu: React.FC<BurgerMenuProps> = ({ isVisible, onClose, slideAnim }
 
   const handleSupport = () => {
     console.log("Opening support...");
+    router.push("/support" as any);
+    onClose();
   };
 
   const handleLogout = () => {
