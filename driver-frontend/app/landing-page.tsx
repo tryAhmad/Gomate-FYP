@@ -10,10 +10,12 @@ import {
   Dimensions,
   Animated,
   Platform,
+  Image,
 } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import * as Location from "expo-location"
 import { router } from "expo-router"
+import AsyncStorage from "@react-native-async-storage/async-storage"
 import BurgerMenu from "@/components/BurgerMenu"
 import RideList from "@/components/RideList"
 import { 
@@ -28,6 +30,19 @@ import { RideRequest } from "@/components/RideCard"
 
 const { width } = Dimensions.get("window")
 
+interface DriverProfile {
+  profilePhoto?: string;
+  username: string;
+  email: string;
+  phone: string;
+  vehicle: {
+    company: string;
+    model: string;
+    registrationNumber: string;
+    color: string;
+  };
+}
+
 type TabType = "solo" | "shared"
 
 const DriverLandingPage: React.FC = () => {
@@ -40,6 +55,44 @@ const DriverLandingPage: React.FC = () => {
   const [driverCoordinates, setDriverCoordinates] = useState<{ latitude: number; longitude: number } | null>(null)
   const [slideAnim] = useState(new Animated.Value(-width * 0.7))
   const [isLocationLoaded, setIsLocationLoaded] = useState(false)
+  const [profile, setProfile] = useState<DriverProfile | null>(null)
+
+  // Load profile from AsyncStorage
+  useEffect(() => {
+    loadProfile()
+  }, [])
+
+  const loadProfile = async () => {
+    try {
+      const savedProfile = await AsyncStorage.getItem("driverProfile")
+      if (savedProfile) {
+        setProfile(JSON.parse(savedProfile))
+      } else {
+        // Set default profile
+        const defaultProfile: DriverProfile = {
+          username: "Ahmad",
+          email: "ahmad@example.com",
+          phone: "+92 300 1234567",
+          vehicle: {
+            company: "Toyota",
+            model: "Corolla",
+            registrationNumber: "ABC-123",
+            color: "White"
+          }
+        }
+        setProfile(defaultProfile)
+      }
+    } catch (error) {
+      console.error("Error loading profile:", error)
+    }
+  }
+
+  // Reload profile when sidebar is opened to get latest photo
+  useEffect(() => {
+    if (sidebarVisible) {
+      loadProfile()
+    }
+  }, [sidebarVisible])
 
   useEffect(() => {
     const getLocation = async () => {
@@ -206,8 +259,7 @@ const DriverLandingPage: React.FC = () => {
   }
 
   const handleProfileClick = () => {
-    console.log("Opening profile...")
-    // router.push('/profile');
+    router.push('/profile')
   }
 
   const handleViewRide = (rideId: string) => {
@@ -256,7 +308,12 @@ const DriverLandingPage: React.FC = () => {
   }
 
   const renderSidebar = () => (
-    <BurgerMenu isVisible={sidebarVisible} onClose={closeSidebar} slideAnim={slideAnim} />
+    <BurgerMenu 
+      isVisible={sidebarVisible} 
+      onClose={closeSidebar} 
+      slideAnim={slideAnim} 
+      profile={profile}
+    />
   )
 
   const renderOfflineContent = () => (
@@ -268,6 +325,8 @@ const DriverLandingPage: React.FC = () => {
       </Text>
     </View>
   )
+
+  const getInitial = (name: string) => name?.charAt(0).toUpperCase() || "A"
 
   const currentRides = activeTab === "solo" ? soloRides : sharedRides
 
@@ -292,9 +351,22 @@ const DriverLandingPage: React.FC = () => {
         </View>
 
         <TouchableOpacity style={styles.profileButton} onPress={handleProfileClick}>
-          <View style={styles.headerProfileImage}>
-            <Text style={styles.headerProfileInitial}>A</Text>
-          </View>
+          {profile?.profilePhoto ? (
+            <Image 
+              source={{ uri: profile.profilePhoto }} 
+              style={styles.headerProfileImage}
+              onError={(e) => {
+                console.log("Image load error:", e.nativeEvent.error);
+                // Fallback to initial if image fails to load
+              }}
+            />
+          ) : (
+            <View style={styles.headerProfileImage}>
+              <Text style={styles.headerProfileInitial}>
+                {getInitial(profile?.username || "Driver")}
+              </Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -339,7 +411,7 @@ const DriverLandingPage: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#fff",
     paddingTop: Platform.OS === "android" ? StatusBar.currentHeight || 24 : 0,
   },
   header: {

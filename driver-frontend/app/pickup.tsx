@@ -21,8 +21,23 @@ import { getCoordinatesFromAddress, getRouteCoordinates } from "@/utils/getRoute
 import { calculateDistanceAndTime } from "@/utils/distanceCalculation"
 import BurgerMenu from "@/components/BurgerMenu"
 import * as Location from "expo-location"
+import profile from "./profile"
+import AsyncStorage from "@react-native-async-storage/async-storage"
 
 const { width, height } = Dimensions.get("window")
+
+interface DriverProfile {
+  profilePhoto?: string;
+  username: string;
+  email: string;
+  phone: string;
+  vehicle: {
+    company: string;
+    model: string;
+    registrationNumber: string;
+    color: string;
+  };
+}
 
 type PickupParams = {
   rideId?: string
@@ -43,6 +58,7 @@ const PickupPage: React.FC = () => {
   const params = useLocalSearchParams() as PickupParams
   const mapRef = useRef<MapView>(null)
 
+  const [profile, setProfile] = useState<DriverProfile | null>(null)
   const [pickupCoord, setPickupCoord] = useState<{ latitude: number; longitude: number } | null>(null)
   const [destinationCoord, setDestinationCoord] = useState<{ latitude: number; longitude: number } | null>(null)
   const [routeCoords, setRouteCoords] = useState<{ latitude: number; longitude: number }[]>([])
@@ -76,6 +92,10 @@ const PickupPage: React.FC = () => {
   const MAP_FOLLOW_ZOOM_LEVEL = 0.01 // zoom level for following driver
 
   useEffect(() => {
+    loadProfile()
+  }, [])
+
+  useEffect(() => {
     console.log("[TRACKING] Component mounted, initializing...")
     if (params.driverLat && params.driverLng) {
       const initialLocation = {
@@ -98,6 +118,31 @@ const PickupPage: React.FC = () => {
       }
     }
   }, [])
+
+  const loadProfile = async () => {
+  try {
+    const savedProfile = await AsyncStorage.getItem("driverProfile")
+    if (savedProfile) {
+      setProfile(JSON.parse(savedProfile))
+    } else {
+      // Set default profile
+      const defaultProfile: DriverProfile = {
+        username: "Ahmad",
+        email: "ahmad@example.com",
+        phone: "+92 300 1234567",
+        vehicle: {
+          company: "Toyota",
+          model: "Corolla",
+          registrationNumber: "ABC-123",
+          color: "White"
+        }
+      }
+      setProfile(defaultProfile)
+    }
+  } catch (error) {
+    console.error("Error loading profile:", error)
+  }
+}
 
   const startRealTimeTracking = async () => {
     try {
@@ -798,7 +843,12 @@ const PickupPage: React.FC = () => {
         )}
       </View>
 
-      <BurgerMenu isVisible={sidebarVisible} onClose={closeSidebar} slideAnim={slideAnim} />
+      <BurgerMenu 
+        isVisible={sidebarVisible} 
+        onClose={closeSidebar} 
+        slideAnim={slideAnim} 
+        profile={profile}  
+      />
     </SafeAreaView>
   )
 }

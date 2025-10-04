@@ -179,10 +179,10 @@ const RideCard: React.FC<RideCardProps> = ({ ride, onViewRide }) => {
 
 const styles = StyleSheet.create({
   rideCard: {
-    backgroundColor: "#fff",
+    backgroundColor: "#E3F2FD",
     borderRadius: 20,
     padding: 16,
-    marginBottom: 12,
+    marginBottom: 18,
     elevation: 2,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
@@ -232,8 +232,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   passengerDivider: {
-    height: 1,
-    backgroundColor: "#e0e0e0",
+    height: 3,
+    backgroundColor: "#fff",
     marginVertical: 12,
   },
   passengerInfo: {
@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 25,
-    backgroundColor: "#E0E0E0",
+    backgroundColor: "#fff",
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
   verticalLine: {
     width: 2,
     height: 28,
-    backgroundColor: "#ddd",
+    backgroundColor: "#fff",
     marginTop: 6,
     marginBottom: 2,
   },

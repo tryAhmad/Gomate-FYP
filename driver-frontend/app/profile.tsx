@@ -102,6 +102,35 @@ export default function ProfileScreen() {
     }
   };
 
+  const handlePhotoAction = async () => {
+    if (!isEditing) return;
+
+    if (profile.profilePhoto) {
+      // options to change or remove photo
+      Alert.alert(
+        "Profile Photo",
+        "What would you like to do?",
+        [
+          {
+            text: "Change Photo",
+            onPress: pickImage,
+          },
+          {
+            text: "Remove Photo",
+            style: "destructive",
+            onPress: removeProfilePhoto,
+          },
+          {
+            text: "Cancel",
+            style: "cancel",
+          },
+        ]
+      );
+    } else {
+      pickImage();
+    }
+  };
+
   const pickImage = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -125,6 +154,20 @@ export default function ProfileScreen() {
     }
   };
 
+  const removeProfilePhoto = async () => {
+    try {
+      const updatedProfile = {
+        ...profile,
+        profilePhoto: undefined
+      };
+      setProfile(updatedProfile);
+      await AsyncStorage.setItem("driverProfile", JSON.stringify(updatedProfile));
+    } catch (error) {
+      console.error("Error removing profile photo:", error);
+      Alert.alert("Error", "Failed to remove profile photo");
+    }
+  };
+
   const handleInputChange = (field: keyof Omit<DriverProfile, 'vehicle'>, value: string) => {
     setProfile(prev => ({
       ...prev,
@@ -136,11 +179,12 @@ export default function ProfileScreen() {
   const handleInputFocus = (inputName: string) => {
     setTimeout(() => {
       if (inputName === 'phone') {
-        
         scrollViewRef.current?.scrollTo({ y: 300, animated: true });
       }
     }, 100);
   };
+
+  const getInitial = (name: string) => name?.charAt(0).toUpperCase() || "A";
 
   return (
     <View style={styles.container}>
@@ -176,12 +220,14 @@ export default function ProfileScreen() {
         >
           {/* Profile Photo Section */}
           <View style={styles.profilePhotoSection}>
-            <TouchableOpacity onPress={pickImage} disabled={!isEditing}>
+            <TouchableOpacity onPress={handlePhotoAction} disabled={!isEditing}>
               {profile.profilePhoto ? (
                 <Image source={{ uri: profile.profilePhoto }} style={styles.profileImage} />
               ) : (
                 <View style={styles.profileImagePlaceholder}>
-                  <Ionicons name="person" size={40} color="#0286FF" />
+                  <Text style={styles.profileInitial}>
+                    {getInitial(profile.username)}
+                  </Text>
                 </View>
               )}
               {isEditing && (
@@ -292,7 +338,12 @@ export default function ProfileScreen() {
       </KeyboardAvoidingView>
 
       {/* Burger Menu */}
-      <BurgerMenu isVisible={sidebarVisible} onClose={closeSidebar} slideAnim={slideAnim} />
+      <BurgerMenu 
+        isVisible={sidebarVisible} 
+        onClose={closeSidebar} 
+        slideAnim={slideAnim} 
+        profile={profile}  
+      />
     </View>
   );
 }
@@ -369,6 +420,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 16,
+  },
+  profileInitial: {
+    color: "#0286FF",
+    fontWeight: "600",
+    fontSize: 40,
   },
   editPhotoBadge: {
     position: "absolute",
