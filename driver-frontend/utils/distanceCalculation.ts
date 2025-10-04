@@ -107,3 +107,58 @@ export const calculateTimeToPickup = async (
 ): Promise<DistanceTimeResult> => {
   return calculateDistanceAndTime(pickupAddress, pickupAddress, driverLocation)
 }
+
+// Add these to your existing distanceCalculation file
+
+export const calculateSharedRideDistance = async (pickups: string[], destinations: string[]): Promise<{ distance: string }> => {
+  try {
+    // Calculate the total route distance by summing individual segments
+    let totalDistance = 0;
+    
+    for (let i = 0; i < pickups.length; i++) {
+      const segmentDistance = await calculateRideDistance(pickups[i], destinations[i]);
+      // Extract numeric value from string like "5.2 KM"
+      const distanceValue = parseFloat(segmentDistance.distance.split(' ')[0]);
+      totalDistance += distanceValue;
+    }
+    
+    // Apply optimization factor for shared rides (usually more efficient)
+    const optimizedDistance = totalDistance * 0.8; // 20% efficiency
+    
+    return {
+      distance: `${optimizedDistance.toFixed(1)} KM`
+    };
+  } catch (error) {
+    console.error('Error calculating shared ride distance:', error);
+    return {
+      distance: "Calculating..."
+    };
+  }
+}
+
+export const calculateTimeToNearestPickup = async (
+  driverCoordinates: { latitude: number; longitude: number }, 
+  pickups: string[]
+): Promise<{ timeAway: string }> => {
+  try {
+    // Calculate time to each pickup and find the nearest one
+    const pickupTimes = await Promise.all(
+      pickups.map(async (pickup) => {
+        const timeResult = await calculateTimeToPickup(driverCoordinates, pickup);
+        // Extract minutes from "X min away" string
+        const minutes = parseInt(timeResult.timeAway.split(' ')[0]);
+        return { pickup, minutes, timeAway: timeResult.timeAway };
+      })
+    );
+
+    // Find the pickup with minimum time
+    const nearestPickup = pickupTimes.reduce((nearest, current) => 
+      current.minutes < nearest.minutes ? current : nearest
+    );
+
+    return { timeAway: nearestPickup.timeAway };
+  } catch (error) {
+    console.error('Error calculating time to nearest pickup:', error);
+    return { timeAway: "Calculating..." };
+  }
+}

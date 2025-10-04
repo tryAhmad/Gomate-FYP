@@ -1,11 +1,9 @@
-import type React from "react"
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
   SafeAreaView,
   StatusBar,
   Switch,
@@ -17,69 +15,27 @@ import { Ionicons } from "@expo/vector-icons"
 import * as Location from "expo-location"
 import { router } from "expo-router"
 import BurgerMenu from "@/components/BurgerMenu"
-import { calculateRideDistance, calculateTimeToPickup } from "@/utils/distanceCalculation"
+import RideList from "@/components/RideList"
+import { 
+  calculateRideDistance, 
+  calculateTimeToPickup,
+  calculateSharedRideDistance,
+  calculateTimeToNearestPickup 
+} from "@/utils/distanceCalculation"
+import { mockSoloRides, mockSharedRides } from "@/utils/mockRides"
+// eslint-disable-next-line import/no-unresolved
+import { RideRequest } from "@/components/RideCard"
 
 const { width } = Dimensions.get("window")
 
-interface RideRequest {
-  id: string
-  pickup: string
-  destination: string
-  fare: number
-  distance: string
-  timeAway: string
-  passengerName: string
-  passengerPhone: string
-  isCalculating?: boolean
-}
-
-const mockRides: Omit<RideRequest, "distance" | "timeAway">[] = [
-  {
-    id: "1",
-    pickup: "Garhi Shahu, Lahore",
-    destination: "Faiz Road 12 (Muslim Town)",
-    fare: 250,
-    passengerName: "Adil",
-    passengerPhone: "923164037719",
-  },
-  {
-    id: "2",
-    pickup: "Eden Villas",
-    destination: "Roundabout, Block M 1 Lake City, Lahore",
-    fare: 540,
-    passengerName: "Ahmad",
-    passengerPhone: "923164037719",
-  },
-  {
-    id: "3",
-    pickup: "Wapda Town",
-    destination: "G1, Johar Town",
-    fare: 400,
-    passengerName: "Ali",
-    passengerPhone: "923164037719",
-  },
-  {
-    id: "4",
-    pickup: "Nargis Block, Allama Iqbal Town",
-    destination: "Kareem Block",
-    fare: 750,
-    passengerName: "Umer",
-    passengerPhone: "923164037719",
-  },
-  {
-    id: "5",
-    pickup: "Nargis Block, Allama Iqbal Town",
-    destination: "Overseas Enclave Sector B Bahria Town, Lahore",
-    fare: 1120,
-    passengerName: "Adil",
-    passengerPhone: "923164037719",
-  },
-]
+type TabType = "solo" | "shared"
 
 const DriverLandingPage: React.FC = () => {
   const [isOnline, setIsOnline] = useState(false)
   const [sidebarVisible, setSidebarVisible] = useState(false)
-  const [availableRides, setAvailableRides] = useState<RideRequest[]>([])
+  const [activeTab, setActiveTab] = useState<TabType>("solo")
+  const [soloRides, setSoloRides] = useState<RideRequest[]>([])
+  const [sharedRides, setSharedRides] = useState<RideRequest[]>([])
   const [currentLocation, setCurrentLocation] = useState<string>("Getting location...")
   const [driverCoordinates, setDriverCoordinates] = useState<{ latitude: number; longitude: number } | null>(null)
   const [slideAnim] = useState(new Animated.Value(-width * 0.7))
@@ -134,11 +90,18 @@ const DriverLandingPage: React.FC = () => {
       if (isOnline && driverCoordinates) {
         console.log("Calculating ride details with driver location:", driverCoordinates)
 
-        const ridesWithDetails = await Promise.all(
-          mockRides.map(async (ride) => {
+        // Calculate solo rides
+        const soloRidesWithDetails = await Promise.all(
+          mockSoloRides.map(async (ride) => {
             try {
-              const rideDistance = await calculateRideDistance(ride.pickup, ride.destination)
-              const timeToPickup = await calculateTimeToPickup(driverCoordinates, ride.pickup)
+              const rideDistance = await calculateRideDistance(
+                ride.pickup as string, 
+                ride.destination as string
+              )
+              const timeToPickup = await calculateTimeToPickup(
+                driverCoordinates, 
+                ride.pickup as string
+              )
 
               return {
                 ...ride,
@@ -147,7 +110,7 @@ const DriverLandingPage: React.FC = () => {
                 isCalculating: false,
               } as RideRequest
             } catch (error) {
-              console.error(`Error calculating details for ride ${ride.id}:`, error)
+              console.error(`Error calculating details for solo ride ${ride.id}:`, error)
               return {
                 ...ride,
                 distance: "1 KM",
@@ -155,21 +118,62 @@ const DriverLandingPage: React.FC = () => {
                 isCalculating: false,
               } as RideRequest
             }
-          }),
+          })
         )
 
-        setAvailableRides(ridesWithDetails)
+        // Calculate shared rides with proper distance and time calculations
+        const sharedRidesWithDetails = await Promise.all(
+          mockSharedRides.map(async (ride) => {
+            try {
+              const pickups = Array.isArray(ride.pickup) ? ride.pickup : [ride.pickup]
+              const destinations = Array.isArray(ride.destination) ? ride.destination : [ride.destination]
+              
+              // Calculate total optimized route distance
+              const rideDistance = await calculateSharedRideDistance(pickups, destinations)
+              
+              // Calculate time to nearest pickup
+              const timeToPickup = await calculateTimeToNearestPickup(driverCoordinates, pickups)
+
+              return {
+                ...ride,
+                distance: rideDistance.distance,
+                timeAway: timeToPickup.timeAway,
+                isCalculating: false,
+              } as RideRequest
+            } catch (error) {
+              console.error(`Error calculating details for shared ride ${ride.id}:`, error)
+              return {
+                ...ride,
+                distance: "1 KM",
+                timeAway: "5 min away",
+                isCalculating: false,
+              } as RideRequest
+            }
+          })
+        )
+
+        setSoloRides(soloRidesWithDetails)
+        setSharedRides(sharedRidesWithDetails)
       } else if (isOnline && !driverCoordinates) {
-        const ridesWithLoading = mockRides.map((ride) => ({
+        const soloRidesWithLoading = mockSoloRides.map((ride) => ({
           ...ride,
           distance: "Calculating...",
           timeAway: "Calculating...",
           isCalculating: true,
         })) as RideRequest[]
 
-        setAvailableRides(ridesWithLoading)
+        const sharedRidesWithLoading = mockSharedRides.map((ride) => ({
+          ...ride,
+          distance: "Calculating...",
+          timeAway: "Calculating...",
+          isCalculating: true,
+        })) as RideRequest[]
+
+        setSoloRides(soloRidesWithLoading)
+        setSharedRides(sharedRidesWithLoading)
       } else {
-        setAvailableRides([])
+        setSoloRides([])
+        setSharedRides([])
       }
     }
 
@@ -203,93 +207,69 @@ const DriverLandingPage: React.FC = () => {
 
   const handleProfileClick = () => {
     console.log("Opening profile...")
-    // router.push('/profile'); // TODO
+    // router.push('/profile');
   }
 
   const handleViewRide = (rideId: string) => {
-    const selectedRide = availableRides.find((ride) => ride.id === rideId)
+    const allRides = [...soloRides, ...sharedRides]
+    const selectedRide = allRides.find((ride) => ride.id === rideId)
+    
     if (selectedRide) {
-      router.push({
-        pathname: "/ride-request",
-        params: {
-          rideId: selectedRide.id,
-          pickup: selectedRide.pickup,
-          destination: selectedRide.destination,
-          fare: selectedRide.fare.toString(),
-          distance: selectedRide.distance,
-          timeAway: selectedRide.timeAway,
-          passengerName: selectedRide.passengerName,
-          passengerPhone: selectedRide.passengerPhone,
-          driverLat: driverCoordinates?.latitude.toString(),
-          driverLng: driverCoordinates?.longitude.toString(),
-        },
-      })
+      // Navigate based on ride type
+      if (selectedRide.type === "solo") {
+        router.push({
+          pathname: "/ride-request",
+          params: {
+            rideId: selectedRide.id,
+            pickup: selectedRide.pickup as string,
+            destination: selectedRide.destination as string,
+            fare: selectedRide.fare.toString(),
+            distance: selectedRide.distance,
+            timeAway: selectedRide.timeAway,
+            passengerName: selectedRide.passengerName as string,
+            passengerPhone: selectedRide.passengerPhone as string,
+            driverLat: driverCoordinates?.latitude.toString(),
+            driverLng: driverCoordinates?.longitude.toString(),
+            rideType: "solo",
+          },
+        })
+      } else {
+        // For shared rides, you might want to create a different page or handle differently
+        /* router.push({
+          pathname: "/shared-ride-request",
+          params: {
+            rideId: selectedRide.id,
+            pickup: JSON.stringify(selectedRide.pickup),
+            destination: JSON.stringify(selectedRide.destination),
+            fare: JSON.stringify(selectedRide.fare),
+            distance: selectedRide.distance,
+            timeAway: selectedRide.timeAway,
+            passengerName: JSON.stringify(selectedRide.passengerName),
+            passengerPhone: JSON.stringify(selectedRide.passengerPhone),
+            driverLat: driverCoordinates?.latitude.toString(),
+            driverLng: driverCoordinates?.longitude.toString(),
+            rideType: "shared",
+          },
+        })*/
+      }
     }
   }
 
-  const renderSidebar = () => <BurgerMenu isVisible={sidebarVisible} onClose={closeSidebar} slideAnim={slideAnim} />
-
-  const renderRideCard = (ride: RideRequest) => (
-    <View key={ride.id} style={styles.rideCard}>
-      <View style={styles.rideHeader}>
-        <View style={styles.passengerInfo}>
-          <View style={styles.passengerAvatar}>
-            <Text style={styles.passengerInitial}>{ride.passengerName.charAt(0)}</Text>
-          </View>
-          <View style={styles.passengerDetails}>
-            <Text style={styles.passengerName}>{ride.passengerName}</Text>
-            <Text style={styles.rideDistance}>{ride.distance}</Text>
-            <Text style={styles.timeAway}>{ride.timeAway}</Text>
-          </View>
-        </View>
-        <Text style={styles.fareAmount}>PKR {ride.fare}</Text>
-      </View>
-
-      <View style={styles.locationContainer}>
-        <View style={styles.locationRow}>
-          <View style={styles.dotLineContainer}>
-            <View style={styles.pinIcon}>
-              <Ionicons name="location" size={16} color="#F44336" />
-            </View>
-            <View style={styles.verticalLine} />
-          </View>
-          <Text style={styles.locationText}>{ride.pickup}</Text>
-        </View>
-        <View style={styles.locationRow}>
-          <View style={styles.dotLineContainer}>
-            <View style={styles.pinIcon}>
-              <Ionicons name="location" size={16} color="#4CAF50" />
-            </View>
-          </View>
-          <Text style={styles.locationText}>{ride.destination}</Text>
-        </View>
-      </View>
-
-      <TouchableOpacity
-        style={[styles.viewRideButton, ride.isCalculating && styles.viewRideButtonDisabled]}
-        onPress={() => handleViewRide(ride.id)}
-        disabled={ride.isCalculating}
-      >
-        <Text style={styles.viewRideText}>{ride.isCalculating ? "Calculating..." : "View Ride"}</Text>
-      </TouchableOpacity>
-    </View>
+  const renderSidebar = () => (
+    <BurgerMenu isVisible={sidebarVisible} onClose={closeSidebar} slideAnim={slideAnim} />
   )
 
   const renderOfflineContent = () => (
     <View style={styles.offlineContainer}>
       <Ionicons name="car-outline" size={80} color="#ccc" />
       <Text style={styles.offlineTitle}>You&apos;re Offline</Text>
-      <Text style={styles.offlineSubtitle}>Turn online to start receiving ride requests</Text>
+      <Text style={styles.offlineSubtitle}>
+        Turn online to start receiving ride requests
+      </Text>
     </View>
   )
 
-  const renderNoRidesContent = () => (
-    <View style={styles.noRidesContainer}>
-      <Ionicons name="car-outline" size={60} color="#ccc" />
-      <Text style={styles.noRidesText}>No rides available</Text>
-      <Text style={styles.noRidesSubtext}>Stay online and we&apos;ll notify you when rides are available</Text>
-    </View>
-  )
+  const currentRides = activeTab === "solo" ? soloRides : sharedRides
 
   return (
     <SafeAreaView style={styles.container}>
@@ -318,25 +298,38 @@ const DriverLandingPage: React.FC = () => {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      {/* Tabs with proper spacing */}
+      <View style={styles.tabContainer}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === "solo" && styles.activeTab]}
+          onPress={() => setActiveTab("solo")}
+        >
+          <Text style={[styles.tabText, activeTab === "solo" && styles.activeTabText]}>
+            Solo Rides
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === "shared" && styles.activeTab]}
+          onPress={() => setActiveTab("shared")}
+        >
+          <Text style={[styles.tabText, activeTab === "shared" && styles.activeTabText]}>
+            Shared Rides
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Content Area */}
+      <View style={styles.content}>
         {isOnline ? (
-          <>
-            <View style={styles.titleContainer}>
-              <Text style={styles.sectionTitle}>Available Rides</Text>
-              <View style={styles.currentLocationContainer}>
-                <Ionicons name="location" size={12} color="#666" />
-                <Text style={styles.currentLocationText} numberOfLines={1}>
-                  {currentLocation}
-                </Text>
-              </View>
-            </View>
-            <View style={styles.spacer} />
-            {availableRides.length > 0 ? availableRides.map(renderRideCard) : renderNoRidesContent()}
-          </>
+          <RideList
+            rides={currentRides}
+            onViewRide={handleViewRide}
+            currentLocation={currentLocation}
+          />
         ) : (
           renderOfflineContent()
         )}
-      </ScrollView>
+      </View>
 
       {renderSidebar()}
     </SafeAreaView>
@@ -390,151 +383,34 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontSize: 16,
   },
+  tabContainer: {
+    flexDirection: "row",
+    backgroundColor: "#fff",
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e0e0e0",
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 16,
+    alignItems: "center",
+    borderBottomWidth: 3,
+    borderBottomColor: "transparent",
+  },
+  activeTab: {
+    borderBottomColor: "#0286FF",
+  },
+  tabText: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#666",
+  },
+  activeTabText: {
+    color: "#0286FF",
+    fontWeight: "600",
+  },
   content: {
     flex: 1,
-    padding: 16,
-  },
-  titleContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 8,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: "#333",
-    flex: 1,
-  },
-  currentLocationContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    maxWidth: "45%",
-  },
-  currentLocationText: {
-    fontSize: 12,
-    color: "#666",
-    marginLeft: 4,
-    textAlign: "right",
-  },
-  spacer: {
-    height: 16,
-  },
-  rideCard: {
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    padding: 16,
-    marginBottom: 12,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  rideHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  passengerInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-  },
-  passengerAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 25,
-    backgroundColor: "#E0E0E0",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
-  },
-  passengerInitial: {
-    fontWeight: "600",
-    fontSize: 16,
-    color: "#0286FF",
-  },
-  passengerDetails: {
-    flex: 1,
-  },
-  passengerName: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
-  },
-  rideDistance: {
-    fontSize: 12,
-    color: "#666",
-  },
-  timeAway: {
-    fontSize: 12,
-    color: "#666",
-  },
-  fareAmount: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  locationContainer: {
-    marginBottom: 16,
-  },
-  locationRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    marginBottom: 8,
-  },
-  dotLineContainer: {
-    width: 20,
-    alignItems: "center",
-    marginRight: 12,
-  },
-  pinIcon: {
-    width: 16,
-    height: 16,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  redDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: "#F44336",
-  },
-  greenDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: "#4CAF50",
-  },
-  verticalLine: {
-    width: 2,
-    height: 28,
-    backgroundColor: "#ddd",
-    marginTop: 6,
-    marginBottom: 2,
-  },
-  locationText: {
-    fontSize: 14,
-    color: "#333",
-    flex: 1,
-    marginTop: 2,
-    lineHeight: 18,
-  },
-  viewRideButton: {
-    backgroundColor: "#0286FF",
-    paddingVertical: 12,
-    borderRadius: 20,
-    alignItems: "center",
-  },
-  viewRideButtonDisabled: {
-    backgroundColor: "#ccc",
-  },
-  viewRideText: {
-    color: "#fff",
-    fontWeight: "600",
-    fontSize: 16,
   },
   offlineContainer: {
     flex: 1,
@@ -554,23 +430,6 @@ const styles = StyleSheet.create({
     color: "#666",
     textAlign: "center",
     marginBottom: 24,
-  },
-  noRidesContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 40,
-  },
-  noRidesText: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#333",
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  noRidesSubtext: {
-    fontSize: 14,
-    color: "#666",
-    textAlign: "center",
   },
 })
 
