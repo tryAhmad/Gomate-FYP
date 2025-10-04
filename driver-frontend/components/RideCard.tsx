@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
     color: "#666",
   },
   totalFareAmount: {
-    fontSize: 18,
+    fontSize: 24,
     fontWeight: "bold",
     color: "#333",
   },

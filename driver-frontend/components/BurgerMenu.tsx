@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { 
   View, 
   Text, 
@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage"; 
 
 const { width } = Dimensions.get("window");
 
@@ -31,15 +32,47 @@ interface BurgerMenuProps {
   isVisible: boolean;
   onClose: () => void;
   slideAnim: Animated.Value;
-  profile: DriverProfile | null;
 }
 
 const BurgerMenu: React.FC<BurgerMenuProps> = ({ 
   isVisible, 
   onClose, 
-  slideAnim, 
-  profile 
+  slideAnim 
 }) => {
+  const [profile, setProfile] = useState<DriverProfile | null>(null);
+
+  // Load profile when component mounts or when sidebar becomes visible
+  useEffect(() => {
+    if (isVisible) {
+      loadProfile();
+    }
+  }, [isVisible]);
+
+  const loadProfile = async () => {
+    try {
+      const savedProfile = await AsyncStorage.getItem("driverProfile");
+      if (savedProfile) {
+        setProfile(JSON.parse(savedProfile));
+      } else {
+        // Set default profile
+        const defaultProfile: DriverProfile = {
+          username: "Driver",
+          email: "driver@example.com",
+          phone: "+92 300 1234567",
+          vehicle: {
+            company: "Toyota",
+            model: "Corolla",
+            registrationNumber: "ABC-123",
+            color: "White"
+          }
+        };
+        setProfile(defaultProfile);
+      }
+    } catch (error) {
+      console.error("Error loading profile:", error);
+    }
+  };
+
   const handleProfileClick = () => {
     router.push("/profile");
     onClose();

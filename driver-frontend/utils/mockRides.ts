@@ -34,8 +34,14 @@ export const mockSoloRides: Omit<RideRequest, "distance" | "timeAway">[] = [
 export const mockSharedRides: Omit<RideRequest, "distance" | "timeAway">[] = [
   {
     id: "shared-1",
-    pickup: ["Nargis Block, Allama Iqbal Town", "Kareem Block"],
-    destination: ["Gulberg III, Lahore", "Liberty Market, Gulberg"],
+    pickup: [
+      "Nargis Block, Allama Iqbal Town, Lahore, Pakistan",
+      "Kareem Block, Allama Iqbal Town, Lahore, Pakistan"
+    ],
+    destination: [
+      "Plot-1, C, St. 1, Block C1 Block C 1 Gulberg III, Lahore, 54000, Pakistan",
+      "Liberty Market, Gulberg, Lahore, Pakistan"
+    ],
     fare: [380, 420],
     passengerName: ["Umer", "Sara"],
     passengerPhone: ["923164037719", "923164037720"],
@@ -43,29 +49,17 @@ export const mockSharedRides: Omit<RideRequest, "distance" | "timeAway">[] = [
   },
   {
     id: "shared-2",
-    pickup: ["DHA Phase 5", "DHA Phase 6"],
-    destination: ["Emporium Mall", "Packages Mall"],
+    pickup: [
+      "DHA Phase 5, Lahore, Pakistan",
+      "Main Airport Rd, near Divine Gardens, Block B DHA, Lahore, 54792, Pakistan"
+    ],
+    destination: [
+      "16M Abdul Haque Rd, Trade Centre Commercial Area Phase 2 Johar Town, Lahore, 54000, Pakistan",
+      "Packages Mall, Lahore, Pakistan"
+    ],
     fare: [450, 390],
     passengerName: ["Bilal", "Fatima"],
     passengerPhone: ["923164037721", "923164037722"],
     type: "shared",
   },
-  {
-    id: "shared-3",
-    pickup: ["Bahria Town Entrance", "Bahria Town Central"],
-    destination: ["Lahore Airport", "Railway Station"],
-    fare: [680, 750],
-    passengerName: ["Zain", "Ayesha"],
-    passengerPhone: ["923164037723", "923164037724"],
-    type: "shared",
-  },
-  {
-    id: "shared-4",
-    pickup: ["University of Lahore", "FC College"],
-    destination: ["Model Town", "Garden Town"],
-    fare: [320, 280],
-    passengerName: ["Hassan", "Mariam"],
-    passengerPhone: ["923164037725", "923164037726"],
-    type: "shared",
-  },
-]
+];

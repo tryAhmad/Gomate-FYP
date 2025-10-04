@@ -77,7 +77,7 @@ export const calculateDistanceAndTime = async (
         throw new Error(`Distance calculation failed: ${element.status}`)
       }
     } else {
-      throw new Error(`Distance Matrix API failed: ${data.status} - ${data.error_message}`)
+      throw new Error(`Distance Matrix API failed: ${data.status} - ${data.error_message || 'No error message'}`)
     }
   } catch (error) {
     console.error("Error calculating distance and time:", error)
@@ -105,60 +105,125 @@ export const calculateTimeToPickup = async (
   driverLocation: { latitude: number; longitude: number },
   pickupAddress: string,
 ): Promise<DistanceTimeResult> => {
-  return calculateDistanceAndTime(pickupAddress, pickupAddress, driverLocation)
+  // Use driver location as origin, pickup address as destination
+  return calculateDistanceAndTime("", pickupAddress, driverLocation)
 }
 
-// Add these to your existing distanceCalculation file
-
+/**
+ * Calculate shared ride total distance using optimized route
+ */
 export const calculateSharedRideDistance = async (pickups: string[], destinations: string[]): Promise<{ distance: string }> => {
   try {
-    // Calculate the total route distance by summing individual segments
-    let totalDistance = 0;
+    if (pickups.length !== destinations.length) {
+      throw new Error("Pickups and destinations arrays must have the same length")
+    }
+
+    // For shared rides, we need to calculate an optimized route
+    // This is a simplified version - in production you'd use a proper routing algorithm
+    
+    if (pickups.length === 1) {
+      // Single passenger - use regular calculation
+      const result = await calculateRideDistance(pickups[0], destinations[0])
+      return { distance: result.distance }
+    }
+
+    // For multiple passengers, estimate based on average distance
+    // This is a simplified calculation - real implementation would use route optimization
+    let totalDistance = 0
     
     for (let i = 0; i < pickups.length; i++) {
-      const segmentDistance = await calculateRideDistance(pickups[i], destinations[i]);
-      // Extract numeric value from string like "5.2 KM"
-      const distanceValue = parseFloat(segmentDistance.distance.split(' ')[0]);
-      totalDistance += distanceValue;
+      const result = await calculateRideDistance(pickups[i], destinations[i])
+      totalDistance += result.distanceValue
     }
     
-    // Apply optimization factor for shared rides (usually more efficient)
-    const optimizedDistance = totalDistance * 0.8; // 20% efficiency
+    // Apply shared ride efficiency factor (shared rides are usually more efficient)
+    const optimizedDistance = totalDistance * 0.7 // 30% more efficient
     
-    return {
-      distance: `${optimizedDistance.toFixed(1)} KM`
-    };
+    const distanceKm = optimizedDistance / 1000
+    const distance = `${distanceKm.toFixed(1)} KM`
+
+    console.log("Shared ride distance calculated:", { totalDistance, optimizedDistance, distance })
+
+    return { distance }
   } catch (error) {
-    console.error('Error calculating shared ride distance:', error);
+    console.error('Error calculating shared ride distance:', error)
     return {
       distance: "Calculating..."
-    };
+    }
   }
 }
 
+/**
+ * Calculate time to nearest pickup for shared rides
+ */
 export const calculateTimeToNearestPickup = async (
   driverCoordinates: { latitude: number; longitude: number }, 
   pickups: string[]
 ): Promise<{ timeAway: string }> => {
   try {
+    if (!pickups || pickups.length === 0) {
+      return { timeAway: "5 min away" }
+    }
+
     // Calculate time to each pickup and find the nearest one
-    const pickupTimes = await Promise.all(
+    const pickupResults = await Promise.all(
       pickups.map(async (pickup) => {
-        const timeResult = await calculateTimeToPickup(driverCoordinates, pickup);
-        // Extract minutes from "X min away" string
-        const minutes = parseInt(timeResult.timeAway.split(' ')[0]);
-        return { pickup, minutes, timeAway: timeResult.timeAway };
+        try {
+          const result = await calculateTimeToPickup(driverCoordinates, pickup)
+          return {
+            pickup,
+            timeAway: result.timeAway,
+            durationValue: result.durationValue
+          }
+        } catch (error) {
+          console.warn(`Error calculating time to pickup ${pickup}:`, error)
+          return {
+            pickup,
+            timeAway: "5 min away",
+            durationValue: 300 // 5 minutes fallback
+          }
+        }
       })
-    );
+    )
 
     // Find the pickup with minimum time
-    const nearestPickup = pickupTimes.reduce((nearest, current) => 
-      current.minutes < nearest.minutes ? current : nearest
-    );
+    const nearestPickup = pickupResults.reduce((nearest, current) => 
+      current.durationValue < nearest.durationValue ? current : nearest
+    )
 
-    return { timeAway: nearestPickup.timeAway };
+    console.log("Nearest pickup calculated:", { 
+      nearestPickup: nearestPickup.pickup, 
+      timeAway: nearestPickup.timeAway 
+    })
+
+    return { timeAway: nearestPickup.timeAway }
   } catch (error) {
-    console.error('Error calculating time to nearest pickup:', error);
-    return { timeAway: "Calculating..." };
+    console.error('Error calculating time to nearest pickup:', error)
+    return { timeAway: "5 min away" }
+  }
+}
+
+/**
+ * Get coordinates for multiple addresses (for mapping)
+ */
+export const getCoordinatesForAddresses = async (addresses: string[]): Promise<{ latitude: number; longitude: number }[]> => {
+  try {
+    const coordinates = await Promise.all(
+      addresses.map(async (address) => {
+        // This would typically call a geocoding API
+        // For now, return mock coordinates that increment slightly
+        const baseLat = 31.5204
+        const baseLng = 74.3587
+        return {
+          latitude: baseLat + (Math.random() * 0.01 - 0.005), // Small variation
+          longitude: baseLng + (Math.random() * 0.01 - 0.005) // Small variation
+        }
+      })
+    )
+    return coordinates
+  } catch (error) {
+    console.error('Error getting coordinates for addresses:', error)
+    // Return default coordinates as fallback
+    return addresses.map(() => ({ latitude: 31.5204, longitude: 74.3587 }))
   }
 }

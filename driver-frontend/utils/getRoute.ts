@@ -103,3 +103,84 @@ export const getRouteCoordinates = async (origin: Coordinate, destination: Coord
     throw error
   }
 }
+
+// In getRoute.ts, update getSharedRideRoute function:
+export const getSharedRideRoute = async (
+  pickups: Coordinate[], 
+  destinations: Coordinate[]
+): Promise<Coordinate[]> => {
+  try {
+    console.log("Getting shared ride route for pickups:", pickups, "destinations:", destinations);
+
+    if (!GOOGLE_MAPS_API_KEY) {
+      console.error("Google Maps API key not found");
+      throw new Error("Google Maps API key not configured");
+    }
+
+    // Filter out any invalid coordinates
+    const validPickups = pickups.filter(coord => 
+      coord && typeof coord.latitude === 'number' && typeof coord.longitude === 'number'
+    );
+    const validDestinations = destinations.filter(coord => 
+      coord && typeof coord.latitude === 'number' && typeof coord.longitude === 'number'
+    );
+
+    if (validPickups.length === 0 || validDestinations.length === 0) {
+      console.error("No valid coordinates for route calculation");
+      return [];
+    }
+
+    // Use first valid pickup as origin, last valid destination as destination
+    const origin = validPickups[0];
+    const destination = validDestinations[validDestinations.length - 1];
+    
+    // Create waypoints from remaining points
+    const remainingPickups = validPickups.slice(1);
+    const remainingDestinations = validDestinations.slice(0, -1);
+    const waypoints = [...remainingPickups, ...remainingDestinations];
+    
+    if (waypoints.length === 0) {
+      // Simple A to B route
+      return await getRouteCoordinates(origin, destination);
+    }
+    
+    const waypointsStr = waypoints.map(wp => `${wp.latitude},${wp.longitude}`).join('|');
+    
+    const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}&waypoints=optimize:true|${waypointsStr}&mode=driving&key=${GOOGLE_MAPS_API_KEY}`;
+    
+    console.log("Making shared ride directions request...");
+
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log("Shared ride directions response status:", data.status);
+
+    if (data.status === "OK" && data.routes && data.routes.length > 0) {
+      const points = polyline.decode(data.routes[0].overview_polyline.points);
+      const routeCoords = points.map(([latitude, longitude]) => ({ latitude, longitude }));
+      console.log("Shared ride route found with", routeCoords.length, "points");
+      return routeCoords;
+    } else {
+      console.error("Shared ride directions failed:", data.status, data.error_message);
+      // Fallback: create a simple straight line route
+      return [origin, destination];
+    }
+  } catch (error) {
+    console.error("Error fetching shared ride route:", error);
+    // Return fallback route
+    if (pickups.length > 0 && destinations.length > 0) {
+      return [pickups[0], destinations[destinations.length - 1]];
+    }
+    return [];
+  }
+};

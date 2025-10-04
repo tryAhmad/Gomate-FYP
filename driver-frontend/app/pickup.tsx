@@ -847,7 +847,6 @@ const PickupPage: React.FC = () => {
         isVisible={sidebarVisible} 
         onClose={closeSidebar} 
         slideAnim={slideAnim} 
-        profile={profile}  
       />
     </SafeAreaView>
   )

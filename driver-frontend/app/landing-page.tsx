@@ -286,9 +286,9 @@ const DriverLandingPage: React.FC = () => {
           },
         })
       } else {
-        // For shared rides, you might want to create a different page or handle differently
-        /* router.push({
-          pathname: "/shared-ride-request",
+        // For shared ride 
+        router.push({
+          pathname: "/ride-request" as any,
           params: {
             rideId: selectedRide.id,
             pickup: JSON.stringify(selectedRide.pickup),
@@ -302,7 +302,7 @@ const DriverLandingPage: React.FC = () => {
             driverLng: driverCoordinates?.longitude.toString(),
             rideType: "shared",
           },
-        })*/
+        })
       }
     }
   }
@@ -312,7 +312,6 @@ const DriverLandingPage: React.FC = () => {
       isVisible={sidebarVisible} 
       onClose={closeSidebar} 
       slideAnim={slideAnim} 
-      profile={profile}
     />
   )
 
