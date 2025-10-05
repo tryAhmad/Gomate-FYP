@@ -62,6 +62,7 @@ export default function RideRequestPage() {
   const params = useLocalSearchParams() as RideParams;
   const mapRef = useRef<MapView>(null);
   const inputRef = useRef<TextInput>(null);
+  
 
   const [counterFare, setCounterFare] = useState('');
   const [pickupCoords, setPickupCoords] = useState<Coordinate[]>([]);
@@ -450,22 +451,32 @@ export default function RideRequestPage() {
     }
   };
 
-  const handleAcceptRide = () => {
-    router.push({
-      pathname: '/pickup',
-      params: {
-        ...params,
-        rideType: isSharedRide ? 'shared' : 'solo',
-      },
-    });
-    
-    Alert.alert(
-      'Ride Accepted',
-      `Navigate to ${isSharedRide ? 'pickup locations' : 'pickup location'}`,
-      [{ text: 'OK' }],
-      { cancelable: false },
-    );
+  // In your RideRequestPage, update the handleAcceptRide function:
+
+const handleAcceptRide = () => {
+  // Prepare the params for pickup page - use type assertion to avoid TypeScript errors
+  const pickupParams: any = {
+    ...params,
+    rideType: isSharedRide ? 'shared' : 'solo',
   };
+
+  // For shared rides, pass the optimized stops
+  if (isSharedRide && optimizedStops.length > 0) {
+    pickupParams.optimizedStops = JSON.stringify(optimizedStops);
+  }
+
+  router.push({
+    pathname: '/pickup',
+    params: pickupParams,
+  });
+  
+  Alert.alert(
+    'Ride Accepted',
+    `Navigate to ${isSharedRide ? 'pickup locations' : 'pickup location'}`,
+    [{ text: 'OK' }],
+    { cancelable: false },
+  );
+};
 
   const handleOfferFare = () => {
     if (!isSharedRide) {

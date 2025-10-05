@@ -23,6 +23,7 @@ type RideCompleteParams = {
   profilePhoto?: string;
 };
 
+
 const RideCompleteScreen: React.FC = () => {
   const router = useRouter();
   const params = useLocalSearchParams() as RideCompleteParams;

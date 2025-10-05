@@ -1,35 +1,36 @@
 import React from 'react';
-import { View, ActivityIndicator, Text } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import MapView, { PROVIDER_GOOGLE, Marker, Polyline } from 'react-native-maps';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Image } from 'react-native';
 
 interface Coordinate {
   latitude: number;
   longitude: number;
 }
 
-type MaterialIconName = 'map-marker' | 'map-marker-outline';
-
-interface SharedRideStop {
+interface Stop {
   type: 'pickup' | 'destination';
   address: string;
   passengerName: string;
   fare: string;
   stopNumber: number;
-  isFirstInSequence?: boolean;
-  coordinate: Coordinate; 
+  coordinate: Coordinate;
 }
 
-interface RideRequestMapProps {
+export interface RideRequestMapProps {
   pickupCoords: Coordinate[];
   destinationCoords: Coordinate[];
   routeCoords: Coordinate[];
   isLoading: boolean;
   mapRef: React.RefObject<MapView | null>;
   getPinColor: (stopNumber: number, type: 'pickup' | 'destination') => string;
-  getPinIcon: (stopNumber: number, type: 'pickup' | 'destination') => MaterialIconName;
-  isSharedRide?: boolean;
-  optimizedStops?: SharedRideStop[];
+  getPinIcon: (stopNumber: number, type: 'pickup' | 'destination') => 'map-marker' | 'map-marker-outline';
+  isSharedRide: boolean;
+  optimizedStops: Stop[];
+  driverLocation?: Coordinate | null;
+  carRotation?: number;
+  remainingRouteCoords?: Coordinate[];
 }
 
 const DEFAULT_REGION = {
@@ -47,65 +48,63 @@ export const RideRequestMap: React.FC<RideRequestMapProps> = ({
   mapRef,
   getPinColor,
   getPinIcon,
-  isSharedRide = false,
-  optimizedStops = [],
+  isSharedRide,
+  optimizedStops,
+  driverLocation,
+  carRotation = 0,
+  remainingRouteCoords = [],
 }) => {
-  
-  // For shared rides with optimized stops, use the optimized order
-  // For solo rides or before optimization, use the original order
   const renderMarkers = () => {
-    if (isSharedRide && optimizedStops.length > 0) {
-      // Render optimized stops in order
-      return optimizedStops.map((stop) => (
+    if (!pickupCoords || !destinationCoords) return null
+    if (isSharedRide && optimizedStops && optimizedStops.length > 0) {
+      // Render markers for shared ride stops
+      return optimizedStops.map((stop, index) => (
         <Marker
-          key={`optimized-stop-${stop.stopNumber}`}
+          key={`stop-${index}`}
           coordinate={stop.coordinate}
-          title={`${stop.type === 'pickup' ? 'Pickup' : 'Destination'} ${stop.stopNumber}`}
-          description={stop.passengerName}
+          title={`Stop ${stop.stopNumber}`}
+          description={`${stop.type === 'pickup' ? 'Pickup' : 'Destination'}: ${stop.passengerName}`}
           anchor={{ x: 0.5, y: 1 }}
           centerOffset={{ x: 0, y: -12 }}
         >
-          <MaterialCommunityIcons 
+          <MaterialCommunityIcons
             name={getPinIcon(stop.stopNumber, stop.type)}
-            size={40} 
-            color={getPinColor(stop.stopNumber, stop.type)} 
+            size={40}
+            color={getPinColor(stop.stopNumber, stop.type)}
           />
         </Marker>
       ));
     } else {
-      // Fallback: render original pickup and destination markers
+      // Render markers for solo ride
       return (
         <>
-          {/* Pickup Markers */}
           {pickupCoords.map((coord, index) => (
             <Marker
               key={`pickup-${index}`}
               coordinate={coord}
-              title={`Pickup ${index + 1}`}
+              title="Pickup Location"
               anchor={{ x: 0.5, y: 1 }}
               centerOffset={{ x: 0, y: -12 }}
             >
-              <MaterialCommunityIcons 
-                name={getPinIcon(index + 1, 'pickup')}
-                size={40} 
-                color={getPinColor(index + 1, 'pickup')} 
+              <MaterialCommunityIcons
+                name="map-marker-outline"
+                size={40}
+                color="#FF4444"
               />
             </Marker>
           ))}
-
-          {/* Destination Markers */}
           {destinationCoords.map((coord, index) => (
             <Marker
               key={`destination-${index}`}
               coordinate={coord}
-              title={`Destination ${index + 1}`}
+              title="Destination"
               anchor={{ x: 0.5, y: 1 }}
               centerOffset={{ x: 0, y: -12 }}
             >
-              <MaterialCommunityIcons 
-                name={getPinIcon(index + 3, 'destination')}
-                size={40} 
-                color={getPinColor(index + 3, 'destination')} 
+              <MaterialCommunityIcons
+                name="map-marker"
+                size={40}
+                color="#4CAF50"
               />
             </Marker>
           ))}
@@ -115,7 +114,7 @@ export const RideRequestMap: React.FC<RideRequestMapProps> = ({
   };
 
   return (
-    <View style={styles.mapContainer}>
+    <View style={styles.container}>
       <MapView
         ref={mapRef}
         style={styles.map}
@@ -125,14 +124,50 @@ export const RideRequestMap: React.FC<RideRequestMapProps> = ({
         showsMyLocationButton={false}
         mapType="standard"
       >
+        {/* Driver Location Marker */}
+        {driverLocation && (
+          <Marker
+            coordinate={driverLocation}
+            title="Your Location"
+            description="Driver current location"
+            anchor={{ x: 0.5, y: 0.5 }}
+            flat={true}
+            rotation={carRotation}
+          >
+            <View style={styles.driverMarker}>
+              <Image 
+                source={require("@/assets/car-marker.png")} 
+                style={styles.carIcon} 
+                resizeMode="contain" 
+              />
+            </View>
+          </Marker>
+        )}
+
+        {/* Render pickup and destination markers */}
         {renderMarkers()}
 
-        {/* Route Polyline */}
+        {/* Driver to pickup route */}
+        {remainingRouteCoords.length > 0 && (
+          <Polyline
+            coordinates={remainingRouteCoords}
+            strokeWidth={5}
+            strokeColor="#007AFF"
+            lineCap="round"
+            lineJoin="round"
+            zIndex={2}
+          />
+        )}
+
+        {/* Main route */}
         {routeCoords.length > 0 && (
-          <Polyline 
-            coordinates={routeCoords} 
-            strokeWidth={4} 
-            strokeColor="#007AFF" 
+          <Polyline
+            coordinates={routeCoords}
+            strokeWidth={5}
+            strokeColor="#007AFF"
+            lineCap="round"
+            lineJoin="round"
+            zIndex={3}
           />
         )}
       </MapView>
@@ -147,23 +182,23 @@ export const RideRequestMap: React.FC<RideRequestMapProps> = ({
   );
 };
 
-const styles = {
-  mapContainer: {
+const styles = StyleSheet.create({
+  container: {
     flex: 1,
-    position: 'relative' as const,
+    position: 'relative',
   },
   map: {
     flex: 1,
   },
   loadingOverlay: {
-    position: 'absolute' as const,
+    position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
     backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    justifyContent: 'center' as const,
-    alignItems: 'center' as const,
+    justifyContent: 'center',
+    alignItems: 'center',
     zIndex: 1000,
   },
   loadingText: {
@@ -171,4 +206,14 @@ const styles = {
     fontSize: 16,
     color: '#333',
   },
-};
+  driverMarker: {
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  carIcon: {
+    width: 32,
+    height: 32,
+    tintColor: '#000000ff',
+  },
+});
