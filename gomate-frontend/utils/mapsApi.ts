@@ -31,7 +31,7 @@ const snapToRoad = async (lat: number, lng: number) => {
 export const getDistanceTime = async (
   originCoords: { lat: number; lng: number },
   destinationCoords: { lat: number; lng: number },
-  rideType?: string // optional ride type
+  rideType?: string
 ) => {
   const origin = await snapToRoad(originCoords.lat, originCoords.lng);
   const destination = await snapToRoad(

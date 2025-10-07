@@ -38,7 +38,7 @@ import {
   getAddressCoordinate,
   getDistanceTime,
 } from "@/utils/mapsApi";
-import socket from "@/utils/socket";
+import {getSocket} from "@/utils/socket";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -154,51 +154,49 @@ const newHome = () => {
   };
 
   const passengerId = "688c69f20653ec0f43df6e2c";
+  const socket = getSocket();
+
 
   useEffect(() => {
-    // when driver sends counter offer
-    socket.on("receiveCounterOffer", (data) => {
+    const handleCounterOffer = (data: any) => {
       console.log("Counter fare received:", data);
-      setDriverOffers((prev) => [...prev, data]); // append to state
-      //setShowOffersModal(true); // open modal automatically
-    });
+      setDriverOffers((prev) => [...prev, data]);
+    };
 
-    // Listen for driver arrival
-    socket.on("driverArrived", (data) => {
+    const handleDriverArrived = (data: any) => {
       console.log("Driver arrived:", data.message);
       setDriverArrived(true);
       setRideStatus("driver_arrived");
       Notifications.scheduleNotificationAsync({
         content: {
           title: "Driver Arrived 🚗",
-          body: `Your driver has arrived at your pickup location.`,
+          body: "Your driver has arrived at your pickup location.",
         },
         trigger: null,
       });
-    });
+    };
 
-    socket.on("rideStarted", (data) => {
+    const handleRideStarted = (data: any) => {
       console.log("Ride started:", data.message);
       setRideStatus("started");
-    });
+    };
 
-    // ✅ Listen for ride completion
-    socket.on("rideCompleted", (data) => {
+    const handleRideCompleted = (data: any) => {
       console.log("Ride completed:", data.message);
       setRideStatus("completed");
 
       Notifications.scheduleNotificationAsync({
         content: {
           title: "Ride Completed ✅",
-          body: `Your ride has been completed successfully.`,
+          body: "Your ride has been completed successfully.",
         },
         trigger: null,
       });
-      // ✅ Collect ride details
-      // inside rideCompleted socket listener
+
       const rideData = {
-        driverName:
-          `${acceptedDriver?.firstname ?? ""} ${acceptedDriver?.lastname ?? ""}`.trim(),
+        driverName: `${acceptedDriver?.firstname ?? ""} ${
+          acceptedDriver?.lastname ?? ""
+        }`.trim(),
         driverCarCompany: acceptedDriver?.car?.company ?? "",
         driverCarModel: acceptedDriver?.car?.model ?? "",
         pickup: pickup ?? "",
@@ -210,16 +208,25 @@ const newHome = () => {
         pathname: "/(screens)/ratingScreen",
         params: rideData,
       });
-    });
+    };
 
-    socket.on("disconnect", () => {
-      console.log("Socket disconnected");
-    });
+    // 🔄 Remove old listeners first
+    socket.off("receiveCounterOffer");
+    socket.off("driverArrived");
+    socket.off("rideStarted");
+    socket.off("rideCompleted");
+
+    // ✅ Add fresh listeners
+    socket.on("receiveCounterOffer", handleCounterOffer);
+    socket.on("driverArrived", handleDriverArrived);
+    socket.on("rideStarted", handleRideStarted);
+    socket.on("rideCompleted", handleRideCompleted);
 
     return () => {
-      socket.off("receiveCounterOffer");
-      socket.off("driverArrived");
-      socket.off("disconnect");
+      socket.off("receiveCounterOffer", handleCounterOffer);
+      socket.off("driverArrived", handleDriverArrived);
+      socket.off("rideStarted", handleRideStarted);
+      socket.off("rideCompleted", handleRideCompleted);
     };
   }, []);
 
@@ -1292,9 +1299,11 @@ const newHome = () => {
                       ? "border-2 border-gray-300"
                       : Number(fare) <= 0
                         ? "border-2 border-red-500"
-                        : Number(fare) < minFare!
+                        : minFare !== null &&
+                            minFare !== undefined &&
+                            Number(fare) < minFare
                           ? "border-2 border-red-500"
-                          : "border-2 border-green-600"
+                          : "border-2 border-green-500"
                   }
                   icon={
                     <MaterialCommunityIcons
@@ -1351,7 +1360,9 @@ const newHome = () => {
         message={
           <>
             The minimum fare for this ride is{" "}
-            <Text className="font-JakartaExtraBold text-red-500">Rs {minFare}</Text>
+            <Text className="font-JakartaExtraBold text-red-500">
+              Rs {minFare}
+            </Text>
           </>
         }
         iconColor="red"

@@ -1,4 +1,4 @@
-import socket from "@/utils/socket";
+import { getSocket } from "@/utils/socket";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import {
@@ -13,7 +13,6 @@ import {
 } from "react-native";
 import * as Notifications from "expo-notifications";
 
-
 LogBox.ignoreLogs([
   "expo-notifications: Android Push notifications",
   "`expo-notifications` functionality is not fully supported in Expo Go",
@@ -21,6 +20,8 @@ LogBox.ignoreLogs([
 
 const Home = () => {
   const passengerId = "688c69f20653ec0f43df6e2c";
+  const socket = getSocket();
+
   const [isConnecting, setIsConnecting] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
@@ -44,63 +45,71 @@ const Home = () => {
     })();
   }, []);
 
+    useEffect(() => {
+      if (!passengerId) return;
 
-  useEffect(() => {
-    const connectPassenger = () => {
-      // Reset states
-      setIsConnecting(true);
-      setConnectionError(null);
-
-      // Connect if not already connected
+      // Only show connecting if socket isn't already connected
       if (!socket.connected) {
-        socket.connect();
-      }
-
-      // Handle successful connection
-      socket.on("connect", () => {
-        console.log("Passenger connected:", socket.id);
-
-        // Register this socket as belonging to passenger
-        socket.emit("registerPassenger", { passengerId });
-
+        setIsConnecting(true);
+        setConnectionError(null);
+      } else {
         setIsConnecting(false);
         setIsConnected(true);
-      });
+      }
 
-      // Handle connection errors
-      socket.on("connect_error", (error) => {
-        console.log("Connection error:", error);
+      // ✅ Event Handlers
+      const handleConnect = () => {
+        console.log("✅ Passenger connected:", socket.id);
+        socket.emit("registerPassenger", { passengerId });
+        setIsConnecting(false);
+        setIsConnected(true);
+      };
+
+      const handleConnectError = (error: any) => {
+        console.log("❌ Connection error:", error.message);
         setIsConnecting(false);
         setConnectionError("Failed to connect. Please try again.");
-      });
+        setIsConnected(false);
+      };
 
-      // Handle disconnection
-      socket.on("disconnect", (reason) => {
-        console.log("Disconnected:", reason);
+      const handleDisconnect = (reason: string) => {
+        console.log("⚠️ Disconnected:", reason);
         setIsConnected(false);
         if (reason === "io server disconnect") {
-          // Server disconnected, need to reconnect manually
-          setIsConnecting(true);
+          // Let singleton handle auto-reconnect
+          console.log("Attempting manual reconnect...");
           socket.connect();
         }
-      });
+      };
+
+      // ✅ Always clear old listeners first
+      socket.off("connect", handleConnect);
+      socket.off("connect_error", handleConnectError);
+      socket.off("disconnect", handleDisconnect);
+
+      // ✅ Attach fresh listeners
+      socket.on("connect", handleConnect);
+      socket.on("connect_error", handleConnectError);
+      socket.on("disconnect", handleDisconnect);
+
+      // ✅ Ensure the socket is connected (singleton handles this safely)
+      if (!socket.connected) socket.connect();
+
+      // Cleanup on unmount
+      return () => {
+        socket.off("connect", handleConnect);
+        socket.off("connect_error", handleConnectError);
+        socket.off("disconnect", handleDisconnect);
+      };
+    }, [passengerId]);
+
+    // 🔄 Manual retry (optional)
+    const handleRetryConnection = () => {
+      console.log("🔄 Retrying connection...");
+      setConnectionError(null);
+      setIsConnecting(true);
+      socket.connect();
     };
-
-    connectPassenger();
-
-    // Cleanup listeners on unmount
-    return () => {
-      socket.off("connect");
-      socket.off("connect_error");
-      socket.off("disconnect");
-    };
-  }, [passengerId]);
-
-  const handleRetryConnection = () => {
-    setConnectionError(null);
-    setIsConnecting(true);
-    socket.connect();
-  };
 
   const handleNavigateToHome = () => {
     router.replace("/(screens)/newHome");
