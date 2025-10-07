@@ -520,7 +520,7 @@ const PickupPage: React.FC = () => {
           if (locationSubscription) {
             locationSubscription.remove()
           }
-          router.replace("/landing-page" as any)
+          router.replace("/" as any)
         },
       },
     ])
@@ -608,7 +608,6 @@ const PickupPage: React.FC = () => {
 
       console.log("[SHARED_RIDE] Stop marked as arrived, route shown; waiting for Start Ride")
     } else if (currentStop.type === "pickup" && currentStop.completed) {
-      Alert.alert("Ride Started", `Continuing to ${currentStop.stopNumber === 1 ? "next pickup" : "destination"}.`)
 
       const nextStopIndex = currentStopIndex + 1
       if (nextStopIndex < sharedRideStops.length) {
@@ -633,10 +632,6 @@ const PickupPage: React.FC = () => {
         }, 500)
       }
     } else if (currentStop.type === "destination") {
-      // Destination - Collect fare
-      Alert.alert("Fare Collected", `Rs ${currentStop.fare} collected from ${currentStop.passengerName}`, [
-        { text: "OK" },
-      ])
 
       // Mark this stop as completed
       const updatedStops = sharedRideStops.map((stop, index) =>

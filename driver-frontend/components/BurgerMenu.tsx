@@ -79,7 +79,7 @@ const BurgerMenu: React.FC<BurgerMenuProps> = ({
   };
 
   const handleBookRide = () => {
-    router.push("/landing-page" as any);
+    router.push("/" as any);
     onClose();
   };
 
