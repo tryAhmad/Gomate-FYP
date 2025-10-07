@@ -62,7 +62,7 @@ Notifications.setNotificationHandler({
 
 const rideTypes = [
   {
-    id: "motorcycle",
+    id: "bike",
     name: "Bike",
     icon: <MaterialCommunityIcons name="motorbike" size={24} color="black" />,
   },
@@ -328,16 +328,20 @@ const newHome = () => {
   useEffect(() => {
     const timeout = setTimeout(() => {
       const fetchDistanceTime = async () => {
-        if (pickup && dropoff) {
+        if (pickupCoord && dropoffCoord) {
           try {
             setLoadingDistanceTime(true);
-            const result = await getDistanceTime(pickup, dropoff);
+            const result = await getDistanceTime(
+              { lat: pickupCoord?.latitude, lng: pickupCoord?.longitude },
+              { lat: dropoffCoord?.latitude, lng: dropoffCoord?.longitude },
+              selectedRideType || ""
+            );
 
             if (result) {
               setRideDistance(result.distance.text);
               setRideDuration(result.duration.text);
-              console.log("Distance:", result.distance.value);
-              console.log("Duration:", result.duration.value);
+              //console.log("Distance:", result.distance.value / 1000, "km");
+              //console.log("Duration:", result.duration.value / 60, "mins");
               try {
                 const res = await fetch(
                   `http://${userip}:3000/ride-request/fare`,
@@ -367,6 +371,7 @@ const newHome = () => {
               }
             }
           } catch (error) {
+            console.error("Error fetching distance/time:", error);
             setRideDistance("");
             setRideDuration("");
           } finally {
@@ -384,7 +389,7 @@ const newHome = () => {
     }, 1000); // debounce delay
 
     return () => clearTimeout(timeout);
-  }, [pickup, dropoff]);
+  }, [pickupCoord, dropoffCoord, selectedRideType]);
 
   // Handle pickup text change with autocomplete
   const handlePickupChange = async (text: string) => {
@@ -558,26 +563,26 @@ const newHome = () => {
       };
       //setPickupCoord(currentCoords);
 
-      try {
-        const [place] = await Location.reverseGeocodeAsync(currentCoords);
-        if (place) {
-          const formattedAddress = [place.name, place.street, place.city]
-            .filter(Boolean)
-            .join(", ");
-          setPickup(formattedAddress);
-        } else {
-          // fallback if reverse geocode returns nothing
-          setPickup(
-            `${currentCoords.latitude.toFixed(4)}, ${currentCoords.longitude.toFixed(4)}`
-          );
-        }
-      } catch (error) {
-        console.error("Error reverse geocoding pickup:", error);
-        // fallback if geocoding fails
-        setPickup(
-          `${currentCoords.latitude.toFixed(4)}, ${currentCoords.longitude.toFixed(4)}`
-        );
-      }
+      // try {
+      //   const [place] = await Location.reverseGeocodeAsync(currentCoords);
+      //   if (place) {
+      //     const formattedAddress = [place.name, place.street, place.city]
+      //       .filter(Boolean)
+      //       .join(", ");
+      //     setPickup(formattedAddress);
+      //   } else {
+      //     // fallback if reverse geocode returns nothing
+      //     setPickup(
+      //       `${currentCoords.latitude.toFixed(4)}, ${currentCoords.longitude.toFixed(4)}`
+      //     );
+      //   }
+      // } catch (error) {
+      //   console.error("Error reverse geocoding pickup:", error);
+      //   // fallback if geocoding fails
+      //   setPickup(
+      //     `${currentCoords.latitude.toFixed(4)}, ${currentCoords.longitude.toFixed(4)}`
+      //   );
+      // }
     }
   };
 
@@ -709,7 +714,7 @@ const newHome = () => {
   };
 
   useEffect(() => {
-    const isTwoWheeler = ["motorcycle", "auto"].includes(
+    const isTwoWheeler = ["motorcycle", "auto", "bike"].includes(
       selectedRideType || ""
     );
     const mode = "driving";
@@ -1321,7 +1326,9 @@ const newHome = () => {
             </Text>
             <Text className="text-lg font-JakartaMedium text-center text-gray-700 mb-6">
               The minimum fare for this ride is{" "}
-              <Text className="font-bold text-red-500">Rs {calculatedFare}</Text>
+              <Text className="font-bold text-red-500">
+                Rs {calculatedFare}
+              </Text>
             </Text>
 
             {/* Close button */}

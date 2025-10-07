@@ -214,7 +214,7 @@ export class RideRequestService {
   calculateFareFromDistanceTime(
     distanceMeters: number,
     durationSeconds: number,
-    rideType?: 'auto' | 'car' | 'moto',
+    rideType?: 'auto' | 'car' | 'bike',
   ) {
     if (distanceMeters == null || durationSeconds == null) {
       throw new BadRequestException(
@@ -225,22 +225,22 @@ export class RideRequestService {
     const baseFare = {
       auto: 40,
       car: 70,
-      moto: 25,
+      bike: 25,
     } as const;
 
     const perKmRate = {
       auto: 15,
       car: 25,
-      moto: 10,
+      bike: 10,
     } as const;
 
     const perMinuteRate = {
       auto: 2,
       car: 3,
-      moto: 1.5,
+      bike: 1.5,
     } as const;
 
-    const calc = (type: 'auto' | 'car' | 'moto') =>
+    const calc = (type: 'auto' | 'car' | 'bike') =>
       Math.round(
         baseFare[type] +
           (distanceMeters / 1000) * perKmRate[type] +
@@ -250,10 +250,10 @@ export class RideRequestService {
     const fares = {
       auto: calc('auto'),
       car: calc('car'),
-      moto: calc('moto'),
+      bike: calc('bike'),
     };
 
-    if (rideType && ['auto', 'car', 'moto'].includes(rideType)) {
+    if (rideType && ['auto', 'car', 'bike'].includes(rideType)) {
       return {
         message: 'Fare calculated successfully',
         rideType,

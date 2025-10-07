@@ -11,6 +11,6 @@ export class CalculateFareDto {
   duration: number; // seconds
 
   @IsOptional()
-  @IsIn(['auto', 'car', 'moto'])
-  rideType?: 'auto' | 'car' | 'moto';
+  @IsIn(['auto', 'car', 'bike'])
+  rideType?: 'auto' | 'car' | 'bike';
 }

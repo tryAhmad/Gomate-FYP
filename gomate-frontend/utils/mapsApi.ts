@@ -17,16 +17,51 @@ export const getAddressCoordinate = async (address: string) => {
   throw new Error("Unable to fetch coordinates");
 };
 
-export const getDistanceTime = async (origin: string, destination: string) => {
-  const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${encodeURIComponent(
-    origin
-  )}&destinations=${encodeURIComponent(destination)}&key=${mapsApiKey}`;
+const snapToRoad = async (lat: number, lng: number) => {
+  const url = `https://roads.googleapis.com/v1/nearestRoads?points=${lat},${lng}&key=${mapsApiKey}`;
   const response = await axios.get(url);
-  if (response.data.status === "OK") {
-    return response.data.rows[0].elements[0]; // {distance, duration, status}
+  const snappedPoints = response.data.snappedPoints;
+  if (snappedPoints && snappedPoints.length > 0) {
+    const { latitude, longitude } = snappedPoints[0].location;
+    return `${latitude},${longitude}`;
   }
+  return `${lat},${lng}`; // fallback
+};
+
+export const getDistanceTime = async (
+  originCoords: { lat: number; lng: number },
+  destinationCoords: { lat: number; lng: number },
+  rideType?: string // optional ride type
+) => {
+  const origin = await snapToRoad(originCoords.lat, originCoords.lng);
+  const destination = await snapToRoad(
+    destinationCoords.lat,
+    destinationCoords.lng
+  );
+
+  // ✅ If rideType is bike or rickshaw → avoid highways
+  const avoidHighways = ["bike", "auto"].includes(
+    (rideType || "").toLowerCase()
+  )
+    ? "&avoid=highways"
+    : "";
+
+  const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${origin}&destinations=${destination}&departure_time=now&traffic_model=best_guess${avoidHighways}&key=${mapsApiKey}`;
+
+  const response = await axios.get(url);
+
+  if (response.data.status === "OK") {
+    const element = response.data.rows[0].elements[0];
+    return {
+      distance: element.distance,
+      duration: element.duration_in_traffic || element.duration,
+      status: element.status,
+    };
+  }
+
   throw new Error("Unable to fetch distance and time");
 };
+
 
 export const getAutoCompleteSuggestions = async (input: string) => {
   const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(

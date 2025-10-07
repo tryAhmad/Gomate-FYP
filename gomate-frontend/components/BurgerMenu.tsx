@@ -18,7 +18,7 @@ const { width } = Dimensions.get("window");
 interface BurgerMenuProps {
   passengerName?: string;
   profilePic?: string;
-  style?: string; // e.g., "top-10 left-5"
+  style?: string;
   onLogout?: () => void;
 }
 
@@ -52,7 +52,7 @@ export default function BurgerMenu({
     <>
       {/* Round Burger Button */}
       <TouchableOpacity
-        className={`absolute ${style} w-12 h-12 rounded-full bg-white justify-center items-center shadow-md z-0`}
+        className={`absolute ${style} w-12 h-12 rounded-full bg-white justify-center items-center z-0`}
         onPress={openMenu}
       >
         <Ionicons name="menu" size={34} color="black" />
