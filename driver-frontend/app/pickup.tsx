@@ -13,11 +13,10 @@ import {
   Dimensions,
   ActivityIndicator,
 } from "react-native"
-import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons"
+import { Ionicons } from "@expo/vector-icons"
 import { useRouter, useLocalSearchParams } from "expo-router"
-import MapView from "react-native-maps"
+import type MapView from "react-native-maps"
 import * as Location from "expo-location"
-import AsyncStorage from "@react-native-async-storage/async-storage"
 
 import { RideRequestMap } from "@/components/RideRequestMap"
 import { SoloRideBottomCard } from "@/components/SoloRideBottomCard"
@@ -28,19 +27,19 @@ import { getCoordinatesFromAddress, getRouteCoordinates } from "@/utils/getRoute
 const { width } = Dimensions.get("window")
 
 interface Coordinate {
-  latitude: number;
-  longitude: number;
+  latitude: number
+  longitude: number
 }
 
 interface Stop {
-  type: 'pickup' | 'destination';
-  address: string;
-  passengerName: string;
-  fare: string;
-  stopNumber: number;
-  completed?: boolean;
-  coordinate: Coordinate;
-  passengerPhone?: string;
+  type: "pickup" | "destination"
+  address: string
+  passengerName: string
+  fare: string
+  stopNumber: number
+  completed?: boolean
+  coordinate: Coordinate
+  passengerPhone?: string
 }
 
 type PickupParams = {
@@ -55,7 +54,7 @@ type PickupParams = {
   passengerPhone?: string
   driverLat?: string
   driverLng?: string
-  rideType?: 'solo' | 'shared'
+  rideType?: "solo" | "shared"
   optimizedStops?: string
 }
 
@@ -64,32 +63,46 @@ const PickupPage: React.FC = () => {
   const params = useLocalSearchParams() as PickupParams
   const mapRef = useRef<MapView>(null)
 
-  const isSharedRide = params.rideType === 'shared'
+  const isSharedRide = params.rideType === "shared"
 
   // Parse arrays for shared rides safely
-  const pickups = isSharedRide && params.pickup ? 
-    (typeof params.pickup === 'string' ? JSON.parse(params.pickup) : [params.pickup]) : 
-    [params.pickup || 'Pickup Location']
+  const pickups =
+    isSharedRide && params.pickup
+      ? typeof params.pickup === "string"
+        ? JSON.parse(params.pickup)
+        : [params.pickup]
+      : [params.pickup || "Pickup Location"]
 
-  const destinations = isSharedRide && params.destination ? 
-    (typeof params.destination === 'string' ? JSON.parse(params.destination) : [params.destination]) : 
-    [params.destination || 'Destination Location']
+  const destinations =
+    isSharedRide && params.destination
+      ? typeof params.destination === "string"
+        ? JSON.parse(params.destination)
+        : [params.destination]
+      : [params.destination || "Destination Location"]
 
-  const passengerNames = isSharedRide && params.passengerName ? 
-    (typeof params.passengerName === 'string' ? JSON.parse(params.passengerName) : [params.passengerName]) : 
-    [params.passengerName || 'Passenger']
+  const passengerNames =
+    isSharedRide && params.passengerName
+      ? typeof params.passengerName === "string"
+        ? JSON.parse(params.passengerName)
+        : [params.passengerName]
+      : [params.passengerName || "Passenger"]
 
-  const fares = isSharedRide && params.fare ? 
-    (typeof params.fare === 'string' ? JSON.parse(params.fare) : [params.fare]) : 
-    [params.fare || '250']
+  const fares =
+    isSharedRide && params.fare
+      ? typeof params.fare === "string"
+        ? JSON.parse(params.fare)
+        : [params.fare]
+      : [params.fare || "250"]
 
-  const passengerPhones = isSharedRide && params.passengerPhone ? 
-    (typeof params.passengerPhone === 'string' ? JSON.parse(params.passengerPhone) : [params.passengerPhone]) : 
-    [params.passengerPhone || '']
+  const passengerPhones =
+    isSharedRide && params.passengerPhone
+      ? typeof params.passengerPhone === "string"
+        ? JSON.parse(params.passengerPhone)
+        : [params.passengerPhone]
+      : [params.passengerPhone || ""]
 
   // Parse optimized stops from ride request page
-  const parsedOptimizedStops = params.optimizedStops ? 
-    JSON.parse(params.optimizedStops) : [];
+  const parsedOptimizedStops = params.optimizedStops ? JSON.parse(params.optimizedStops) : []
 
   // State
   const [pickupCoords, setPickupCoords] = useState<Coordinate[]>([])
@@ -106,6 +119,7 @@ const PickupPage: React.FC = () => {
   const [carRotation, setCarRotation] = useState(0)
   const [currentStopIndex, setCurrentStopIndex] = useState(0)
   const [sharedRideStops, setSharedRideStops] = useState<Stop[]>([])
+  const [initialRouteLoaded, setInitialRouteLoaded] = useState(false)
 
   const DEFAULT_REGION = {
     latitude: 31.5204,
@@ -121,16 +135,19 @@ const PickupPage: React.FC = () => {
 
   // Load route data once driver location is ready
   useEffect(() => {
-    if (driverLocation) {
-      console.log("[PICKUP] Driver location ready, loading route data...")
-      loadRouteData()
+    if (driverLocation && !initialRouteLoaded) {
+      console.log("[PICKUP] Driver location ready, loading initial route data...")
+      ;(async () => {
+        await loadRouteData()
+        setInitialRouteLoaded(true)
+      })()
     }
-  }, [driverLocation])
+  }, [driverLocation, initialRouteLoaded])
 
   const initializeDriverLocation = async () => {
     try {
       console.log("[PICKUP] Initializing driver location...")
-      
+
       if (params.driverLat && params.driverLng) {
         const initialLocation = {
           latitude: Number.parseFloat(params.driverLat),
@@ -143,7 +160,7 @@ const PickupPage: React.FC = () => {
         await requestLocationPermission()
       }
     } catch (error) {
-      console.error('Error initializing driver location:', error)
+      console.error("Error initializing driver location:", error)
       setDriverLocation(DEFAULT_REGION)
     }
   }
@@ -159,8 +176,8 @@ const PickupPage: React.FC = () => {
         await loadSoloRideData()
       }
     } catch (error) {
-      console.error('Error loading route:', error)
-      Alert.alert('Error', 'Failed to load route information.')
+      console.error("Error loading route:", error)
+      Alert.alert("Error", "Failed to load route information.")
     } finally {
       setIsLoading(false)
     }
@@ -169,91 +186,99 @@ const PickupPage: React.FC = () => {
   const loadSharedRideData = async () => {
     try {
       console.log("[SHARED_RIDE] Loading shared ride data...")
-      
+
       if (!driverLocation) {
         console.error("[SHARED_RIDE] No driver location available")
         return
       }
 
       if (parsedOptimizedStops && parsedOptimizedStops.length > 0) {
-        console.log('[SHARED_RIDE] Using optimized stops:', parsedOptimizedStops)
-        
-        // Get coordinates for all stops
+        console.log("[SHARED_RIDE] Using optimized stops:", parsedOptimizedStops)
+
+        // Get coordinates for all stops with proper typing
         const stopsWithCoords = await Promise.all(
           parsedOptimizedStops.map(async (stop: any) => {
             console.log(`[SHARED_RIDE] Getting coordinates for: ${stop.address}`)
             try {
-              const coordinate = await getCoordinatesFromAddress(stop.address);
-              
+              const coordinate = await getCoordinatesFromAddress(stop.address)
+
               if (!coordinate) {
                 console.error(`[SHARED_RIDE] Failed to get coordinates for: ${stop.address}`)
-                return null;
+                return null
               }
-              
-              const passengerIndex = passengerNames.indexOf(stop.passengerName);
-              const passengerPhone = passengerIndex >= 0 ? passengerPhones[passengerIndex] : '';
-              
-              return {
-                ...stop,
+
+              const passengerIndex = passengerNames.indexOf(stop.passengerName)
+              const passengerPhone = passengerIndex >= 0 ? passengerPhones[passengerIndex] : ""
+
+              // Ensure proper Stop type with explicit type casting
+              const typedStop: Stop = {
+                type: stop.type as "pickup" | "destination", // Explicit type casting
+                address: stop.address,
+                passengerName: stop.passengerName,
+                fare: stop.fare,
+                stopNumber: stop.stopNumber,
                 coordinate: coordinate,
                 passengerPhone: passengerPhone,
-                completed: false // Initialize all as not completed
-              };
+                completed: false,
+              }
+
+              return typedStop
             } catch (error) {
               console.error(`[SHARED_RIDE] Error getting coordinates for ${stop.address}:`, error)
               return null
             }
-          })
-        );
+          }),
+        )
 
         // Filter out any null stops
-        const validStops = stopsWithCoords.filter(stop => stop !== null) as Stop[];
-        
+        const validStops = stopsWithCoords.filter((stop) => stop !== null) as Stop[]
+
         if (validStops.length === 0) {
-          console.error('[SHARED_RIDE] No valid stops with coordinates')
-          Alert.alert('Error', 'Could not load ride locations. Please try again.');
+          console.error("[SHARED_RIDE] No valid stops with coordinates")
+          Alert.alert("Error", "Could not load ride locations. Please try again.")
           return
         }
 
-        setSharedRideStops(validStops);
-        console.log('[SHARED_RIDE] Final stops with coordinates:', validStops);
+        setSharedRideStops(validStops)
+        console.log("[SHARED_RIDE] Final stops with coordinates:", validStops)
 
-        // Get route from driver to first stop (stop 1)
-        const firstStop = validStops[0];
-        console.log('[SHARED_RIDE] Getting route from driver to first stop:', firstStop)
-        
+        // Get optimized route from driver to first stop (stop 1)
+        const firstStop = validStops[0]
+        console.log("[SHARED_RIDE] Getting route from driver to first stop:", firstStop)
+
         try {
           const route = await getRouteCoordinates(driverLocation, firstStop.coordinate)
-          console.log('[SHARED_RIDE] Driver to first stop route result:', route ? `${route.length} points` : 'No route')
-          
+          console.log("[SHARED_RIDE] Driver to first stop route result:", route ? `${route.length} points` : "No route")
+
           if (route && route.length > 0) {
-            setRemainingRouteCoords(route) 
-            setRouteCoords([]) 
-            console.log('[SHARED_RIDE] Driver to first pickup route loaded:', route.length, 'points')
-            
-            // Fit map to show driver location and first stop
+            setRemainingRouteCoords(route)
+            setRouteCoords([])
+            console.log("[SHARED_RIDE] Driver to first pickup route loaded:", route.length, "points")
+
+            // Fit map to show the entire route, not just the two points
             setTimeout(() => {
-              const coordsToFit = [driverLocation, firstStop.coordinate];
-              mapRef.current?.fitToCoordinates(coordsToFit, {
-                edgePadding: { top: 80, right: 80, bottom: 80, left: 80 },
-                animated: true,
-              });
-            }, 1000);
+              if (route.length > 0) {
+                mapRef.current?.fitToCoordinates(route, {
+                  edgePadding: { top: 80, right: 80, bottom: 80, left: 80 },
+                  animated: true,
+                })
+              }
+            }, 1000)
           } else {
-            console.error('[SHARED_RIDE] Failed to get route from driver to first stop')
-            Alert.alert('Route Error', 'Could not calculate route to first pickup location.');
+            console.error("[SHARED_RIDE] Failed to get route from driver to first stop")
+            Alert.alert("Route Error", "Could not calculate route to first pickup location.")
           }
         } catch (routeError) {
-          console.error('[SHARED_RIDE] Error getting route:', routeError)
-          Alert.alert('Route Error', 'Failed to calculate route. Please try again.');
+          console.error("[SHARED_RIDE] Error getting route:", routeError)
+          Alert.alert("Route Error", "Failed to calculate route. Please try again.")
         }
       } else {
-        console.error('[SHARED_RIDE] No optimized stops found in params')
-        Alert.alert('Error', 'Could not load ride information. Please try again.');
+        console.error("[SHARED_RIDE] No optimized stops found in params")
+        Alert.alert("Error", "Could not load ride information. Please try again.")
       }
     } catch (error) {
-      console.error('Error loading shared ride data:', error)
-      Alert.alert('Error', 'Failed to load shared ride data.');
+      console.error("Error loading shared ride data:", error)
+      Alert.alert("Error", "Failed to load shared ride data.")
     }
   }
 
@@ -279,22 +304,23 @@ const PickupPage: React.FC = () => {
         console.log("[SOLO_RIDE] Getting route from driver to pickup...")
         try {
           const driverRoute = await getRouteCoordinates(driverLocation, pickupCoord)
-          console.log("[SOLO_RIDE] Driver to pickup route result:", driverRoute ? `${driverRoute.length} points` : 'No route')
-          
+          console.log(
+            "[SOLO_RIDE] Driver to pickup route result:",
+            driverRoute ? `${driverRoute.length} points` : "No route",
+          )
+
           if (driverRoute && driverRoute.length > 0) {
             setRemainingRouteCoords(driverRoute) // Show only driver to pickup initially
             setRouteCoords([]) // Don't show pickup to destination yet
-            console.log('Driver to pickup route loaded:', driverRoute.length, 'points')
+            console.log("Driver to pickup route loaded:", driverRoute.length, "points")
           } else {
             console.error("[SOLO_RIDE] Failed to get driver to pickup route")
-            Alert.alert('Route Error', 'Could not calculate route to pickup location.');
+            Alert.alert("Route Error", "Could not calculate route to pickup location.")
           }
 
           // Fit map to show driver and pickup
           setTimeout(() => {
-            const coordsToFit = driverLocation
-              ? [driverLocation, pickupCoord]
-              : [pickupCoord]
+            const coordsToFit = driverLocation ? [driverLocation, pickupCoord] : [pickupCoord]
 
             mapRef.current?.fitToCoordinates(coordsToFit, {
               edgePadding: { top: 80, right: 80, bottom: 80, left: 80 },
@@ -303,14 +329,14 @@ const PickupPage: React.FC = () => {
           }, 1000)
         } catch (routeError) {
           console.error("[SOLO_RIDE] Error getting routes:", routeError)
-          Alert.alert('Route Error', 'Failed to calculate routes. Please try again.');
+          Alert.alert("Route Error", "Failed to calculate routes. Please try again.")
         }
       } else {
         console.error("[SOLO_RIDE] Failed to get coordinates for pickup or destination")
         Alert.alert("Error", "Could not fetch coordinates for the given locations.")
       }
     } catch (error) {
-      console.error('Error loading solo ride data:', error)
+      console.error("Error loading solo ride data:", error)
     }
   }
 
@@ -349,7 +375,7 @@ const PickupPage: React.FC = () => {
         console.error("[TRACKING] Location permission not granted")
       }
     } catch (error) {
-      console.error('Error starting tracking:', error)
+      console.error("Error starting tracking:", error)
     }
   }
 
@@ -381,7 +407,7 @@ const PickupPage: React.FC = () => {
         setDriverLocation(DEFAULT_REGION)
       }
     } catch (error) {
-      console.error('Error requesting permission:', error)
+      console.error("Error requesting permission:", error)
       setDriverLocation(DEFAULT_REGION)
     }
   }
@@ -419,36 +445,39 @@ const PickupPage: React.FC = () => {
     })
   }
 
+  // for solo ride
   const handleImHere = async () => {
     console.log("[SOLO_RIDE] Driver marked as arrived")
     setHasArrived(true)
 
-    Alert.alert(
-      "Passenger Notified",
-      "The passenger has been notified that you have arrived.",
-      [{ text: "OK" }],
-    )
+    Alert.alert("Passenger Notified", "The passenger has been notified that you have arrived.", [{ text: "OK" }])
+
+    // Move car marker to pickup on arrival without triggering a re-load (guarded by initialRouteLoaded)
+    if (pickupCoords[0]) {
+      setDriverLocation(pickupCoords[0])
+    }
 
     if (pickupCoords[0] && destinationCoords[0]) {
-      // Move car marker to pickup location
-      setDriverLocation(pickupCoords[0])
-      
-      // Get route from pickup to destination 
+      // Get route from pickup to destination
       console.log("[SOLO_RIDE] Getting route from pickup to destination...")
       try {
         const mainRoute = await getRouteCoordinates(pickupCoords[0], destinationCoords[0])
         if (mainRoute && mainRoute.length > 0) {
           setRouteCoords(mainRoute) // Show pickup to destination route
           setRemainingRouteCoords([]) // Clear the driver to pickup route
-          console.log('Pickup to destination route loaded:', mainRoute.length, 'points')
-          
-          // Fit map to show the entire route with proper zoom
+
+          // Fit map to show the entire route with proper bounds
           setTimeout(() => {
-            mapRef.current?.fitToCoordinates([pickupCoords[0], destinationCoords[0]], {
-              edgePadding: { top: 80, right: 80, bottom: 80, left: 80 },
-              animated: true,
-            })
+            const allCoords = [...mainRoute]
+            if (allCoords.length > 0) {
+              mapRef.current?.fitToCoordinates(allCoords, {
+                edgePadding: { top: 80, right: 80, bottom: 80, left: 80 },
+                animated: true,
+              })
+            }
           }, 500)
+
+          console.log("Pickup to destination route loaded:", mainRoute.length, "points")
         }
       } catch (error) {
         console.error("[SOLO_RIDE] Error getting pickup to destination route:", error)
@@ -476,7 +505,7 @@ const PickupPage: React.FC = () => {
         passengerName: isSharedRide ? JSON.stringify(passengerNames) : passengerNames[0],
         profilePhoto: params.profilePhoto,
         rideType: params.rideType,
-      }
+      },
     } as any)
   }
 
@@ -509,15 +538,15 @@ const PickupPage: React.FC = () => {
   const handleWhatsApp = async (phoneNumber?: string, passengerName?: string) => {
     const phoneToUse = phoneNumber || params.passengerPhone
     const nameToUse = passengerName || passengerNames[0]
-    
+
     if (phoneToUse) {
       const phone = phoneToUse.replace(/\D/g, "")
       const message = `Hi ${nameToUse || "there"}, I'm your driver and I'm on my way.`
-      
+
       try {
         const whatsappUrl = `whatsapp://send?phone=${phone}&text=${encodeURIComponent(message)}`
         const canOpen = await Linking.canOpenURL(whatsappUrl)
-        
+
         if (canOpen) {
           await Linking.openURL(whatsappUrl)
         } else {
@@ -532,126 +561,178 @@ const PickupPage: React.FC = () => {
     }
   }
 
-const handleNextStop = async () => {
-  const currentStop = sharedRideStops[currentStopIndex]
-  if (!currentStop) {
-    console.error('[SHARED_RIDE] Current stop not found')
-    return
-  }
-
-  console.log('[SHARED_RIDE] Handling stop:', currentStop)
-  console.log('[SHARED_RIDE] Current stop index:', currentStopIndex)
-
-  if (currentStop.type === 'pickup' && !currentStop.completed) {
-    Alert.alert("Passenger Notified", `${currentStop.passengerName} has been notified that you have arrived.`)
-    
-    // Mark this stop as completed but DON'T move to next stop
-    const updatedStops = sharedRideStops.map((stop, index) => 
-      index === currentStopIndex ? { ...stop, completed: true } : stop
-    );
-    setSharedRideStops(updatedStops)
-    
-    console.log('[SHARED_RIDE] Stop marked as arrived, waiting for Start Ride')
-    
-  } else if (currentStop.type === 'pickup' && currentStop.completed) {
-    Alert.alert("Ride Started", `Continuing to ${currentStop.stopNumber === 1 ? 'next pickup' : 'destination'}.`)
-    
-    const nextStopIndex = currentStopIndex + 1
-    if (nextStopIndex < sharedRideStops.length) {
-      const nextStop = sharedRideStops[nextStopIndex]
-      
-      // Calculate route from current stop to next stop
-      const route = await getRouteCoordinates(currentStop.coordinate, nextStop.coordinate)
-      
-      // Update the route and move to next stop
-      if (nextStop.type === 'pickup') {
-        setRemainingRouteCoords(route) 
-        setRouteCoords([])
-      } else {
-        setRouteCoords(route) 
-        setRemainingRouteCoords([])
-      }
-      
-      setCurrentStopIndex(nextStopIndex)
-      
-      // Fit map to show the new route
-      setTimeout(() => {
-        mapRef.current?.fitToCoordinates([currentStop.coordinate, nextStop.coordinate], {
-          edgePadding: { top: 80, right: 80, bottom: 80, left: 80 },
-          animated: true,
-        })
-      }, 500)
+  const handleNextStop = async () => {
+    const currentStop = sharedRideStops[currentStopIndex]
+    if (!currentStop) {
+      console.error("[SHARED_RIDE] Current stop not found")
+      return
     }
-    
-  } else if (currentStop.type === 'destination') {
-    // Destination - Collect fare
-    Alert.alert(
-      "Fare Collected",
-      `Rs ${currentStop.fare} collected from ${currentStop.passengerName}`,
-      [{ text: "OK" }]
-    )
-    
-    // Mark this stop as completed
-    const updatedStops = sharedRideStops.map((stop, index) => 
-      index === currentStopIndex ? { ...stop, completed: true } : stop
-    );
-    setSharedRideStops(updatedStops)
-    
-    // Check if this is the last stop
-    if (currentStopIndex === sharedRideStops.length - 1) {
-      // Last stop - end ride
-      console.log('[SHARED_RIDE] Last stop completed, ending ride')
-      handleEndRide()
-    } else {
-      // Move to next stop and update route
+
+    console.log("[SHARED_RIDE] Handling stop:", currentStop)
+    console.log("[SHARED_RIDE] Current stop index:", currentStopIndex)
+
+    if (currentStop.type === "pickup" && !currentStop.completed) {
+      Alert.alert("Passenger Notified", `${currentStop.passengerName} has been notified that you have arrived.`)
+
+      // Mark this stop as completed but DON'T move to next stop
+      const updatedStops = sharedRideStops.map((stop, index) =>
+        index === currentStopIndex ? { ...stop, completed: true } : stop,
+      )
+      setSharedRideStops(updatedStops)
+
+      // Move car-marker to starting stop (guarded so it won't trigger a route reload)
+      setDriverLocation(currentStop.coordinate)
+
+      // Immediately map route from current stop -> next stop (timing fix)
       const nextStopIndex = currentStopIndex + 1
-      const nextStop = sharedRideStops[nextStopIndex]
-      const route = await getRouteCoordinates(currentStop.coordinate, nextStop.coordinate)
-      setRouteCoords(route)
-      setCurrentStopIndex(nextStopIndex)
-      
-      // Fit map to show the new route
-      setTimeout(() => {
-        mapRef.current?.fitToCoordinates([currentStop.coordinate, nextStop.coordinate], {
-          edgePadding: { top: 80, right: 80, bottom: 80, left: 80 },
-          animated: true,
-        })
-      }, 500)
+      if (nextStopIndex < sharedRideStops.length) {
+        const nextStop = sharedRideStops[nextStopIndex]
+        try {
+          const route = await getRouteCoordinates(currentStop.coordinate, nextStop.coordinate)
+          setRemainingRouteCoords([]) // Clear any previous driver-to-stop route
+          setRouteCoords(route) // Show route to next stop
+
+          // Fit map to entire route
+          setTimeout(() => {
+            if (route && route.length > 0) {
+              mapRef.current?.fitToCoordinates(route, {
+                edgePadding: { top: 80, right: 80, bottom: 80, left: 80 },
+                animated: true,
+              })
+            }
+          }, 500)
+        } catch (error) {
+          console.error("[SHARED_RIDE] Error mapping route to next stop on arrival:", error)
+        }
+      }
+
+      console.log("[SHARED_RIDE] Stop marked as arrived, route shown; waiting for Start Ride")
+    } else if (currentStop.type === "pickup" && currentStop.completed) {
+      Alert.alert("Ride Started", `Continuing to ${currentStop.stopNumber === 1 ? "next pickup" : "destination"}.`)
+
+      const nextStopIndex = currentStopIndex + 1
+      if (nextStopIndex < sharedRideStops.length) {
+        const nextStop = sharedRideStops[nextStopIndex]
+
+        // Calculate optimized route from current stop to next stop
+        const route = await getRouteCoordinates(currentStop.coordinate, nextStop.coordinate)
+
+        setRemainingRouteCoords([]) // Clear any remaining route
+        setRouteCoords(route) // Show route to next stop
+
+        setCurrentStopIndex(nextStopIndex)
+
+        // Fit map to show the entire route
+        setTimeout(() => {
+          if (route && route.length > 0) {
+            mapRef.current?.fitToCoordinates(route, {
+              edgePadding: { top: 80, right: 80, bottom: 80, left: 80 },
+              animated: true,
+            })
+          }
+        }, 500)
+      }
+    } else if (currentStop.type === "destination") {
+      // Destination - Collect fare
+      Alert.alert("Fare Collected", `Rs ${currentStop.fare} collected from ${currentStop.passengerName}`, [
+        { text: "OK" },
+      ])
+
+      // Mark this stop as completed
+      const updatedStops = sharedRideStops.map((stop, index) =>
+        index === currentStopIndex ? { ...stop, completed: true } : stop,
+      )
+      setSharedRideStops(updatedStops)
+
+      // Move car-marker to starting point of next leg
+      setDriverLocation(currentStop.coordinate)
+
+      // Check if this is the last stop
+      if (currentStopIndex === sharedRideStops.length - 1) {
+        // Last stop - end ride
+        console.log("[SHARED_RIDE] Last stop completed, ending ride")
+        handleEndRide()
+      } else {
+        // Move to next stop and update route
+        const nextIdx = currentStopIndex + 1
+        const nextStop = sharedRideStops[nextIdx]
+
+        // Calculate route from current stop to next stop
+        const route = await getRouteCoordinates(currentStop.coordinate, nextStop.coordinate)
+
+        setRouteCoords(route)
+        setRemainingRouteCoords([])
+        setCurrentStopIndex(nextIdx)
+
+        // Fit map to show the entire route
+        setTimeout(() => {
+          if (route && route.length > 0) {
+            mapRef.current?.fitToCoordinates(route, {
+              edgePadding: { top: 80, right: 80, bottom: 80, left: 80 },
+              animated: true,
+            })
+          }
+        }, 500)
+      }
     }
   }
-}
 
-  const getPinColor = (stopNumber: number, type: 'pickup' | 'destination') => {
-    return type === 'pickup' ? '#FF4444' : '#4CAF50'
+  const getPinColor = (stopNumber: number, type: "pickup" | "destination") => {
+    return type === "pickup" ? "#FF4444" : "#4CAF50"
   }
 
-  const getPinIcon = (stopNumber: number, type: 'pickup' | 'destination'): 'map-marker' | 'map-marker-outline' => {
+  const getPinIcon = (stopNumber: number, type: "pickup" | "destination"): "map-marker" | "map-marker-outline" => {
     if (!isSharedRide) {
-      return type === 'pickup' ? 'map-marker-outline' : 'map-marker'
+      return type === "pickup" ? "map-marker-outline" : "map-marker"
     }
-    if (type === 'pickup') {
-      return stopNumber === 1 ? 'map-marker-outline' : 'map-marker'
+    if (type === "pickup") {
+      return stopNumber === 1 ? "map-marker-outline" : "map-marker"
     }
-    return stopNumber === 3 ? 'map-marker-outline' : 'map-marker'
+    return stopNumber === 3 ? "map-marker-outline" : "map-marker"
   }
 
-  // Get visible stops for the map - only show relevant stops
-  const getVisibleStopsForMap = () => {
+  // Get visible stops for the map - only show current and next stop
+  const getVisibleStopsForMap = (): Stop[] => {
     if (!isSharedRide) {
-      return [];
+      // For solo ride, show pickup and destination only when appropriate
+      if (hasArrived && !rideStarted) {
+        return [] // Show no pins when arrived but not started
+      } else if (rideStarted) {
+        // Show destination pin when ride started
+        if (destinationCoords.length > 0) {
+          return [
+            {
+              type: "destination" as const,
+              address: destinations[0],
+              passengerName: passengerNames[0],
+              fare: fares[0],
+              stopNumber: 1,
+              coordinate: destinationCoords[0],
+              passengerPhone: passengerPhones[0],
+            },
+          ]
+        }
+      }
+      return []
     }
-    
+
     // For shared rides, show only current and next stop
-    const currentStop = sharedRideStops[currentStopIndex];
-    const nextStop = currentStopIndex < sharedRideStops.length - 1 ? sharedRideStops[currentStopIndex + 1] : null;
-    
-    if (currentStop && nextStop) {
-      return [currentStop, nextStop];
-    } else if (currentStop) {
-      return [currentStop];
+    const currentStop = sharedRideStops[currentStopIndex]
+    const nextStop = currentStopIndex < sharedRideStops.length - 1 ? sharedRideStops[currentStopIndex + 1] : null
+
+    const visibleStops: Stop[] = []
+
+    // Always show current stop
+    if (currentStop) {
+      visibleStops.push(currentStop)
     }
-    
-    return [];
+
+    // Show next stop only if we're moving to it
+    if (nextStop && currentStop?.completed) {
+      visibleStops.push(nextStop)
+    }
+
+    return visibleStops
   }
 
   return (
@@ -666,15 +747,15 @@ const handleNextStop = async () => {
 
       <View style={styles.mapContainer}>
         <RideRequestMap
-          pickupCoords={isSharedRide ? [] : pickupCoords}
-          destinationCoords={isSharedRide ? [] : destinationCoords}
+          pickupCoords={pickupCoords}
+          destinationCoords={destinationCoords}
           routeCoords={routeCoords}
           isLoading={isLoading}
           mapRef={mapRef}
           getPinColor={getPinColor}
           getPinIcon={getPinIcon}
           isSharedRide={isSharedRide}
-          optimizedStops={isSharedRide ? getVisibleStopsForMap() : []}
+          optimizedStops={getVisibleStopsForMap()}
           driverLocation={driverLocation}
           carRotation={carRotation}
           remainingRouteCoords={remainingRouteCoords}
@@ -683,9 +764,7 @@ const handleNextStop = async () => {
         {isLoading && (
           <View style={styles.loadingOverlay}>
             <ActivityIndicator size="large" color="#007AFF" />
-            <Text style={styles.loadingText}>
-              {isSharedRide ? 'Loading shared route...' : 'Loading route...'}
-            </Text>
+            <Text style={styles.loadingText}>{isSharedRide ? "Loading shared route..." : "Loading route..."}</Text>
           </View>
         )}
       </View>
@@ -719,11 +798,7 @@ const handleNextStop = async () => {
         />
       )}
 
-      <BurgerMenu 
-        isVisible={sidebarVisible} 
-        onClose={closeSidebar} 
-        slideAnim={slideAnim} 
-      />
+      <BurgerMenu isVisible={sidebarVisible} onClose={closeSidebar} slideAnim={slideAnim} />
     </SafeAreaView>
   )
 }
