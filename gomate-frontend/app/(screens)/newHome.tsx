@@ -141,6 +141,9 @@ const newHome = () => {
 
   const [showFareModal, setShowFareModal] = useState(false);
 
+  const [showAlertModal, setShowAlertModal] = useState(false);
+  const [alertMessage, setAlertMessage] = useState("");
+
   const DEFAULT_REGION: Region = {
     latitude: 31.5204, // Lahore fallback
     longitude: 74.3587,
@@ -653,7 +656,8 @@ const newHome = () => {
 
   const handleFindRide = async () => {
     if (!selectedRideType || !pickupCoord || !dropoffCoord || !fare) {
-      Alert.alert("Missing info", "Please fill in pickup, dropoff, and fare");
+      setAlertMessage("Please fill in pickup, dropoff, and fare");
+      setShowAlertModal(true);
       return;
     }
 
@@ -909,6 +913,7 @@ const newHome = () => {
         initialRegion={DEFAULT_REGION}
         showsUserLocation={true}
         showsMyLocationButton={false}
+        showsCompass={false}
         followsUserLocation={false}
         onPress={handleMapPress}
         mapPadding={{ top: 50, right: 0, bottom: 0, left: 0 }} // 👈 push buttons down
@@ -1315,6 +1320,31 @@ const newHome = () => {
         offers={driverOffers}
       />
 
+      <Modal visible={showAlertModal} transparent animationType="fade">
+        <View className="flex-1 bg-black/40 justify-center items-center">
+          <View className="bg-white w-[85%] rounded-xl justify-center items-center p-6 shadow-md">
+            <View className="rounded-full bg-yellow-100 items-center justify-center p-2 shadow-md mb-4">
+              <Ionicons name="alert-circle" size={64} color="orange" />
+            </View>
+
+            <Text className="text-2xl font-JakartaExtraBold text-center mb-2">
+              Missing Information
+            </Text>
+
+            <Text className="text-lg font-JakartaMedium text-center text-gray-700 mb-6">
+              {alertMessage}
+            </Text>
+
+            <TouchableOpacity
+              onPress={() => setShowAlertModal(false)}
+              className="self-center bg-blue-500 px-6 py-3 rounded-full"
+            >
+              <Text className="text-white font-JakartaBold text-xl">Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       <Modal visible={showFareModal} transparent animationType="fade">
         <View className="flex-1 bg-black/40 justify-center items-center">
           <View className="bg-white w-[85%] rounded-xl justify-center items-center p-6 shadow-md">
@@ -1324,7 +1354,7 @@ const newHome = () => {
             <Text className="text-2xl font-JakartaExtraBold text-center mb-2">
               Minimum Fare Required
             </Text>
-            <Text className="text-lg font-JakartaMedium text-center text-gray-700 mb-6">
+            <Text className="text-xl font-JakartaMedium text-center text-gray-700 mb-6">
               The minimum fare for this ride is{" "}
               <Text className="font-bold text-red-500">
                 Rs {calculatedFare}
