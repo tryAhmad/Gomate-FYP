@@ -187,7 +187,6 @@ export default function Profile() {
         {/* Back button */}
         <TouchableOpacity
           onPress={() => {
-            console.log("Back pressed");
             router.back();
           }}
           className="bg-gray-200 p-2 rounded-full border-[1px] shadow-md left-1 top-3 z-10"

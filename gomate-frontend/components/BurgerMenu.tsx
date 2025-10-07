@@ -20,6 +20,7 @@ interface BurgerMenuProps {
   profilePic?: string;
   style?: string;
   onLogout?: () => void;
+  currentScreen?: string;
 }
 
 export default function BurgerMenu({
@@ -27,6 +28,7 @@ export default function BurgerMenu({
   profilePic,
   onLogout,
   style,
+  currentScreen,
 }: BurgerMenuProps) {
   const [visible, setVisible] = useState(false);
   const slideAnim = useRef(new Animated.Value(-width)).current;
@@ -48,6 +50,30 @@ export default function BurgerMenu({
     }).start(() => setVisible(false));
   };
 
+  // Helper function to handle navigation safely
+  const handleNavigation = (target: string) => {
+    if (currentScreen === target) {
+      // Prevent navigating to the same screen again
+      closeMenu();
+      return;
+    }
+    closeMenu();
+    
+    // Map target names to actual route paths
+    const routeMap: { [key: string]: string } = {
+      newHome: "/(screens)/newHome",
+      rideHistory: "/(screens)/rideHistory",
+      notifications: "/(screens)/notifications",
+      supportScreen: "/(screens)/supportScreen",
+      profile: "/(screens)/profile",
+    };
+    
+    const route = routeMap[target];
+    if (route) {
+      router.push(route as any);
+    }
+  };
+
   return (
     <>
       {/* Round Burger Button */}
@@ -60,7 +86,7 @@ export default function BurgerMenu({
 
       {/* Overlay + Sliding Menu */}
       {visible && (
-        <Modal visible={visible} transparent>
+        <Modal visible={visible} transparent statusBarTranslucent>
           <View className="absolute inset-0 flex-row h-full w-full">
             {/* Semi-transparent overlay */}
             <TouchableWithoutFeedback onPress={closeMenu}>
@@ -72,15 +98,12 @@ export default function BurgerMenu({
               style={{
                 transform: [{ translateX: slideAnim }],
               }}
-              className="absolute h-full w-[70%] bg-white pt-12 px-4 border-r border-gray-300"
+              className="absolute h-full w-[70%] bg-white pt-16 px-4 border-r border-gray-300"
             >
               {/* Profile Section */}
               <TouchableOpacity
-                onPress={() => {
-                  closeMenu();
-                  router.push("/profile");
-                }}
-                className="flex-row items-center mb-5"
+                onPress={() => handleNavigation("profile")}
+                className="flex-row items-center mb-6"
               >
                 <Image
                   source={{
@@ -92,63 +115,40 @@ export default function BurgerMenu({
                   {passengerName || "Passenger"}
                 </Text>
               </TouchableOpacity>
+              <View className="h-[1px] bg-gray-300 w-full mb-6" />
 
               {/* Menu Options */}
-              <TouchableOpacity
-                onPress={() => {
-                  closeMenu();
-                  router.push("/newHome");
-                }}
-                className="flex-row items-center my-4"
-              >
-                <Ionicons name="car" size={22} color="black" />
-                <Text className="ml-3 text-2xl font-JakartaSemiBold">
-                  Book Ride
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => {
-                  closeMenu();
-                  router.push("/rideHistory");
-                }}
-                className="flex-row items-center my-4"
-              >
-                <Ionicons name="time" size={22} color="black" />
-                <Text className="ml-3 text-2xl font-JakartaSemiBold">
-                  Ride History
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => {
-                  closeMenu();
-                  router.push("/notifications");
-                }}
-                className="flex-row items-center my-4"
-              >
-                <Ionicons name="notifications" size={22} color="black" />
-                <Text className="ml-3 text-2xl font-JakartaSemiBold">
-                  Notifications
-                </Text>
-              </TouchableOpacity>
+              <MenuOption
+                icon="car"
+                label="Book Ride"
+                onPress={() => handleNavigation("newHome")}
+                disabled={currentScreen === "newHome"}
+              />
+              <MenuOption
+                icon="time"
+                label="Ride History"
+                onPress={() => handleNavigation("rideHistory")}
+                disabled={currentScreen === "rideHistory"}
+              />
+              <MenuOption
+                icon="notifications"
+                label="Notifications"
+                onPress={() => handleNavigation("notifications")}
+                disabled={currentScreen === "notifications"}
+              />
+              <MenuOption
+                icon="call"
+                label="Support"
+                onPress={() => handleNavigation("supportScreen")}
+                disabled={currentScreen === "supportScreen"}
+              />
 
-              <TouchableOpacity
-                onPress={() => {
-                  closeMenu();
-                  router.push("/supportScreen");
-                }}
-                className="flex-row items-center my-4"
-              >
-                <Ionicons name="call" size={22} color="black" />
-                <Text className="ml-3 text-2xl font-JakartaSemiBold">
-                  Support
-                </Text>
-              </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => {
                   onLogout?.();
                   closeMenu();
                 }}
-                className="flex-row items-center my-4"
+                className="flex-row items-center my-2 p-4"
               >
                 <Ionicons name="log-out" size={22} color="black" />
                 <Text className="ml-3 text-2xl font-JakartaSemiBold text-red-500">
@@ -160,5 +160,37 @@ export default function BurgerMenu({
         </Modal>
       )}
     </>
+  );
+}
+
+function MenuOption({
+  icon,
+  label,
+  onPress,
+  disabled,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <TouchableOpacity
+      onPress={disabled ? undefined : onPress}
+      activeOpacity={disabled ? 1 : 0.7}
+      className={`flex-row items-center my-2 p-4 rounded-full`}
+      style={disabled ? { backgroundColor: "#007AFF" } : undefined}
+    >
+      <Ionicons
+        name={icon}
+        size={22}
+        color={`${disabled ? "white" : "black"}`}
+      />
+      <Text
+        className={`ml-3 text-2xl font-JakartaSemiBold ${disabled ? "text-white" : ""}`}
+      >
+        {label}
+      </Text>
+    </TouchableOpacity>
   );
 }

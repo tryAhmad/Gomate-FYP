@@ -73,6 +73,7 @@ export default function NotificationsScreen() {
           profilePic="https://i.pravatar.cc/150?img=3"
           style="left-2 ml-3"
           onLogout={() => console.log("Logged out")}
+          currentScreen="notifications"
         />
         <Text className="text-3xl font-JakartaExtraBold text-blue-500">
           Notifications

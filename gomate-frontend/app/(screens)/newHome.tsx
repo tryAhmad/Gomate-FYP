@@ -997,6 +997,7 @@ const newHome = () => {
         profilePic="https://i.pravatar.cc/150?img=3"
         style="top-16 left-5"
         onLogout={() => console.log("Logged out")}
+        currentScreen="newHome"
       />
       {/* Loading */}
       {isLoadingLocation && (

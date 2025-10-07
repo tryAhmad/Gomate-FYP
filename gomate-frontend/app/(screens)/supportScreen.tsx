@@ -70,6 +70,7 @@ const SupportScreen = () => {
           profilePic="https://i.pravatar.cc/150?img=3"
           style="left-2 ml-3 mt-2"
           onLogout={() => console.log("Logged out")}
+          currentScreen="supportScreen"
         />
         <Text className="text-3xl font-JakartaExtraBold text-blue-500">
           Support

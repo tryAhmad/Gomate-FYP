@@ -75,7 +75,6 @@ const RideItem = React.memo(
           </View>
         </View>
 
-        {/* Status Badge */}
         <View className="mt-2">
           {ride.status && (
             <Text
@@ -117,7 +116,7 @@ export default function RideHistoryScreen() {
         const cached = await AsyncStorage.getItem("rideHistory");
         if (cached) {
           setRides(JSON.parse(cached));
-          setLoading(false); // show instantly
+          setLoading(false);
         }
       } catch (err) {
         console.log("Error loading cached rides:", err);
@@ -190,13 +189,11 @@ export default function RideHistoryScreen() {
     fetchHistory();
   }, []);
 
-  // ✅ Pull to refresh handler
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchHistory();
   }, []);
 
-  // ✅ useCallback for renderItem
   const renderRideItem = useCallback(
     ({ item }: { item: Ride }) => (
       <RideItem
@@ -236,13 +233,13 @@ export default function RideHistoryScreen() {
         translucent
         backgroundColor="transparent"
       />
-      {/* Header */}
       <View className="flex-row items-center justify-center mb-6 mt-[10%]">
         <BurgerMenu
           passengerName="Ahmad"
           profilePic="https://i.pravatar.cc/150?img=3"
           style="left-2"
           onLogout={() => console.log("Logged out")}
+          currentScreen="rideHistory"
         />
         <Text className="text-black text-3xl font-JakartaBold">My rides</Text>
       </View>
