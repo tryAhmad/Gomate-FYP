@@ -101,6 +101,7 @@ const newHome = () => {
     null
   );
   const [calculatedFare, setCalculatedFare] = useState<number | null>(null);
+  const [minFare, setMinFare] = useState<number | null>(null);
   const [driverOffers, setDriverOffers] = useState<any[]>([]);
   const [acceptedDriver, setAcceptedDriver] = useState<any>(null);
   const [rideId, setRideId] = useState<string | null>(null);
@@ -362,15 +363,22 @@ const newHome = () => {
                 );
                 const data = await res.json();
                 if (res.ok) {
-                  console.log("Ride fare fetched successfully:", data);
+                  console.log(
+                    "Ride fare fetched successfully:",
+                    data,
+                    typeof data.fare
+                  );
                   setCalculatedFare(data.fare);
+                  setMinFare(Math.round(Number(data.fare) * 0.9));
                 } else {
                   console.error("Error fetching ride fare:", data);
                   setCalculatedFare(null);
+                  setMinFare(null);
                 }
               } catch (error) {
                 console.error("Error fetching ride fare:", error);
                 setCalculatedFare(null);
+                setMinFare(null);
               }
             }
           } catch (error) {
@@ -385,6 +393,7 @@ const newHome = () => {
           setRideDuration("");
           setLoadingDistanceTime(false);
           setCalculatedFare(null);
+          setMinFare(null);
         }
       };
 
@@ -661,8 +670,8 @@ const newHome = () => {
       return;
     }
 
-    // Check if fare < calculatedFare
-    if (Number(fare) < calculatedFare!) {
+    // Check if fare < minFare
+    if (Number(fare) < minFare!) {
       setShowFareModal(true); // show modal
       return; // stop execution
     }
@@ -1277,9 +1286,13 @@ const newHome = () => {
                   placeholderTextColor="grey"
                   keyboardType="numeric"
                   containerStyle={
-                    fare !== "" && Number(fare) < calculatedFare!
-                      ? "border-2 border-red-500"
-                      : "border border-gray-300"
+                    fare === "" || isNaN(Number(fare))
+                      ? "border-2 border-gray-300"
+                      : Number(fare) <= 0
+                        ? "border-2 border-red-500"
+                        : Number(fare) < minFare!
+                          ? "border-2 border-red-500"
+                          : "border-2 border-green-600"
                   }
                   icon={
                     <MaterialCommunityIcons
@@ -1356,9 +1369,7 @@ const newHome = () => {
             </Text>
             <Text className="text-xl font-JakartaMedium text-center text-gray-700 mb-6">
               The minimum fare for this ride is{" "}
-              <Text className="font-bold text-red-500">
-                Rs {calculatedFare}
-              </Text>
+              <Text className="font-bold text-red-500">Rs {minFare}</Text>
             </Text>
 
             {/* Close button */}
