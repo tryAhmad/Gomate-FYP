@@ -23,6 +23,7 @@ type RideCompleteParams = {
   passengerName?: string;
   profilePhoto?: string;
   rideType?: "solo" | "shared";
+  optimizedStops?: string; 
 };
 
 interface Passenger {
@@ -60,73 +61,72 @@ const RideCompleteScreen: React.FC = () => {
 
   // Parse ride data only once when component mounts
   useEffect(() => {
-  console.log("[RIDE_COMPLETE] Ride completed with params:", params);
+    console.log("[RIDE_COMPLETE] Ride completed with params:", params);
 
-  const parseRideData = () => {
-    const rideType = (params.rideType as "solo" | "shared") || "solo";
+    const parseRideData = () => {
+      const rideType = (params.rideType as "solo" | "shared") || "solo";
 
-    if (rideType === "shared") {
-      try {
-        const pickups = params.pickup ? safeJsonParse(params.pickup as string, []) : [];
-        const destinations = params.destination ? safeJsonParse(params.destination as string, []) : [];
-        const fares = params.fare ? safeJsonParse(params.fare as string, []) : [];
-        const passengerNames = params.passengerName ? safeJsonParse(params.passengerName as string, []) : [];
+      if (rideType === "shared") {
+        try {
+          const pickups = params.pickup ? safeJsonParse(params.pickup as string, []) : [];
+          const destinations = params.destination ? safeJsonParse(params.destination as string, []) : [];
+          const fares = params.fare ? safeJsonParse(params.fare as string, []) : [];
+          const passengerNames = params.passengerName ? safeJsonParse(params.passengerName as string, []) : [];
 
-        const passengers: Passenger[] = passengerNames.map((name: string, index: number) => ({
-          name: name || `Passenger ${index + 1}`,
-          fare: fares[index]?.toString() || "0",
-          pickup: pickups[index],
-          destination: destinations[index],
-        }));
+          const passengers: Passenger[] = passengerNames.map((name: string, index: number) => ({
+            name: name || `Passenger ${index + 1}`,
+            fare: fares[index]?.toString() || "0",
+            pickup: pickups[index],
+            destination: destinations[index],
+          }));
 
-        const totalFare = fares
-          .reduce((sum: number, fare: any) => {
-            const fareValue = parseFloat(fare?.toString() || "0");
-            return sum + (isNaN(fareValue) ? 0 : fareValue);
-          }, 0)
-          .toString();
+          const totalFare = fares
+            .reduce((sum: number, fare: any) => {
+              const fareValue = parseFloat(fare?.toString() || "0");
+              return sum + (isNaN(fareValue) ? 0 : fareValue);
+            }, 0)
+            .toString();
 
+          return {
+            pickup: pickups[0] || "Unknown Pickup",
+            destination: destinations[destinations.length - 1] || "Unknown Destination",
+            fare: "0",
+            passengerName: passengerNames[0] || "Passenger",
+            profilePhoto: params.profilePhoto?.toString() || "",
+            rideType: "shared" as "shared",
+            passengers,
+            totalFare,
+          };
+        } catch (error) {
+          console.error("[RIDE_COMPLETE] Error parsing shared ride data:", error);
+          return {
+            pickup: "Unknown Pickup",
+            destination: "Unknown Destination",
+            fare: "0",
+            passengerName: "Passenger",
+            profilePhoto: "",
+            rideType: "shared" as "shared",
+            passengers: [],
+            totalFare: "0",
+          };
+        }
+      } else {
         return {
-          pickup: pickups[0] || "Unknown Pickup",
-          destination: destinations[destinations.length - 1] || "Unknown Destination",
-          fare: "0",
-          passengerName: passengerNames[0] || "Passenger",
+          pickup: params.pickup?.toString() || "Unknown Pickup",
+          destination: params.destination?.toString() || "Unknown Destination",
+          fare: params.fare?.toString() || "0",
+          passengerName: params.passengerName?.toString() || "Passenger",
           profilePhoto: params.profilePhoto?.toString() || "",
-          rideType: "shared" as "shared",
-          passengers,
-          totalFare,
-        };
-      } catch (error) {
-        console.error("[RIDE_COMPLETE] Error parsing shared ride data:", error);
-        return {
-          pickup: "Unknown Pickup",
-          destination: "Unknown Destination",
-          fare: "0",
-          passengerName: "Passenger",
-          profilePhoto: "",
-          rideType: "shared" as "shared",
+          rideType: "solo" as "solo",
           passengers: [],
-          totalFare: "0",
+          totalFare: params.fare?.toString() || "0",
         };
       }
-    } else {
-      return {
-        pickup: params.pickup?.toString() || "Unknown Pickup",
-        destination: params.destination?.toString() || "Unknown Destination",
-        fare: params.fare?.toString() || "0",
-        passengerName: params.passengerName?.toString() || "Passenger",
-        profilePhoto: params.profilePhoto?.toString() || "",
-        rideType: "solo" as "solo",
-        passengers: [],
-        totalFare: params.fare?.toString() || "0",
-      };
-    }
-  };
+    };
 
-  const parsedData = parseRideData();
-  setRideDetails(parsedData);
-}, []);
-
+    const parsedData = parseRideData();
+    setRideDetails(parsedData);
+  }, []);
 
   // Save ride to history - separate useEffect to avoid infinite loop
   useEffect(() => {
@@ -138,6 +138,13 @@ const RideCompleteScreen: React.FC = () => {
         
         const cached = await AsyncStorage.getItem(storageKey);
         let rides = cached ? JSON.parse(cached) : [];
+
+        // Parse optimizedStops from params if available
+        const optimizedStops = params.optimizedStops 
+          ? safeJsonParse(params.optimizedStops as string, [])
+          : [];
+
+        console.log("[RIDE_COMPLETE] Saving optimizedStops to history:", optimizedStops);
 
         const newRide = {
           _id: Date.now().toString(),
@@ -152,13 +159,14 @@ const RideCompleteScreen: React.FC = () => {
           ...(rideDetails.rideType === "shared" && {
             passengers: rideDetails.passengers,
             passengerCount: rideDetails.passengers.length,
+            optimizedStops: optimizedStops, 
           }),
         };
 
         rides = [newRide, ...rides];
         await AsyncStorage.setItem(storageKey, JSON.stringify(rides));
 
-        console.log(`[RIDE_COMPLETE] Saved ${rideDetails.rideType} ride to history`);
+        console.log(`[RIDE_COMPLETE] Saved ${rideDetails.rideType} ride to history with optimizedStops`);
       } catch (err) {
         console.error("Error saving ride history:", err);
       }
@@ -271,7 +279,7 @@ const RideCompleteScreen: React.FC = () => {
             </View>
           </View>
 
-          {/* Divider between passengers (except last one) */}
+          {/* Divider between passengers */}
           {index < rideDetails.passengers.length - 1 && (
             <View style={styles.passengerDivider} />
           )}
@@ -384,8 +392,7 @@ const styles = StyleSheet.create({
     // Auto height - will expand based on content
   },
   sharedDetailsCard: {
-    // Additional styles for shared rides if needed
-    minHeight: 200, // Minimum height for shared rides
+    minHeight: 200, 
   },
   // Solo Ride Styles
   passengerSection: {
@@ -537,7 +544,7 @@ const styles = StyleSheet.create({
     marginTop: 0,
     lineHeight: 18,
   },
-  // Fare Section (original size)
+  // Fare Section 
   fareSection: {
     marginHorizontal: 16,
     marginBottom: 16,

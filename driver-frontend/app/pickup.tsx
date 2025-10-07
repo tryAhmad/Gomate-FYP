@@ -212,7 +212,7 @@ const PickupPage: React.FC = () => {
 
               // Ensure proper Stop type with explicit type casting
               const typedStop: Stop = {
-                type: stop.type as "pickup" | "destination", // Explicit type casting
+                type: stop.type as "pickup" | "destination", 
                 address: stop.address,
                 passengerName: stop.passengerName,
                 fare: stop.fare,
@@ -505,6 +505,7 @@ const PickupPage: React.FC = () => {
         passengerName: isSharedRide ? JSON.stringify(passengerNames) : passengerNames[0],
         profilePhoto: params.profilePhoto,
         rideType: params.rideType,
+        optimizedStops: isSharedRide ? params.optimizedStops : undefined,
       },
     } as any)
   }
