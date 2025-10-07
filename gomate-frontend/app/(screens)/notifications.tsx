@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import BurgerMenu from "@/components/BurgerMenu";
+import AlertModal from "@/components/AlertModal";
 
 const { width } = Dimensions.get("window");
 
@@ -117,37 +118,26 @@ export default function NotificationsScreen() {
       />
 
       {/* Modal */}
-      <Modal visible={!!selectedNotification} transparent animationType="fade">
-        <View className="flex-1 bg-black/40 justify-center items-center">
-          <View className="bg-white w-[85%] rounded-xl justify-center items-center p-6 shadow-md">
-            <View className="rounded-full bg-gray-100 items-center justify-center p-2 shadow-md mb-4">
-              {selectedNotification?.type === "System" ? (
-                <Ionicons
-                  name="checkmark-circle"
-                  size={64}
-                  color={selectedNotification.read ? "grey" : "blue"}
-                />
-              ) : (
-                <Ionicons name="ticket" size={64} color="green" />
-              )}
-            </View>
-            <Text className="text-3xl font-JakartaExtraBold text-center mb-2">
-              {selectedNotification?.title}
-            </Text>
-            <Text className="text-xl font-JakartaMedium text-center text-gray-700 mb-6">
-              {selectedNotification?.message}
-            </Text>
-
-            {/* Close button */}
-            <TouchableOpacity
-              onPress={() => setSelectedNotification(null)}
-              className="self-center bg-blue-500 px-6 py-3 rounded-full"
-            >
-              <Text className="text-white font-JakartaBold text-xl">Close</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      <AlertModal
+        visible={!!selectedNotification}
+        onClose={() => setSelectedNotification(null)}
+        title={selectedNotification?.title || ""}
+        message={selectedNotification?.message || ""}
+        iconName={
+          selectedNotification?.type === "System"
+            ? "checkmark-circle"
+            : "ticket"
+        }
+        iconColor={
+          selectedNotification?.type === "System"
+            ? selectedNotification.read
+              ? "grey"
+              : "blue"
+            : "green"
+        }
+        iconBgColor="gray-100"
+        titleTextSize="3xl"
+      />
     </View>
   );
 }

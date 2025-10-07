@@ -16,6 +16,7 @@ import * as ImagePicker from "expo-image-picker";
 import InputField from "@/components/InputField";
 import CustomButton from "@/components/CustomButton";
 import Constants from "expo-constants";
+import AlertModal from "@/components/AlertModal";
 
 const userip = Constants.expoConfig?.extra?.USER_IP?.trim();
 const usertoken = Constants.expoConfig?.extra?.USER_TOKEN?.trim();
@@ -44,6 +45,10 @@ export default function Profile() {
   // Edit modes
   const [isEditingUsername, setIsEditingUsername] = useState(false);
   const [isEditingPhone, setIsEditingPhone] = useState(false);
+
+  const [showAlertModal, setShowAlertModal] = useState(false);
+  const [showFailModal, setShowFailModal] = useState(false);
+  const [alertMessage, setAlertMessage] = useState("");
 
   // Refs for input fields
   const usernameInputRef = useRef<TextInput>(null);
@@ -111,10 +116,12 @@ export default function Profile() {
       setIsEditingUsername(false);
       setIsEditingPhone(false);
 
-      Alert.alert("Success", "Profile updated successfully!");
+      setShowAlertModal(true);
+      setAlertMessage("Profile updated successfully!");
     } catch (err) {
       console.error("Error updating profile:", err);
-      Alert.alert("Error", "Failed to update profile");
+      setShowFailModal(true);
+      setAlertMessage("Failed to update profile");
     }
   };
 
@@ -195,14 +202,12 @@ export default function Profile() {
           <Ionicons name="arrow-back" size={28} color="black" />
         </TouchableOpacity>
 
-        {/* Profile title - centered */}
         <Text className="text-black text-4xl font-JakartaBold absolute left-0 right-0 text-center top-5">
           Profile
         </Text>
       </View>
 
       <ScrollView className="flex-1 px-6 py-8 pt-[10%] pb-20">
-        {/* Profile picture with pencil */}
         <View className="items-center mb-6">
           <View className="relative">
             <Image
@@ -236,7 +241,7 @@ export default function Profile() {
                 name={
                   isEditingUsername ? "check-circle" : "circle-edit-outline"
                 }
-                size={24}
+                size={30}
                 color={isEditingUsername ? "green" : "black"}
               />
             </TouchableOpacity>
@@ -268,7 +273,7 @@ export default function Profile() {
             <TouchableOpacity onPress={handleEditPhone}>
               <MaterialCommunityIcons
                 name={isEditingPhone ? "check-circle" : "circle-edit-outline"}
-                size={24}
+                size={30}
                 color={isEditingPhone ? "green" : "black"}
               />
             </TouchableOpacity>
@@ -293,6 +298,24 @@ export default function Profile() {
           </View>
         </View>
       )}
+      <AlertModal
+        visible={showAlertModal}
+        onClose={() => setShowAlertModal(false)}
+        title="Success"
+        message={alertMessage}
+        iconName="checkmark-circle"
+        iconColor="green"
+        iconBgColor="green-100"
+      />
+      <AlertModal
+        visible={showFailModal}
+        onClose={() => setShowFailModal(false)}
+        title="Error"
+        message={alertMessage}
+        iconName="close-circle"
+        iconColor="red"
+        iconBgColor="red-100"
+      />
     </View>
   );
 }

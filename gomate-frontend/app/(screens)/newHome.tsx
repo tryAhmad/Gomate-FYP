@@ -47,6 +47,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import BurgerMenu from "@/components/BurgerMenu";
+import AlertModal from "@/components/AlertModal";
 
 const userip = Constants.expoConfig?.extra?.USER_IP?.trim();
 const usertoken = Constants.expoConfig?.extra?.USER_TOKEN?.trim();
@@ -1334,55 +1335,28 @@ const newHome = () => {
         offers={driverOffers}
       />
 
-      <Modal visible={showAlertModal} transparent animationType="fade">
-        <View className="flex-1 bg-black/40 justify-center items-center">
-          <View className="bg-white w-[85%] rounded-xl justify-center items-center p-6 shadow-md">
-            <View className="rounded-full bg-yellow-100 items-center justify-center p-2 shadow-md mb-4">
-              <Ionicons name="alert-circle" size={64} color="orange" />
-            </View>
+      <AlertModal
+        visible={showAlertModal}
+        onClose={() => setShowAlertModal(false)}
+        title="Missing Information"
+        message={alertMessage}
+        iconColor="orange"
+        iconBgColor="yellow-100"
+      />
 
-            <Text className="text-2xl font-JakartaExtraBold text-center mb-2">
-              Missing Information
-            </Text>
-
-            <Text className="text-lg font-JakartaMedium text-center text-gray-700 mb-6">
-              {alertMessage}
-            </Text>
-
-            <TouchableOpacity
-              onPress={() => setShowAlertModal(false)}
-              className="self-center bg-blue-500 px-6 py-3 rounded-full"
-            >
-              <Text className="text-white font-JakartaBold text-xl">Close</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      <Modal visible={showFareModal} transparent animationType="fade">
-        <View className="flex-1 bg-black/40 justify-center items-center">
-          <View className="bg-white w-[85%] rounded-xl justify-center items-center p-6 shadow-md">
-            <View className="rounded-full bg-gray-100 items-center justify-center p-2 shadow-md mb-4">
-              <Ionicons name="alert-circle" size={64} color="red" />
-            </View>
-            <Text className="text-2xl font-JakartaExtraBold text-center mb-2">
-              Minimum Fare Required
-            </Text>
-            <Text className="text-xl font-JakartaMedium text-center text-gray-700 mb-6">
-              The minimum fare for this ride is{" "}
-              <Text className="font-bold text-red-500">Rs {minFare}</Text>
-            </Text>
-
-            {/* Close button */}
-            <TouchableOpacity
-              onPress={() => setShowFareModal(false)}
-              className="self-center bg-blue-500 px-6 py-3 rounded-full"
-            >
-              <Text className="text-white font-JakartaBold text-xl">Close</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      <AlertModal
+        visible={showFareModal}
+        onClose={() => setShowFareModal(false)}
+        title="Minimum Fare Required"
+        message={
+          <>
+            The minimum fare for this ride is{" "}
+            <Text className="font-JakartaExtraBold text-red-500">Rs {minFare}</Text>
+          </>
+        }
+        iconColor="red"
+        iconBgColor="gray-100"
+      />
     </SafeAreaView>
   );
 };
