@@ -377,7 +377,7 @@ const newHome = () => {
                     typeof data.fare
                   );
                   setCalculatedFare(data.fare);
-                  setMinFare(Math.round(Number(data.fare) * 0.9));
+                  setMinFare(Math.round(Number(data.fare) * 0.85));
                 } else {
                   console.error("Error fetching ride fare:", data);
                   setCalculatedFare(null);
@@ -1303,7 +1303,7 @@ const newHome = () => {
                             minFare !== undefined &&
                             Number(fare) < minFare
                           ? "border-2 border-red-500"
-                          : "border-2 border-green-500"
+                          : "border-2 border-green-400"
                   }
                   icon={
                     <MaterialCommunityIcons
@@ -1314,11 +1314,11 @@ const newHome = () => {
                   }
                   value={fare}
                   onChangeText={(text) => {
-                    const numeric = text.replace(/[^0-9]/g, ""); // removes everything except digits
+                    const numeric = text.replace(/[^0-9]/g, "");
                     setFare(numeric);
                   }}
                 />
-                {calculatedFare !== null && (
+                {calculatedFare && !loadingDistanceTime && (
                   <Text className="text-gray-600 text-lg text-center font-JakartaMedium">
                     Suggested Fare: PKR {calculatedFare}
                   </Text>

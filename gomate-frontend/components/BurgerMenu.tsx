@@ -13,6 +13,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import CustomButton from "./CustomButton";
+import { StatusBar as RNStatusBar } from "react-native";
 
 const { width } = Dimensions.get("window");
 
@@ -36,6 +37,7 @@ export default function BurgerMenu({
 
   const openMenu = () => {
     setVisible(true);
+    RNStatusBar.setHidden(true, "slide");
     Animated.timing(slideAnim, {
       toValue: 0,
       duration: 300,
@@ -49,6 +51,7 @@ export default function BurgerMenu({
       duration: 300,
       useNativeDriver: true,
     }).start(() => setVisible(false));
+    RNStatusBar.setHidden(false, "slide");
   };
 
   // Helper function to handle navigation safely
