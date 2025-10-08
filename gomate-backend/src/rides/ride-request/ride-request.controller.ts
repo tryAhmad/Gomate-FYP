@@ -6,6 +6,7 @@ import {
   Get,
   Param,
   Patch,
+  Delete,
   UseGuards,
   Query,
 } from '@nestjs/common';
@@ -100,6 +101,13 @@ export class RideRequestController {
   @ApiOperation({ summary: 'Update ride request by ID' })
   async update(@Param('id') id: string, @Body() dto: UpdateRideRequestDto) {
     return this.rideRequestService.updateRideRequest(id, dto);
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Delete ride request by ID' })
+  async delete(@Param('id') id: string) {
+    return this.rideRequestService.deleteRideRequest(id);
   }
 
   @Post('fare')

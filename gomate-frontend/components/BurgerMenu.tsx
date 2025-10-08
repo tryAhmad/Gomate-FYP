@@ -54,7 +54,6 @@ export default function BurgerMenu({
     RNStatusBar.setHidden(false, "slide");
   };
 
-  // Helper function to handle navigation safely
   const handleNavigation = (target: string) => {
     if (currentScreen === target) {
       // Prevent navigating to the same screen again

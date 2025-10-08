@@ -788,6 +788,8 @@ const newHome = () => {
   const rideDetails = {
     pickup,
     dropoff,
+    pickupCoord,
+    dropoffCoord,
     rideType: selectedRideType || "",
     fare,
   };

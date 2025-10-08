@@ -44,9 +44,9 @@ export default function RatingScreen() {
           source={{ uri: "https://i.pravatar.cc/150?img=3" }}
           className="w-48 h-48 rounded-full"
         />
-        <Text className="mt-3 text-3xl font-JakartaBold">Muhammad Ahmad</Text>
+        <Text className="mt-3 text-3xl font-JakartaBold">Ali Hassan</Text>
         <Text className="text-gray-500 text-2xl font-JakartaBold mt-1">
-          Suzuki Alto
+          Honda City
         </Text>
       </View>
 

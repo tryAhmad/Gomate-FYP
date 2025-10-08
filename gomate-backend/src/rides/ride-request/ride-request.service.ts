@@ -211,6 +211,19 @@ export class RideRequestService {
     );
   }
 
+  async deleteRideRequest(id: string) {
+    const deleted = await this.rideRequestModel.findByIdAndDelete(id).exec();
+
+    if (!deleted) {
+      throw new NotFoundException('Ride request not found');
+    }
+
+    return {
+      message: 'Ride request deleted successfully',
+      ride: deleted,
+    };
+  }
+
   calculateFareFromDistanceTime(
     distanceMeters: number,
     durationSeconds: number,

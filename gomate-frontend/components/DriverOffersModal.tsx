@@ -56,6 +56,8 @@ interface DriverOffersModalProps {
   rideDetails?: {
     pickup: string;
     dropoff: string;
+    pickupCoord: { latitude: number; longitude: number } | null;
+    dropoffCoord: { latitude: number; longitude: number } | null;
     rideType: string;
     fare: string;
   };
@@ -93,13 +95,19 @@ const DriverOffersModal: React.FC<DriverOffersModalProps> = ({
           offer.driver.location.lng
         );
 
-        if (driverAddress) {
+        if (
+          driverAddress &&
+          rideDetails.pickupCoord?.latitude &&
+          rideDetails.pickupCoord?.longitude
+        ) {
           // Get distance and time between driver and pickup
           const distanceData = await getDistanceTime(
-            driverAddress,
-            rideDetails.pickup
+            { lat: offer.driver.location.lat, lng: offer.driver.location.lng },
+            {
+              lat: rideDetails.pickupCoord.latitude,
+              lng: rideDetails.pickupCoord.longitude,
+            }
           );
-
           if (distanceData && distanceData.status === "OK") {
             distances[offer.driver.id] = {
               distance: distanceData.distance?.text || "N/A",
