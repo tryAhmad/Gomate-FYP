@@ -1,8 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
-
-const { height } = Dimensions.get('window');
 
 interface SoloRideBottomCardProps {
   passengerName?: string;
@@ -67,7 +65,7 @@ export const SoloRideBottomCard: React.FC<SoloRideBottomCardProps> = ({
         )}
       </View>
 
-      {/* Location Details */}
+      {/* Location Details - This section will always be visible at minimum height */}
       <View style={styles.locationSection}>
         <View style={styles.locationRow}>
           <MaterialCommunityIcons name="map-marker-outline" size={22} color="red" />
@@ -82,7 +80,7 @@ export const SoloRideBottomCard: React.FC<SoloRideBottomCardProps> = ({
         {distance && <Text style={styles.distanceText}>Distance: {distance}</Text>}
       </View>
 
-      {/* Fare Section */}
+      {/* Fare Section - This can be scrolled out of view */}
       <View style={styles.fareSection}>
         <View style={styles.fareContainer}>
           <Text style={styles.fareLabel}>Fare</Text>
@@ -123,16 +121,8 @@ export const SoloRideBottomCard: React.FC<SoloRideBottomCardProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#E3F2FD',
     padding: 20,
-    borderTopLeftRadius: 40,
-    borderTopRightRadius: 40,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 8,
-    maxHeight: height * 0.6,
+    minHeight: 200, 
   },
   passengerRow: {
     flexDirection: 'row',

@@ -1,5 +1,5 @@
 import type React from "react"
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import {
   Text,
   View,
@@ -17,6 +17,8 @@ import { Ionicons } from "@expo/vector-icons"
 import { useRouter, useLocalSearchParams } from "expo-router"
 import type MapView from "react-native-maps"
 import * as Location from "expo-location"
+import { GestureHandlerRootView } from 'react-native-gesture-handler'
+import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet'
 
 import { RideRequestMap } from "@/components/RideRequestMap"
 import { SoloRideBottomCard } from "@/components/SoloRideBottomCard"
@@ -24,7 +26,7 @@ import { SharedRideBottomCard } from "@/components/SharedRideBottomCard"
 import BurgerMenu from "@/components/BurgerMenu"
 import { getCoordinatesFromAddress, getRouteCoordinates } from "@/utils/getRoute"
 
-const { width } = Dimensions.get("window")
+const { width, height } = Dimensions.get("window")
 
 interface Coordinate {
   latitude: number
@@ -62,8 +64,30 @@ const PickupPage: React.FC = () => {
   const router = useRouter()
   const params = useLocalSearchParams() as PickupParams
   const mapRef = useRef<MapView>(null)
+  const bottomSheetRef = useRef<BottomSheet>(null)
 
   const isSharedRide = params.rideType === "shared"
+
+  // Use the exact heights from your original implementation
+  const soloCardHeight = height * 0.6
+  const sharedCardHeight = height * 0.65
+
+  // Bottom sheet snap points
+  const snapPoints = useMemo(() => 
+    isSharedRide 
+      ? [height * 0.3, sharedCardHeight]
+      : [height * 0.25, soloCardHeight]
+  , [isSharedRide])
+
+  // Start with bottom sheet at content height (index 1)
+  const [bottomSheetIndex, setBottomSheetIndex] = useState(1)
+
+  const [currentBottomSheetPosition, setCurrentBottomSheetPosition] = useState(snapPoints[1]);
+  
+  // Track current bottom sheet height for map adjustment
+  const [currentBottomSheetHeight, setCurrentBottomSheetHeight] = useState(
+    isSharedRide ? sharedCardHeight : soloCardHeight
+  )
 
   // Parse arrays for shared rides safely
   const pickups =
@@ -127,6 +151,14 @@ const PickupPage: React.FC = () => {
     latitudeDelta: 0.1,
     longitudeDelta: 0.1,
   }
+
+  // Handler for bottom sheet changes
+  const handleSheetChanges = useCallback((index: number) => {
+    setBottomSheetIndex(index);
+    setCurrentBottomSheetHeight(snapPoints[index]);
+    // Update the current position for map adjustment
+    setCurrentBottomSheetPosition(snapPoints[index]);
+  }, [snapPoints]);
 
   // Initialize driver location first
   useEffect(() => {
@@ -732,70 +764,90 @@ const PickupPage: React.FC = () => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar backgroundColor="transparent" barStyle="dark-content" translucent />
+    <GestureHandlerRootView style={styles.container}>
+      <SafeAreaView style={styles.container}>
+        <StatusBar backgroundColor="transparent" barStyle="dark-content" translucent />
 
-      <View style={styles.menuButtonContainer}>
-        <TouchableOpacity style={styles.menuButton} onPress={openSidebar}>
-          <Ionicons name="menu" size={24} color="#000" />
-        </TouchableOpacity>
-      </View>
+        <View style={styles.menuButtonContainer}>
+          <TouchableOpacity style={styles.menuButton} onPress={openSidebar}>
+            <Ionicons name="menu" size={24} color="#000" />
+          </TouchableOpacity>
+        </View>
 
-      <View style={styles.mapContainer}>
-        <RideRequestMap
-          pickupCoords={pickupCoords}
-          destinationCoords={destinationCoords}
-          routeCoords={routeCoords}
-          isLoading={isLoading}
-          mapRef={mapRef}
-          getPinColor={getPinColor}
-          getPinIcon={getPinIcon}
-          isSharedRide={isSharedRide}
-          optimizedStops={getVisibleStopsForMap()}
-          driverLocation={driverLocation}
-          carRotation={carRotation}
-          remainingRouteCoords={remainingRouteCoords}
-        />
+        {/* Map container with dynamic margin based on bottom sheet height */}
+        <View style={[styles.mapContainer, { marginBottom: currentBottomSheetPosition }]}>
+          <RideRequestMap
+            pickupCoords={pickupCoords}
+            destinationCoords={destinationCoords}
+            routeCoords={routeCoords}
+            isLoading={isLoading}
+            mapRef={mapRef}
+            getPinColor={getPinColor}
+            getPinIcon={getPinIcon}
+            isSharedRide={isSharedRide}
+            optimizedStops={getVisibleStopsForMap()}
+            driverLocation={driverLocation}
+            carRotation={carRotation}
+            remainingRouteCoords={remainingRouteCoords}
+          />
 
-        {isLoading && (
-          <View style={styles.loadingOverlay}>
-            <ActivityIndicator size="large" color="#007AFF" />
-            <Text style={styles.loadingText}>{isSharedRide ? "Loading shared route..." : "Loading route..."}</Text>
-          </View>
-        )}
-      </View>
+          {isLoading && (
+            <View style={styles.loadingOverlay}>
+              <ActivityIndicator size="large" color="#007AFF" />
+              <Text style={styles.loadingText}>{isSharedRide ? "Loading shared route..." : "Loading route..."}</Text>
+            </View>
+          )}
+        </View>
 
-      {isSharedRide ? (
-        <SharedRideBottomCard
-          stops={sharedRideStops}
-          currentStopIndex={currentStopIndex}
-          onNextStop={handleNextStop}
-          onEndRide={handleEndRide}
-          onCancel={handleCancel}
-          onCall={handleCall}
-          onWhatsApp={handleWhatsApp}
-        />
-      ) : (
-        <SoloRideBottomCard
-          passengerName={passengerNames[0]}
-          profilePhoto={params.profilePhoto}
-          pickup={pickups[0]}
-          destination={destinations[0]}
-          distance={params.distance}
-          fare={fares[0]}
-          hasArrived={hasArrived}
-          rideStarted={rideStarted}
-          onCall={() => handleCall()}
-          onWhatsApp={() => handleWhatsApp()}
-          onCancel={handleCancel}
-          onImHere={handleImHere}
-          onStartRide={handleStartRide}
-          onEndRide={handleEndRide}
-        />
-      )}
+        {/* Bottom Sheet */}
+        <BottomSheet
+          ref={bottomSheetRef}
+          snapPoints={snapPoints}
+          index={bottomSheetIndex}
+          onChange={handleSheetChanges}
+          backgroundStyle={styles.bottomSheetBackground}
+          handleStyle={styles.handleStyle}
+          handleIndicatorStyle={styles.handleIndicator}
+        >
+          <BottomSheetScrollView 
+            style={styles.bottomSheetContent}
+            contentContainerStyle={styles.bottomSheetContentContainer}
+            showsVerticalScrollIndicator={false}
+          >
+            {isSharedRide ? (
+              <SharedRideBottomCard
+                stops={sharedRideStops}
+                currentStopIndex={currentStopIndex}
+                onNextStop={handleNextStop}
+                onEndRide={handleEndRide}
+                onCancel={handleCancel}
+                onCall={handleCall}
+                onWhatsApp={handleWhatsApp}
+              />
+            ) : (
+              <SoloRideBottomCard
+                passengerName={passengerNames[0]}
+                profilePhoto={params.profilePhoto}
+                pickup={pickups[0]}
+                destination={destinations[0]}
+                distance={params.distance}
+                fare={fares[0]}
+                hasArrived={hasArrived}
+                rideStarted={rideStarted}
+                onCall={() => handleCall()}
+                onWhatsApp={() => handleWhatsApp()}
+                onCancel={handleCancel}
+                onImHere={handleImHere}
+                onStartRide={handleStartRide}
+                onEndRide={handleEndRide}
+              />
+            )}
+          </BottomSheetScrollView>
+        </BottomSheet>
 
-      <BurgerMenu isVisible={sidebarVisible} onClose={closeSidebar} slideAnim={slideAnim} />
-    </SafeAreaView>
+        <BurgerMenu isVisible={sidebarVisible} onClose={closeSidebar} slideAnim={slideAnim} />
+      </SafeAreaView>
+    </GestureHandlerRootView>
   )
 }
 
@@ -841,6 +893,26 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 16,
     color: "#333",
+  },
+  bottomSheetBackground: {
+    backgroundColor: '#E3F2FD',
+    borderTopLeftRadius: 40,
+    borderTopRightRadius: 40,
+  },
+  handleStyle: {
+    paddingTop: 10,
+    paddingBottom: 10,
+  },
+  handleIndicator: {
+    backgroundColor: '#ccc',
+    width: 40,
+    height: 4,
+  },
+  bottomSheetContent: {
+    flex: 1,
+  },
+  bottomSheetContentContainer: {
+    flexGrow: 1,
   },
 })
 

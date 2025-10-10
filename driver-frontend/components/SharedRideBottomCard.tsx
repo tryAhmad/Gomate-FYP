@@ -99,7 +99,7 @@ const shouldShowCancelButton = () => {
 
   return (
     <View style={styles.container}>
-      {/* Current Stop Section */}
+      {/* Current Stop Section - This will always be visible at minimum height */}
       <View style={styles.currentStopSection}>
         <View style={styles.currentStopHeader}>
           <View style={styles.stopNumberBadge}>
@@ -143,61 +143,57 @@ const shouldShowCancelButton = () => {
         </View>
       </View>
 
-{/* All Stops Progress */}
-<View style={styles.allStopsContainer}>
-  <Text style={styles.progressTitle}>Route Progress</Text>
-  {stops.map((stop, index) => (
-    <View key={`stop-${index}`} style={styles.stopItem}>
-      <View style={[
-        styles.stopDot,
-        stop.completed ? styles.completedDot : 
-        index === currentStopIndex ? styles.activeDot : 
-        styles.incompleteDot
-      ]}>
-        {stop.completed ? (
-          <MaterialCommunityIcons name="check" size={12} color="#fff" />
-        ) : (
-          <Text style={[
-            styles.stopDotNumber,
-            stop.completed && styles.completedDotNumber
-          ]}>
-            {stop.stopNumber}
-          </Text>
-        )}
+      {/* All Stops Progress - This can be scrolled out of view */}
+      <View style={styles.allStopsContainer}>
+        <Text style={styles.progressTitle}>Route Progress</Text>
+        {stops.map((stop, index) => (
+          <View key={`stop-${index}`} style={styles.stopItem}>
+            <View style={[
+              styles.stopDot,
+              stop.completed ? styles.completedDot : 
+              index === currentStopIndex ? styles.activeDot : 
+              styles.incompleteDot
+            ]}>
+              {stop.completed ? (
+                <MaterialCommunityIcons name="check" size={12} color="#fff" />
+              ) : (
+                <Text style={[
+                  styles.stopDotNumber,
+                  stop.completed && styles.completedDotNumber
+                ]}>
+                  {stop.stopNumber}
+                </Text>
+              )}
+            </View>
+            <View style={styles.stopDetails}>
+              <Text style={[
+                styles.stopLabel,
+                index === currentStopIndex && styles.activeStopLabel,
+                stop.completed && styles.completedStopLabel,
+                !stop.completed && index !== currentStopIndex && styles.incompleteStopLabel,
+              ]} numberOfLines={1}>
+                {stop.type === 'pickup' ? 'Pickup' : 'Drop'} • {stop.passengerName}
+              </Text>
+              <Text style={[
+                styles.stopAddressSmall,
+                stop.completed && styles.completedAddressSmall,
+              ]} numberOfLines={1}>
+                {stop.address}
+              </Text>
+            </View>
+            {stop.type === 'destination' && (
+              <Text style={[
+                styles.stopFareSmall,
+                stop.completed && styles.completedFareSmall,
+              ]}>Rs {stop.fare}</Text>
+            )}
+          </View>
+        ))}
       </View>
-      <View style={styles.stopDetails}>
-        <Text style={[
-          styles.stopLabel,
-          // Blue for current active stop
-          index === currentStopIndex && styles.activeStopLabel,
-          // green for completed stops
-          stop.completed && styles.completedStopLabel,
-          // Gray for future stops
-          !stop.completed && index !== currentStopIndex && styles.incompleteStopLabel,
-        ]} numberOfLines={1}>
-          {stop.type === 'pickup' ? 'Pickup' : 'Drop'} • {stop.passengerName}
-        </Text>
-        <Text style={[
-          styles.stopAddressSmall,
-          stop.completed && styles.completedAddressSmall,
-        ]} numberOfLines={1}>
-          {stop.address}
-        </Text>
-      </View>
-      {stop.type === 'destination' && (
-        <Text style={[
-          styles.stopFareSmall,
-          stop.completed && styles.completedFareSmall,
-        ]}>Rs {stop.fare}</Text>
-      )}
-    </View>
-  ))}
-</View>
 
       {/* Action Buttons */}
       <View style={styles.actionButtons}>
         {shouldShowCancelButton() ? (
-          // Initial state: Cancel + I'm Here buttons
           <>
             <TouchableOpacity style={styles.cancelButton} onPress={onCancel}>
               <Text style={styles.cancelText}>Cancel</Text>
@@ -207,12 +203,10 @@ const shouldShowCancelButton = () => {
             </TouchableOpacity>
           </>
         ) : shouldShowEndRideButton() ? (
-          // Final state: End Ride button only
           <TouchableOpacity style={styles.endRideButton} onPress={onEndRide}>
             <Text style={styles.endRideButtonText}>End Ride</Text>
           </TouchableOpacity>
         ) : (
-          // Intermediate states: Single primary button
           <TouchableOpacity style={styles.fullWidthButton} onPress={onNextStop}>
             <Text style={styles.fullWidthButtonText}>{getButtonText()}</Text>
           </TouchableOpacity>
@@ -224,11 +218,8 @@ const shouldShowCancelButton = () => {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#E3F2FD',
     padding: 20,
-    borderTopLeftRadius: 40,
-    borderTopRightRadius: 40,
-    maxHeight: height * 0.65,
+    minHeight: 180, 
   },
   currentStopSection: {
     backgroundColor: '#fff',
