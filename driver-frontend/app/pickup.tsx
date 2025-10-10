@@ -144,6 +144,8 @@ const PickupPage: React.FC = () => {
   const [currentStopIndex, setCurrentStopIndex] = useState(0)
   const [sharedRideStops, setSharedRideStops] = useState<Stop[]>([])
   const [initialRouteLoaded, setInitialRouteLoaded] = useState(false)
+  // Prevent double-taps causing index races
+  const [isAdvancingStop, setIsAdvancingStop] = useState(false)
 
   const DEFAULT_REGION = {
     latitude: 31.5204,
@@ -595,37 +597,98 @@ const PickupPage: React.FC = () => {
   }
 
   const handleNextStop = async () => {
-    const currentStop = sharedRideStops[currentStopIndex]
-    if (!currentStop) {
-      console.error("[SHARED_RIDE] Current stop not found")
-      return
-    }
+    // Debounce to avoid double-press crashes
+    if (isAdvancingStop) return
+    setIsAdvancingStop(true)
 
-    console.log("[SHARED_RIDE] Handling stop:", currentStop)
-    console.log("[SHARED_RIDE] Current stop index:", currentStopIndex)
+    try {
+      // Defensive bounds check
+      if (
+        !sharedRideStops ||
+        sharedRideStops.length === 0 ||
+        currentStopIndex < 0 ||
+        currentStopIndex >= sharedRideStops.length
+      ) {
+        console.error("[SHARED_RIDE] Invalid stop index or no stops")
+        return
+      }
 
-    if (currentStop.type === "pickup" && !currentStop.completed) {
-      Alert.alert("Passenger Notified", `${currentStop.passengerName} has been notified that you have arrived.`)
+      const currentStop = sharedRideStops[currentStopIndex]
+      console.log("[SHARED_RIDE] Handling stop:", currentStop)
+      console.log("[SHARED_RIDE] Current stop index:", currentStopIndex)
 
-      // Mark this stop as completed but DON'T move to next stop
-      const updatedStops = sharedRideStops.map((stop, index) =>
-        index === currentStopIndex ? { ...stop, completed: true } : stop,
-      )
-      setSharedRideStops(updatedStops)
+      // Guard coordinates
+      if (!currentStop?.coordinate) {
+        console.error("[SHARED_RIDE] Current stop has no coordinates")
+        Alert.alert("Route Error", "Current stop is missing location.")
+        return
+      }
 
-      // Move car-marker to starting stop (guarded so it won't trigger a route reload)
-      setDriverLocation(currentStop.coordinate)
+      if (currentStop.type === "pickup" && !currentStop.completed) {
+        Alert.alert(
+          "Passenger Notified",
+          `${currentStop.passengerName} has been notified that you have arrived.`,
+        )
 
-      // Immediately map route from current stop -> next stop (timing fix)
-      const nextStopIndex = currentStopIndex + 1
-      if (nextStopIndex < sharedRideStops.length) {
+        // Mark this stop as completed but DON'T move to next stop
+        const updatedStops = sharedRideStops.map((stop, index) =>
+          index === currentStopIndex ? { ...stop, completed: true } : stop,
+        )
+        setSharedRideStops(updatedStops)
+
+        // Move car-marker to current stop
+        setDriverLocation(currentStop.coordinate)
+
+        // Immediately map route from current stop -> next stop
+        const nextStopIndex = currentStopIndex + 1
+        if (nextStopIndex < sharedRideStops.length) {
+          const nextStop = sharedRideStops[nextStopIndex]
+          if (!nextStop?.coordinate) {
+            console.error("[SHARED_RIDE] Next stop has no coordinates")
+            return
+          }
+          try {
+            const route = await getRouteCoordinates(
+              currentStop.coordinate,
+              nextStop.coordinate,
+            )
+            setRemainingRouteCoords([])
+            setRouteCoords(route || [])
+
+            // Fit map to entire route
+            setTimeout(() => {
+              if (route && route.length > 0) {
+                mapRef.current?.fitToCoordinates(route, {
+                  edgePadding: { top: 80, right: 80, bottom: 80, left: 80 },
+                  animated: true,
+                })
+              }
+            }, 500)
+          } catch (error) {
+            console.error("[SHARED_RIDE] Error mapping route to next stop on arrival:", error)
+          }
+        }
+
+        console.log("[SHARED_RIDE] Stop marked as arrived, route shown; waiting for Start Ride")
+      } else if (currentStop.type === "pickup" && currentStop.completed) {
+        const nextStopIndex = currentStopIndex + 1
+        if (nextStopIndex >= sharedRideStops.length) {
+          console.log("[SHARED_RIDE] No next stop; ending ride")
+          handleEndRide()
+          return
+        }
         const nextStop = sharedRideStops[nextStopIndex]
+        if (!nextStop?.coordinate) {
+          console.error("[SHARED_RIDE] Next stop has no coordinates")
+          return
+        }
+
         try {
           const route = await getRouteCoordinates(currentStop.coordinate, nextStop.coordinate)
-          setRemainingRouteCoords([]) // Clear any previous driver-to-stop route
-          setRouteCoords(route) // Show route to next stop
+          setRemainingRouteCoords([])
+          setRouteCoords(route || [])
+          setCurrentStopIndex(nextStopIndex)
 
-          // Fit map to entire route
           setTimeout(() => {
             if (route && route.length > 0) {
               mapRef.current?.fitToCoordinates(route, {
@@ -635,73 +698,59 @@ const PickupPage: React.FC = () => {
             }
           }, 500)
         } catch (error) {
-          console.error("[SHARED_RIDE] Error mapping route to next stop on arrival:", error)
+          console.error("[SHARED_RIDE] Error routing to next stop:", error)
         }
-      }
+      } else if (currentStop.type === "destination") {
+        // Mark this stop as completed
+        const updatedStops = sharedRideStops.map((stop, index) =>
+          index === currentStopIndex ? { ...stop, completed: true } : stop,
+        )
+        setSharedRideStops(updatedStops)
 
-      console.log("[SHARED_RIDE] Stop marked as arrived, route shown; waiting for Start Ride")
-    } else if (currentStop.type === "pickup" && currentStop.completed) {
+        // Move car-marker to current stop
+        setDriverLocation(currentStop.coordinate)
 
-      const nextStopIndex = currentStopIndex + 1
-      if (nextStopIndex < sharedRideStops.length) {
-        const nextStop = sharedRideStops[nextStopIndex]
+        // Check if this is the last stop
+        if (currentStopIndex === sharedRideStops.length - 1) {
+          console.log("[SHARED_RIDE] Last stop completed, ending ride")
+          handleEndRide()
+          return
+        }
 
-        // Calculate optimized route from current stop to next stop
-        const route = await getRouteCoordinates(currentStop.coordinate, nextStop.coordinate)
-
-        setRemainingRouteCoords([]) // Clear any remaining route
-        setRouteCoords(route) // Show route to next stop
-
-        setCurrentStopIndex(nextStopIndex)
-
-        // Fit map to show the entire route
-        setTimeout(() => {
-          if (route && route.length > 0) {
-            mapRef.current?.fitToCoordinates(route, {
-              edgePadding: { top: 80, right: 80, bottom: 80, left: 80 },
-              animated: true,
-            })
-          }
-        }, 500)
-      }
-    } else if (currentStop.type === "destination") {
-
-      // Mark this stop as completed
-      const updatedStops = sharedRideStops.map((stop, index) =>
-        index === currentStopIndex ? { ...stop, completed: true } : stop,
-      )
-      setSharedRideStops(updatedStops)
-
-      // Move car-marker to starting point of next leg
-      setDriverLocation(currentStop.coordinate)
-
-      // Check if this is the last stop
-      if (currentStopIndex === sharedRideStops.length - 1) {
-        // Last stop - end ride
-        console.log("[SHARED_RIDE] Last stop completed, ending ride")
-        handleEndRide()
-      } else {
         // Move to next stop and update route
         const nextIdx = currentStopIndex + 1
+        if (nextIdx >= sharedRideStops.length) {
+          console.log("[SHARED_RIDE] Next index out of bounds; ending ride")
+          handleEndRide()
+          return
+        }
         const nextStop = sharedRideStops[nextIdx]
+        if (!nextStop?.coordinate) {
+          console.error("[SHARED_RIDE] Next stop has no coordinates")
+          return
+        }
 
-        // Calculate route from current stop to next stop
-        const route = await getRouteCoordinates(currentStop.coordinate, nextStop.coordinate)
+        try {
+          const route = await getRouteCoordinates(currentStop.coordinate, nextStop.coordinate)
+          setRouteCoords(route || [])
+          setRemainingRouteCoords([])
+          setCurrentStopIndex(nextIdx)
 
-        setRouteCoords(route)
-        setRemainingRouteCoords([])
-        setCurrentStopIndex(nextIdx)
-
-        // Fit map to show the entire route
-        setTimeout(() => {
-          if (route && route.length > 0) {
-            mapRef.current?.fitToCoordinates(route, {
-              edgePadding: { top: 80, right: 80, bottom: 80, left: 80 },
-              animated: true,
-            })
-          }
-        }, 500)
+          setTimeout(() => {
+            if (route && route.length > 0) {
+              mapRef.current?.fitToCoordinates(route, {
+                edgePadding: { top: 80, right: 80, bottom: 80, left: 80 },
+                animated: true,
+              })
+            }
+          }, 500)
+        } catch (error) {
+          console.error("[SHARED_RIDE] Error getting route to next stop:", error)
+          Alert.alert("Route Error", "Failed to calculate route. Please try again.")
+        }
       }
+    } finally {
+      setIsAdvancingStop(false)
     }
   }
 
@@ -745,6 +794,14 @@ const PickupPage: React.FC = () => {
     }
 
     // For shared rides, show only current and next stop
+    if (
+      !sharedRideStops ||
+      sharedRideStops.length === 0 ||
+      currentStopIndex < 0 ||
+      currentStopIndex >= sharedRideStops.length
+    ) {
+      return []
+    }
     const currentStop = sharedRideStops[currentStopIndex]
     const nextStop = currentStopIndex < sharedRideStops.length - 1 ? sharedRideStops[currentStopIndex + 1] : null
 
