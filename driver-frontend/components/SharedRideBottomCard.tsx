@@ -64,31 +64,30 @@ export const SharedRideBottomCard: React.FC<SharedRideBottomCardProps> = ({
   };
 
   const getButtonText = () => {
-  const currentStop = stops[currentStopIndex];
-  if (!currentStop) return "Continue";
+    const currentStop = stops[currentStopIndex];
+    if (!currentStop) return "Continue";
 
-  if (currentStop.type === 'pickup') {
-    if (currentStop.completed) {
-      return "Start Ride";
+    if (currentStop.type === 'pickup') {
+      if (currentStop.completed) {
+        return "Start Ride";
+      }
+      return "I'm here";
     }
-    return "I'm here";
-  }
-  
-  if (currentStop.type === 'destination') {
-    if (isLastStop) {
-      return `Collect Rs ${currentStop.fare} and End Ride`;
+    
+    if (currentStop.type === 'destination') {
+      if (isLastStop) {
+        return `Collect Rs ${currentStop.fare} and End Ride`;
+      }
+      return `Collect Rs ${currentStop.fare}`;
     }
-    return `Collect Rs ${currentStop.fare}`;
-  }
-  
-  return "Continue";
-};
+    
+    return "Continue";
+  };
 
-const shouldShowCancelButton = () => {
-  return currentStopIndex === 0 && !stops[0].completed;
-};
+  const shouldShowCancelButton = () => {
+    return currentStopIndex === 0 && !stops[0].completed;
+  };
 
-  
   const shouldShowContactButtons = () => {
     return currentStop.type === 'pickup';
   };
@@ -99,7 +98,7 @@ const shouldShowCancelButton = () => {
 
   return (
     <View style={styles.container}>
-      {/* Current Stop Section - This will always be visible at minimum height */}
+      {/* Current Stop Section */}
       <View style={styles.currentStopSection}>
         <View style={styles.currentStopHeader}>
           <View style={styles.stopNumberBadge}>
@@ -143,7 +142,7 @@ const shouldShowCancelButton = () => {
         </View>
       </View>
 
-      {/* All Stops Progress - This can be scrolled out of view */}
+      {/* All Stops Progress */}
       <View style={styles.allStopsContainer}>
         <Text style={styles.progressTitle}>Route Progress</Text>
         {stops.map((stop, index) => (
@@ -194,6 +193,7 @@ const shouldShowCancelButton = () => {
       {/* Action Buttons */}
       <View style={styles.actionButtons}>
         {shouldShowCancelButton() ? (
+          // Initial state: Cancel + I'm Here buttons
           <>
             <TouchableOpacity style={styles.cancelButton} onPress={onCancel}>
               <Text style={styles.cancelText}>Cancel</Text>
@@ -203,10 +203,12 @@ const shouldShowCancelButton = () => {
             </TouchableOpacity>
           </>
         ) : shouldShowEndRideButton() ? (
+          // Final state: End Ride button only
           <TouchableOpacity style={styles.endRideButton} onPress={onEndRide}>
             <Text style={styles.endRideButtonText}>End Ride</Text>
           </TouchableOpacity>
         ) : (
+          // Intermediate states: Single primary button
           <TouchableOpacity style={styles.fullWidthButton} onPress={onNextStop}>
             <Text style={styles.fullWidthButtonText}>{getButtonText()}</Text>
           </TouchableOpacity>
@@ -218,8 +220,11 @@ const shouldShowCancelButton = () => {
 
 const styles = StyleSheet.create({
   container: {
+    backgroundColor: '#E3F2FD',
     padding: 20,
-    minHeight: 180, 
+    borderTopLeftRadius: 40,
+    borderTopRightRadius: 40,
+    maxHeight: height * 0.65,
   },
   currentStopSection: {
     backgroundColor: '#fff',
