@@ -206,7 +206,7 @@ const styles = StyleSheet.create({
   },
   fareContainer: {
     backgroundColor: '#fff',
-    padding: 16,
+    padding: 25,
     borderRadius: 20,
     borderLeftWidth: 4,
     borderLeftColor: '#0286FF',
@@ -217,7 +217,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   fareLabel: {
-    fontSize: 14,
+    fontSize: 20,
     fontWeight: '500',
     color: '#666',
     marginBottom: 8,

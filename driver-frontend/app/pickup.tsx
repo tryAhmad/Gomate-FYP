@@ -1,5 +1,3 @@
-"use client"
-
 import type React from "react"
 import { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import {
@@ -568,149 +566,204 @@ const PickupPage: React.FC = () => {
   }
 
   const handleNextStop = async () => {
-    try {
-      const currentStop = sharedRideStops[currentStopIndex]
-      if (!currentStop) {
-        console.error("[SHARED_RIDE] Current stop not found")
-        return
-      }
+  try {
+    // Basic guards:
+    if (!sharedRideStops || sharedRideStops.length === 0) {
+      console.warn("[SHARED_RIDE] handleNextStop called but stops not ready")
+      Alert.alert("Error", "Ride stops are not ready yet.")
+      return
+    }
 
-      console.log("[SHARED_RIDE] Handling stop:", currentStop)
-      console.log("[SHARED_RIDE] Current stop index:", currentStopIndex)
+    if (currentStopIndex < 0 || currentStopIndex >= sharedRideStops.length) {
+      console.warn("[SHARED_RIDE] Invalid currentStopIndex:", currentStopIndex)
+      return
+    }
 
-      if (currentStop.type === "pickup" && !currentStop.completed) {
-        Alert.alert("Passenger Notified", `${currentStop.passengerName} has been notified that you have arrived.`)
+    const currentStop = sharedRideStops[currentStopIndex]
+    if (!currentStop) {
+      console.warn("[SHARED_RIDE] Current stop missing")
+      return
+    }
 
-        const updatedStops = sharedRideStops.map((stop, index) =>
-          index === currentStopIndex ? { ...stop, completed: true } : stop,
-        )
-        setSharedRideStops(updatedStops)
+    console.log("[SHARED_RIDE] Handling stop:", currentStop)
+    console.log("[SHARED_RIDE] Current stop index:", currentStopIndex)
 
-        // Move car-marker to current stop
+    // PICKUP (first tap marks arrived unless already completed)
+    if (currentStop.type === "pickup" && !currentStop.completed) {
+      Alert.alert("Passenger Notified", `${currentStop.passengerName} has been notified that you have arrived.`)
+
+      const updatedStops = sharedRideStops.map((stop, index) =>
+        index === currentStopIndex ? { ...stop, completed: true } : stop,
+      )
+      setSharedRideStops(updatedStops)
+
+      // Move car marker
+      if (isValidCoord(currentStop.coordinate)) {
         setDriverLocation(currentStop.coordinate)
-
-        const nextStopIndex = currentStopIndex + 1
-        if (nextStopIndex < updatedStops.length) {
-          const nextStop = updatedStops[nextStopIndex]
-          try {
-            const route = await getRouteCoordinates(currentStop.coordinate, nextStop.coordinate)
-            const safeRoute = sanitizeCoords(route) // sanitize
-
-            setRemainingRouteCoords([])
-            setRouteCoords(safeRoute)
-
-            setTimeout(() => {
-              if (safeRoute.length > 0) {
-                mapRef.current?.fitToCoordinates(safeRoute, {
-                  edgePadding: { top: 80, right: 80, bottom: 80, left: 80 },
-                  animated: true,
-                })
-              }
-            }, 500)
-          } catch (error) {
-            console.error("[SHARED_RIDE] Error mapping route to next stop on arrival:", error)
-            Alert.alert("Route Error", "Failed to calculate next segment. You can still continue the ride.")
-          }
-        }
-
-        console.log("[SHARED_RIDE] Stop marked as arrived, route shown; waiting for Start Ride")
-        return
       }
 
-      if (currentStop.type === "pickup" && currentStop.completed) {
-        Alert.alert("Ride Started", `Continuing to ${currentStop.stopNumber === 1 ? "next pickup" : "destination"}.`)
-
-        const nextStopIndex = currentStopIndex + 1
-        if (nextStopIndex < sharedRideStops.length) {
-          const nextStop = sharedRideStops[nextStopIndex]
-          try {
-            const route = await getRouteCoordinates(currentStop.coordinate, nextStop.coordinate)
-            const safeRoute = sanitizeCoords(route) // sanitize
-
-            setRemainingRouteCoords([])
-            setRouteCoords(safeRoute)
-            setCurrentStopIndex(nextStopIndex)
-
-            setTimeout(() => {
-              if (safeRoute.length > 0) {
-                mapRef.current?.fitToCoordinates(safeRoute, {
-                  edgePadding: { top: 80, right: 80, bottom: 80, left: 80 },
-                  animated: true,
-                })
-              }
-            }, 500)
-          } catch (error) {
-            console.error("[SHARED_RIDE] Error mapping route after Start Ride:", error)
-            setCurrentStopIndex(nextStopIndex)
-            Alert.alert("Route Error", "Failed to calculate next segment. Proceed using the address.")
-          }
-        }
-        return
-      }
-
-      if (currentStop.type === "destination") {
-        Alert.alert("Fare Collected", `Rs ${currentStop.fare} collected from ${currentStop.passengerName}`, [
-          { text: "OK" },
-        ])
-
-        const updatedStops = sharedRideStops.map((stop, index) =>
-          index === currentStopIndex ? { ...stop, completed: true } : stop,
-        )
-        setSharedRideStops(updatedStops)
-
-        // Move car-marker to destination (start for the next leg)
-        setDriverLocation(currentStop.coordinate)
-
-        // Last stop → end ride
-        if (currentStopIndex === updatedStops.length - 1) {
-          setRouteCoords([])
-          setRemainingRouteCoords([])
-          handleEndRide()
-          return
-        }
-
-        const nextIdx = currentStopIndex + 1
-        const nextStop = updatedStops[nextIdx]
-
-        // Validate presence and coordinates before routing
-        if (!nextStop || !isValidCoord(nextStop.coordinate) || !isValidCoord(currentStop.coordinate)) {
-          console.warn("[SHARED_RIDE] Next stop/coords invalid. Advancing without routing.")
-          setRemainingRouteCoords([])
-          setRouteCoords([])
-          setCurrentStopIndex(nextIdx)
+      const nextStopIndex = currentStopIndex + 1
+      if (nextStopIndex < updatedStops.length) {
+        const nextStop = updatedStops[nextStopIndex]
+        if (!isValidCoord(nextStop.coordinate) || !isValidCoord(currentStop.coordinate)) {
+          console.warn("[SHARED_RIDE] invalid coords for routing; advancing index")
+          setCurrentStopIndex(nextStopIndex)
           return
         }
 
         try {
           const route = await getRouteCoordinates(currentStop.coordinate, nextStop.coordinate)
-          const safeRoute = sanitizeCoords(route) // sanitize
-
+          const safeRoute = sanitizeCoords(route)
           setRemainingRouteCoords([])
           setRouteCoords(safeRoute)
-          setCurrentStopIndex(nextIdx)
 
           setTimeout(() => {
-            if (safeRoute.length > 0) {
-              mapRef.current?.fitToCoordinates(safeRoute, {
-                edgePadding: { top: 80, right: 80, bottom: 80, left: 80 },
-                animated: true,
-              })
-            }
+            try {
+              if (safeRoute.length > 0) {
+                mapRef.current?.fitToCoordinates(safeRoute, {
+                  edgePadding: { top: 80, right: 80, bottom: 80, left: 80 },
+                  animated: true,
+                })
+              }
+            } catch (e) {}
           }, 500)
-        } catch (error) {
-          console.error("[SHARED_RIDE] Error mapping route from destination to next stop:", error)
-          // Still advance to the next stop to avoid UI getting stuck
+        } catch (routeErr) {
+          console.error("[SHARED_RIDE] Error mapping route to next stop on arrival:", routeErr)
+          Alert.alert("Route Error", "Failed to calculate next segment. You can still continue the ride.")
+        }
+      }
+
+      return
+    }
+
+    // If pickup already completed -> Move to next stop
+    if (currentStop.type === "pickup" && currentStop.completed) {
+      Alert.alert("Ride Started", `Continuing to next stop.`)
+      const nextStopIndex = currentStopIndex + 1
+      if (nextStopIndex < sharedRideStops.length) {
+        const nextStop = sharedRideStops[nextStopIndex]
+        if (!isValidCoord(currentStop.coordinate) || !isValidCoord(nextStop.coordinate)) {
+          console.warn("[SHARED_RIDE] invalid coords when starting next leg")
+          setCurrentStopIndex(nextStopIndex)
+          return
+        }
+
+        try {
+          const route = await getRouteCoordinates(currentStop.coordinate, nextStop.coordinate)
+          const safeRoute = sanitizeCoords(route)
           setRemainingRouteCoords([])
-          setRouteCoords([])
-          setCurrentStopIndex(nextIdx)
+          setRouteCoords(safeRoute)
+          setCurrentStopIndex(nextStopIndex)
+
+          setTimeout(() => {
+            try {
+              if (safeRoute.length > 0) {
+                mapRef.current?.fitToCoordinates(safeRoute, {
+                  edgePadding: { top: 80, right: 80, bottom: 80, left: 80 },
+                  animated: true,
+                })
+              }
+            } catch (e) {}
+          }, 500)
+        } catch (err) {
+          console.error("[SHARED_RIDE] Error mapping route after Start Ride:", err)
+          setCurrentStopIndex(nextStopIndex)
           Alert.alert("Route Error", "Failed to calculate next segment. Proceed using the address.")
         }
       }
-    } catch (e) {
-      console.error("[SHARED_RIDE] Unexpected error in handleNextStop:", e)
-      Alert.alert("Error", "Something went wrong. Please try again.")
+      return
     }
+
+    // DESTINATION: collect fare and move on OR finish ride
+    if (currentStop.type === "destination") {
+      console.log("[SHARED_RIDE] Processing destination stop:", currentStop)
+      await processDestinationStop(currentStop)
+    }
+
+  } catch (e) {
+    console.error("[SHARED_RIDE] Unexpected error in handleNextStop:", e)
+    Alert.alert("Error", "Something went wrong. Please try again.")
   }
+}
+
+// ✅ Moved outside try — separate helper function
+const processDestinationStop = async (currentStop: any) => {
+  try {
+    console.log("[SHARED_RIDE] Processing destination stop")
+
+    // Mark stop as completed
+    const updatedStops = sharedRideStops.map((stop, idx) =>
+      idx === currentStopIndex ? { ...stop, completed: true } : stop,
+    )
+    setSharedRideStops(updatedStops)
+
+    // Move car to destination
+    if (isValidCoord(currentStop.coordinate)) {
+      setDriverLocation(currentStop.coordinate)
+    }
+
+    // Check if this is the last stop
+    if (currentStopIndex === updatedStops.length - 1) {
+      console.log("[SHARED_RIDE] Last destination reached, ending ride")
+      setTimeout(() => handleEndRide(), 300)
+      return
+    }
+
+    // Move to next stop
+    const nextIdx = currentStopIndex + 1
+    console.log("[SHARED_RIDE] Moving to next stop index:", nextIdx)
+    const nextStop = updatedStops[nextIdx]
+
+    if (!nextStop) {
+      console.error("[SHARED_RIDE] Next stop not found at index:", nextIdx)
+      setCurrentStopIndex(nextIdx)
+      return
+    }
+
+    if (!isValidCoord(currentStop.coordinate) || !isValidCoord(nextStop.coordinate)) {
+      console.warn("[SHARED_RIDE] Invalid coordinates for routing")
+      setRemainingRouteCoords([])
+      setRouteCoords([])
+      setCurrentStopIndex(nextIdx)
+      return
+    }
+
+    // Calculate route to next stop
+    console.log("[SHARED_RIDE] Calculating route to next stop:", nextStop)
+    try {
+      const route = await getRouteCoordinates(currentStop.coordinate, nextStop.coordinate)
+      const safeRoute = sanitizeCoords(route)
+      console.log("[SHARED_RIDE] Route calculated with points:", safeRoute.length)
+
+      setRemainingRouteCoords([])
+      setRouteCoords(safeRoute)
+      setCurrentStopIndex(nextIdx)
+
+      setTimeout(() => {
+        try {
+          if (safeRoute.length > 0) {
+            mapRef.current?.fitToCoordinates(safeRoute, {
+              edgePadding: { top: 80, right: 80, bottom: 80, left: 80 },
+              animated: true,
+            })
+            console.log("[SHARED_RIDE] Map fitted to new route")
+          }
+        } catch (e) {
+          console.error("[SHARED_RIDE] Error fitting map:", e)
+        }
+      }, 500)
+    } catch (routeError) {
+      console.error("[SHARED_RIDE] Error calculating route:", routeError)
+      setRemainingRouteCoords([])
+      setRouteCoords([])
+      setCurrentStopIndex(nextIdx)
+      Alert.alert("Route Error", "Failed to calculate route. Please proceed using the address.")
+    }
+  } catch (error) {
+    console.error("[SHARED_RIDE] Error in processDestinationStop:", error)
+    Alert.alert("Error", "Something went wrong while processing the destination stop.")
+  }
+}
 
   const getPinColor = (stopNumber: number, type: "pickup" | "destination") => {
     return type === "pickup" ? "#FF4444" : "#4CAF50"

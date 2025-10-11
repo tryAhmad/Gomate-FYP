@@ -64,6 +64,7 @@ export default function RideRequestPage() {
   const inputRef = useRef<TextInput>(null);
   
 
+  const [isAcceptButtonDisabled, setIsAcceptButtonDisabled] = useState(false);
   const [counterFare, setCounterFare] = useState('');
   const [pickupCoords, setPickupCoords] = useState<Coordinate[]>([]);
   const [destinationCoords, setDestinationCoords] = useState<Coordinate[]>([]);
@@ -104,6 +105,11 @@ export default function RideRequestPage() {
   const loadRouteData = async () => {
     try {
       setIsLoading(true);
+
+      // Disable accept button for shared rides during loading
+      if (isSharedRide) {
+        setIsAcceptButtonDisabled(true);
+      }
 
       if (!pickups.length || !destinations.length) {
         Alert.alert('Error', 'Pickup or destination data missing.');
@@ -152,6 +158,11 @@ export default function RideRequestPage() {
       Alert.alert('Error', 'Failed to load route information.');
     } finally {
       setIsLoading(false);
+
+      // Re-enable accept button once loading is complete
+      if (isSharedRide) {
+        setIsAcceptButtonDisabled(false);
+      }
     }
   };
 
@@ -631,9 +642,25 @@ const handleAcceptRide = () => {
           )}
 
           {/* Accept Button */}
-          <TouchableOpacity style={styles.acceptButton} onPress={handleAcceptRide}>
-            <Text style={styles.acceptText}>
-              {isSharedRide ? `Accept Shared Ride - Rs ${totalFare}` : `Accept for Rs ${fares[0] || '250'}`}
+          <TouchableOpacity 
+            style={[
+              styles.acceptButton, 
+              isAcceptButtonDisabled && styles.acceptButtonDisabled
+            ]} 
+            onPress={handleAcceptRide}
+            disabled={isAcceptButtonDisabled}
+          >
+            <Text style={[
+              styles.acceptText,
+              isAcceptButtonDisabled && styles.acceptTextDisabled
+            ]}>
+              {isAcceptButtonDisabled 
+                ? 'Loading...' 
+                : (isSharedRide 
+                    ? `Accept Shared Ride - Rs ${totalFare}` 
+                    : `Accept for Rs ${fares[0] || '250'}`
+                  )
+              }
             </Text>
           </TouchableOpacity>
         </View>
@@ -786,10 +813,16 @@ const styles = StyleSheet.create({
     marginTop: 4, 
     marginBottom: -6,
   },
+  acceptButtonDisabled: {
+    backgroundColor: '#cccccc',
+  },
   acceptText: {
     color: '#fff',
     fontWeight: '600',
     fontSize: 16,
+  },
+  acceptTextDisabled: {
+    color: '#666666',
   },
   offerText: {
     fontSize: 16,
