@@ -64,31 +64,30 @@ export const SharedRideBottomCard: React.FC<SharedRideBottomCardProps> = ({
   };
 
   const getButtonText = () => {
-  const currentStop = stops[currentStopIndex];
-  if (!currentStop) return "Continue";
+    const currentStop = stops[currentStopIndex];
+    if (!currentStop) return "Continue";
 
-  if (currentStop.type === 'pickup') {
-    if (currentStop.completed) {
-      return "Start Ride";
+    if (currentStop.type === 'pickup') {
+      if (currentStop.completed) {
+        return "Start Ride";
+      }
+      return "I'm here";
     }
-    return "I'm here";
-  }
-  
-  if (currentStop.type === 'destination') {
-    if (isLastStop) {
-      return `Collect Rs ${currentStop.fare} and End Ride`;
+    
+    if (currentStop.type === 'destination') {
+      if (isLastStop) {
+        return `Collect Rs ${currentStop.fare} and End Ride`;
+      }
+      return `Collect Rs ${currentStop.fare}`;
     }
-    return `Collect Rs ${currentStop.fare}`;
-  }
-  
-  return "Continue";
-};
+    
+    return "Continue";
+  };
 
-const shouldShowCancelButton = () => {
-  return currentStopIndex === 0 && !stops[0].completed;
-};
+  const shouldShowCancelButton = () => {
+    return currentStopIndex === 0 && !stops[0].completed;
+  };
 
-  
   const shouldShowContactButtons = () => {
     return currentStop.type === 'pickup';
   };
@@ -143,56 +142,53 @@ const shouldShowCancelButton = () => {
         </View>
       </View>
 
-{/* All Stops Progress */}
-<View style={styles.allStopsContainer}>
-  <Text style={styles.progressTitle}>Route Progress</Text>
-  {stops.map((stop, index) => (
-    <View key={`stop-${index}`} style={styles.stopItem}>
-      <View style={[
-        styles.stopDot,
-        stop.completed ? styles.completedDot : 
-        index === currentStopIndex ? styles.activeDot : 
-        styles.incompleteDot
-      ]}>
-        {stop.completed ? (
-          <MaterialCommunityIcons name="check" size={12} color="#fff" />
-        ) : (
-          <Text style={[
-            styles.stopDotNumber,
-            stop.completed && styles.completedDotNumber
-          ]}>
-            {stop.stopNumber}
-          </Text>
-        )}
+      {/* All Stops Progress */}
+      <View style={styles.allStopsContainer}>
+        <Text style={styles.progressTitle}>Route Progress</Text>
+        {stops.map((stop, index) => (
+          <View key={`stop-${index}`} style={styles.stopItem}>
+            <View style={[
+              styles.stopDot,
+              stop.completed ? styles.completedDot : 
+              index === currentStopIndex ? styles.activeDot : 
+              styles.incompleteDot
+            ]}>
+              {stop.completed ? (
+                <MaterialCommunityIcons name="check" size={12} color="#fff" />
+              ) : (
+                <Text style={[
+                  styles.stopDotNumber,
+                  stop.completed && styles.completedDotNumber
+                ]}>
+                  {stop.stopNumber}
+                </Text>
+              )}
+            </View>
+            <View style={styles.stopDetails}>
+              <Text style={[
+                styles.stopLabel,
+                index === currentStopIndex && styles.activeStopLabel,
+                stop.completed && styles.completedStopLabel,
+                !stop.completed && index !== currentStopIndex && styles.incompleteStopLabel,
+              ]} numberOfLines={1}>
+                {stop.type === 'pickup' ? 'Pickup' : 'Drop'} • {stop.passengerName}
+              </Text>
+              <Text style={[
+                styles.stopAddressSmall,
+                stop.completed && styles.completedAddressSmall,
+              ]} numberOfLines={1}>
+                {stop.address}
+              </Text>
+            </View>
+            {stop.type === 'destination' && (
+              <Text style={[
+                styles.stopFareSmall,
+                stop.completed && styles.completedFareSmall,
+              ]}>Rs {stop.fare}</Text>
+            )}
+          </View>
+        ))}
       </View>
-      <View style={styles.stopDetails}>
-        <Text style={[
-          styles.stopLabel,
-          // Blue for current active stop
-          index === currentStopIndex && styles.activeStopLabel,
-          // green for completed stops
-          stop.completed && styles.completedStopLabel,
-          // Gray for future stops
-          !stop.completed && index !== currentStopIndex && styles.incompleteStopLabel,
-        ]} numberOfLines={1}>
-          {stop.type === 'pickup' ? 'Pickup' : 'Drop'} • {stop.passengerName}
-        </Text>
-        <Text style={[
-          styles.stopAddressSmall,
-          stop.completed && styles.completedAddressSmall,
-        ]} numberOfLines={1}>
-          {stop.address}
-        </Text>
-      </View>
-      {stop.type === 'destination' && (
-        <Text style={[
-          styles.stopFareSmall,
-          stop.completed && styles.completedFareSmall,
-        ]}>Rs {stop.fare}</Text>
-      )}
-    </View>
-  ))}
-</View>
 
       {/* Action Buttons */}
       <View style={styles.actionButtons}>
