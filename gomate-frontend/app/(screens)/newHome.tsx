@@ -340,7 +340,7 @@ const newHome = () => {
   useEffect(() => {
     const timeout = setTimeout(() => {
       const fetchDistanceTime = async () => {
-        if (pickupCoord && dropoffCoord) {
+        if (pickupCoord && dropoffCoord && selectedRideType !== "shared") {
           try {
             setLoadingDistanceTime(true);
             const result = await getDistanceTime(
@@ -933,7 +933,7 @@ const newHome = () => {
         showsUserLocation={true}
         showsMyLocationButton={false}
         showsCompass={false}
-        followsUserLocation={false}
+        //followsUserLocation={false}
         onPress={handleMapPress}
         mapPadding={{ top: 50, right: 0, bottom: 0, left: 0 }} // 👈 push buttons down
         mapType="standard"
@@ -1273,7 +1273,7 @@ const newHome = () => {
                       handleDropoffSuggestionSelect
                     )}
                 </View>
-                {!loadingDistanceTime && rideDistance && rideDuration && (
+                {!loadingDistanceTime && rideDistance && rideDuration && selectedRideType !== "shared" && (
                   <View className="flex-row items-center justify-center space-x-4 ">
                     <MaterialCommunityIcons
                       name="map-marker-distance"
@@ -1301,11 +1301,9 @@ const newHome = () => {
                       ? "border-2 border-gray-300"
                       : Number(fare) <= 0
                         ? "border-2 border-red-500"
-                        : minFare !== null &&
-                            minFare !== undefined &&
-                            Number(fare) < minFare
+                        : Number(fare) < minFare!
                           ? "border-2 border-red-500"
-                          : "border-2 border-green-400"
+                          : "border-2 border-green-500"
                   }
                   icon={
                     <MaterialCommunityIcons
