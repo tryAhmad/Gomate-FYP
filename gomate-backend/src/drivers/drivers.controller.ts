@@ -36,8 +36,8 @@ export class DriversController {
   }
 
   @Get()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.Admin) // admin role can access this endpoint
+  //@UseGuards(JwtAuthGuard, RolesGuard)
+  //@Roles(Role.Admin) // admin role can access this endpoint
   @ApiOperation({ summary: 'Get all drivers' })
   async findAll() {
     const drivers = await this.driversService.findAll();

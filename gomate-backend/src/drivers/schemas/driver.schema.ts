@@ -4,7 +4,7 @@ import { Role } from 'src/common/enums/roles.enum';
 
 export type DriverDocument = Driver & Document & { _id: Types.ObjectId };
 
-@Schema()
+@Schema({ timestamps: true })
 export class Driver {
   @Prop({ type: String })
   socketId?: string;
