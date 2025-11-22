@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, Users, Car, FileText, Zap, CreditCard, Settings, ChevronLeft, LogOut } from "lucide-react"
+import { LayoutDashboard, Users, Car, FileText, Zap, CreditCard, Settings, DollarSign, ChevronLeft, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -19,6 +19,7 @@ const navItems = [
   { href: "/dashboard/rides", label: "Rides", icon: Zap },
   { href: "/dashboard/payments", label: "Payments", icon: CreditCard },
   { href: "/dashboard/fare-settings", label: "Fare Settings", icon: Settings },
+  { href: "/dashboard/service-fees", label: "Service Fees", icon: DollarSign },
 ]
 
 export function Sidebar({ open, onToggle }: SidebarProps) {
