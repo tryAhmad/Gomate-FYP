@@ -6,6 +6,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { DriversModule } from 'src/drivers/drivers.module';
 import { WebSocketModule } from 'src/socket/webSocket.module';
 import { SharedRideRequestService } from './shared-ride-request.service';
+import { FareSettingsModule } from 'src/fare-settings/fare-settings.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { SharedRideRequestService } from './shared-ride-request.service';
       { name: RideRequest.name, schema: RideRequestSchema },
     ]),
     DriversModule,
+    FareSettingsModule,
     forwardRef(() => WebSocketModule),
   ],
   controllers: [RideRequestController],

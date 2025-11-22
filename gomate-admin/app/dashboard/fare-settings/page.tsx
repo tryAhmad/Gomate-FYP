@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import { Bike, CarIcon, Loader2, Settings } from "lucide-react"
+import { API_CONFIG } from "@/lib/api-config"
 
 interface VehicleFare {
   baseFare: number
@@ -16,7 +17,7 @@ interface VehicleFare {
 
 interface FareSettings {
   bike: VehicleFare
-  rickshaw: VehicleFare
+  auto: VehicleFare
   car: VehicleFare
 }
 
@@ -27,7 +28,7 @@ export default function FareSettingsPage() {
 
   const [fares, setFares] = useState<FareSettings>({
     bike: { baseFare: 0, perKmRate: 0, perMinuteRate: 0 },
-    rickshaw: { baseFare: 0, perKmRate: 0, perMinuteRate: 0 },
+    auto: { baseFare: 0, perKmRate: 0, perMinuteRate: 0 },
     car: { baseFare: 0, perKmRate: 0, perMinuteRate: 0 },
   })
 
@@ -36,19 +37,31 @@ export default function FareSettingsPage() {
     const fetchFareSettings = async () => {
       try {
         setFetching(true)
-        // Simulating API call - replace with actual endpoint
-        // const response = await fetch('/api/fare-settings')
-        // const data = await response.json()
+        const response = await fetch(`${API_CONFIG.BASE_URL}/fare-settings`)
+        const result = await response.json()
 
-        // Mock data for demonstration
-        const mockData: FareSettings = {
-          bike: { baseFare: 50, perKmRate: 10, perMinuteRate: 2 },
-          rickshaw: { baseFare: 80, perKmRate: 15, perMinuteRate: 3 },
-          car: { baseFare: 150, perKmRate: 25, perMinuteRate: 5 },
+        if (response.ok && result.data) {
+          // Convert array to object format
+          const fareData: FareSettings = {
+            bike: { baseFare: 0, perKmRate: 0, perMinuteRate: 0 },
+            auto: { baseFare: 0, perKmRate: 0, perMinuteRate: 0 },
+            car: { baseFare: 0, perKmRate: 0, perMinuteRate: 0 },
+          }
+
+          result.data.forEach((item: any) => {
+            if (item.rideType in fareData) {
+              fareData[item.rideType as keyof FareSettings] = {
+                baseFare: item.baseFare,
+                perKmRate: item.perKmRate,
+                perMinuteRate: item.perMinuteRate,
+              }
+            }
+          })
+
+          setFares(fareData)
         }
-
-        setFares(mockData)
       } catch (error) {
+        console.error('Failed to fetch fare settings:', error)
         toast({
           title: "Error",
           description: "Failed to fetch fare settings. Please try again.",
@@ -104,22 +117,28 @@ export default function FareSettingsPage() {
     try {
       setLoading(true)
 
-      // Simulating API call - replace with actual endpoint
-      // const response = await fetch('/api/fare-settings', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(fares),
-      // })
-      // if (!response.ok) throw new Error('Failed to save')
+      // Update each ride type separately
+      const updatePromises = Object.entries(fares).map(([rideType, fareData]) => {
+        return fetch(`${API_CONFIG.BASE_URL}/fare-settings/${rideType}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(fareData),
+        })
+      })
 
-      // Simulate network delay
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      const responses = await Promise.all(updatePromises)
+      const allSuccessful = responses.every((res) => res.ok)
+
+      if (!allSuccessful) {
+        throw new Error('Failed to update some fare settings')
+      }
 
       toast({
         title: "Success",
         description: "Fare settings have been updated successfully.",
       })
     } catch (error) {
+      console.error('Failed to save fare settings:', error)
       toast({
         title: "Error",
         description: "Failed to save fare settings. Please try again.",
@@ -140,7 +159,7 @@ export default function FareSettingsPage() {
 
   const vehicleConfig = [
     { key: "bike" as const, label: "Bike", icon: Bike, color: "text-blue-500" },
-    { key: "rickshaw" as const, label: "Rickshaw", icon: CarIcon, color: "text-green-500" },
+    { key: "auto" as const, label: "Auto Rickshaw", icon: CarIcon, color: "text-green-500" },
     { key: "car" as const, label: "Car", icon: CarIcon, color: "text-purple-500" },
   ]
 

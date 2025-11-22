@@ -12,6 +12,7 @@ import { CreateRideRequestDto } from './dto/create-ride-request.dto';
 import { UpdateRideRequestDto } from './dto/update-ride-request.dto';
 import { DriversService } from 'src/drivers/drivers.service';
 import { RideGateway } from 'src/socket/gateways/ride.gateway';
+import { FareSettingsService } from 'src/fare-settings/fare-settings.service';
 
 @Injectable()
 export class RideRequestService {
@@ -19,6 +20,7 @@ export class RideRequestService {
     @InjectModel(RideRequest.name)
     private readonly rideRequestModel: Model<RideRequest>,
     private readonly driversService: DriversService,
+    private readonly fareSettingsService: FareSettingsService,
 
     @Inject(forwardRef(() => RideGateway))
     private readonly rideGateway: RideGateway,
@@ -224,7 +226,7 @@ export class RideRequestService {
     };
   }
 
-  calculateFareFromDistanceTime(
+  async calculateFareFromDistanceTime(
     distanceMeters: number,
     durationSeconds: number,
     rideType?: 'auto' | 'car' | 'bike',
@@ -235,30 +237,17 @@ export class RideRequestService {
       );
     }
 
-    const baseFare = {
-      auto: 40,
-      car: 70,
-      bike: 25,
-    } as const;
+    // Fetch dynamic fare settings from database
+    const faresMap = await this.fareSettingsService.getFaresMap();
 
-    const perKmRate = {
-      auto: 15,
-      car: 25,
-      bike: 10,
-    } as const;
-
-    const perMinuteRate = {
-      auto: 2,
-      car: 3,
-      bike: 1.5,
-    } as const;
-
-    const calc = (type: 'auto' | 'car' | 'bike') =>
-      Math.round(
-        baseFare[type] +
-          (distanceMeters / 1000) * perKmRate[type] +
-          (durationSeconds / 60) * perMinuteRate[type],
+    const calc = (type: 'auto' | 'car' | 'bike') => {
+      const fareConfig = faresMap[type];
+      return Math.round(
+        fareConfig.baseFare +
+          (distanceMeters / 1000) * fareConfig.perKmRate +
+          (durationSeconds / 60) * fareConfig.perMinuteRate,
       );
+    };
 
     const fares = {
       auto: calc('auto'),

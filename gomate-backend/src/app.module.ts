@@ -9,6 +9,7 @@ import { AuthModule } from './auth/auth.module';
 import { RideRequestModule } from './rides/ride-request/ride-request.module';
 import { WebSocketModule } from './socket/webSocket.module';
 import { StatisticsModule } from './statistics/statistics.module';
+import { FareSettingsModule } from './fare-settings/fare-settings.module';
 import { Connection } from 'mongoose';
 
 @Module({
@@ -19,6 +20,7 @@ import { Connection } from 'mongoose';
     forwardRef(() => WebSocketModule),
     AuthModule,
     StatisticsModule,
+    FareSettingsModule,
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
