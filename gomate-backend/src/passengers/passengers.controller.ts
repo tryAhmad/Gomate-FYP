@@ -54,8 +54,8 @@ export class PassengersController {
   }
 
   @Get(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.Admin, Role.Passenger)
+  //@UseGuards(JwtAuthGuard, RolesGuard)
+  //@Roles(Role.Admin, Role.Passenger)
   @ApiOperation({ summary: 'Retrieves a user by ID' })
   async findOne(@Param('id') id: string) {
     const passenger = await this.passengersService.findOne(id);
@@ -66,7 +66,7 @@ export class PassengersController {
   }
 
   @Patch(':id')
-  @UseGuards(JwtAuthGuard)
+  //@UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Updates a user by ID' })
   async update(
     @Param('id') id: string,
@@ -83,7 +83,7 @@ export class PassengersController {
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard)
+  //@UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Deletes a user by ID' })
   async remove(@Param('id') id: string) {
     const passenger = await this.passengersService.remove(id);

@@ -58,6 +58,26 @@ export class Driver {
   status: 'active' | 'inactive';
 
   @Prop({
+    type: String,
+    enum: ['active', 'suspended'],
+    default: 'active',
+  })
+  accountStatus: 'active' | 'suspended';
+
+  @Prop({
+    type: String,
+    enum: ['paid', 'pending', 'overdue'],
+    default: 'pending',
+  })
+  paymentStatus: 'paid' | 'pending' | 'overdue';
+
+  @Prop({ type: Date, default: null })
+  lastPaymentDate: Date;
+
+  @Prop({ type: Date, default: () => new Date() })
+  weekStartDate: Date;
+
+  @Prop({
     type: {
       color: {
         type: String,
