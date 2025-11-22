@@ -32,7 +32,7 @@ export default function FareSettingsPage() {
     car: { baseFare: 0, perKmRate: 0, perMinuteRate: 0 },
   })
 
-  // Fetch existing fare settings on page load
+  // Fetch fare settings on page load
   useEffect(() => {
     const fetchFareSettings = async () => {
       try {
