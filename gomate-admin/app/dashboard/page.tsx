@@ -143,7 +143,7 @@ export default function Dashboard() {
             <TrendingUp className="h-6 w-6 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${stats?.totalRevenue.toLocaleString() || 0}</div>
+            <div className="text-2xl font-bold">PKR {stats?.totalRevenue.toLocaleString() || 0}</div>
             <p className="text-xs text-muted-foreground">{stats?.revenueGrowth || '0%'} from last month</p>
           </CardContent>
         </Card>

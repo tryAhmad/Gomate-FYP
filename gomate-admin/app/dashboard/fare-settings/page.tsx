@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
-import { Bike, CarIcon, Loader2, Settings } from "lucide-react"
+import { Bike, CarIcon, Loader2, Settings, DollarSign, MapPin, Clock } from "lucide-react"
 import { API_CONFIG } from "@/lib/api-config"
 
 interface VehicleFare {
@@ -193,7 +193,10 @@ export default function FareSettingsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor={`${key}-baseFare`}>Base Fare (PKR)</Label>
+                <Label htmlFor={`${key}-baseFare`} className="flex items-center gap-2">
+                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+                  Base Fare (PKR)
+                </Label>
                 <Input
                   id={`${key}-baseFare`}
                   type="number"
@@ -206,7 +209,10 @@ export default function FareSettingsPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor={`${key}-perKm`}>Per Kilometer Rate (PKR)</Label>
+                <Label htmlFor={`${key}-perKm`} className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4 text-muted-foreground" />
+                  Per Kilometer Rate (PKR)
+                </Label>
                 <Input
                   id={`${key}-perKm`}
                   type="number"
@@ -219,7 +225,10 @@ export default function FareSettingsPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor={`${key}-perMinute`}>Per Minute Rate (PKR)</Label>
+                <Label htmlFor={`${key}-perMinute`} className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  Per Minute Rate (PKR)
+                </Label>
                 <Input
                   id={`${key}-perMinute`}
                   type="number"

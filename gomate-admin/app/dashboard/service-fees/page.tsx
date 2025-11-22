@@ -233,7 +233,6 @@ export default function ServiceFeesPage() {
               <h4 className="text-sm font-semibold">Important Information</h4>
               <ul className="text-sm text-muted-foreground space-y-1">
                 <li>• These fees are charged to drivers on a weekly basis</li>
-                <li>• Fees are automatically deducted from driver earnings</li>
                 <li>• Changes take effect immediately after saving</li>
                 <li>• All amounts are in Pakistani Rupees (PKR)</li>
               </ul>
