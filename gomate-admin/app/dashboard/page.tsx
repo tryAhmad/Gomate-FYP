@@ -230,11 +230,34 @@ export default function Dashboard() {
               <BarChart data={trendData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="rides" fill="#3b82f6" />
-                <Bar dataKey="revenue" fill="#10b981" />
+                <YAxis yAxisId="left" stroke="#3b82f6" />
+                <YAxis yAxisId="right" orientation="right" stroke="#10b981" />
+                <Tooltip
+                  formatter={(value: number, name: string) => {
+                    if (name === "Revenue")
+                      return [`PKR ${value.toLocaleString()}`, "Revenue"];
+                    return [value.toLocaleString(), "Rides"];
+                  }}
+                />
+                <Legend
+                  wrapperStyle={{ paddingTop: "10px" }}
+                  formatter={(value: string) => {
+                    if (value === "Revenue") return "Revenue (PKR)";
+                    return value;
+                  }}
+                />
+                <Bar
+                  yAxisId="left"
+                  dataKey="rides"
+                  fill="#3b82f6"
+                  name="Rides"
+                />
+                <Bar
+                  yAxisId="right"
+                  dataKey="revenue"
+                  fill="#10b981"
+                  name="Revenue"
+                />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
