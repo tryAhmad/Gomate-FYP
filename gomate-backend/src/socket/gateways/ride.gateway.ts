@@ -14,7 +14,14 @@ import { DriversService } from 'src/drivers/drivers.service';
 import { forwardRef, Inject } from '@nestjs/common';
 import { SharedRideRequestService } from 'src/rides/ride-request/shared-ride-request.service';
 
-@WebSocketGateway({ cors: true })
+@WebSocketGateway({
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST'],
+    credentials: true,
+  },
+  transports: ['websocket', 'polling'],
+})
 export class RideGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
@@ -93,7 +100,11 @@ export class RideGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {
     this.connectedPassengers.set(data.passengerId, client.id);
     client.join(data.passengerId); // ✅ This makes `.to(passengerId)` work
-    console.log(`Passenger ${data.passengerId} registered for real-time`);
+    console.log(`✅ Passenger ${data.passengerId} registered for real-time`);
+    console.log(`   Socket ID: ${client.id}`);
+    console.log(
+      `   Total passengers connected: ${this.connectedPassengers.size}`,
+    );
   }
 
   // Solo ride creation
@@ -164,20 +175,34 @@ export class RideGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     // ✅ Send to passenger
     const passengerSocketId = this.connectedPassengers.get(data.passengerId);
+    console.log(
+      `Looking for passenger ${data.passengerId}, found socket: ${passengerSocketId}`,
+    );
+    console.log(
+      `All connected passengers:`,
+      Array.from(this.connectedPassengers.entries()),
+    );
+
     if (passengerSocketId) {
-      this.server.to(passengerSocketId).emit('receiveCounterOffer', {
+      const offerPayload = {
         rideId: data.rideId,
         counterFare: data.counterFare,
         driver: driverInfo,
-      });
-      console.log(`Sent counter offer to passenger ${data.passengerId}
-        details: ${JSON.stringify({
-          rideId: data.rideId,
-          counterFare: data.counterFare,
-          driver: driverInfo,
-        })}`);
+      };
+
+      this.server
+        .to(passengerSocketId)
+        .emit('receiveCounterOffer', offerPayload);
+
+      console.log(`✅ Sent counter offer to passenger ${data.passengerId}`);
+      console.log(`   Socket ID: ${passengerSocketId}`);
+      console.log(`   Payload:`, JSON.stringify(offerPayload, null, 2));
     } else {
-      console.log(`Passenger ${data.passengerId} is not connected`);
+      console.log(`❌ Passenger ${data.passengerId} is not connected`);
+      console.log(
+        `   Available passengers:`,
+        Array.from(this.connectedPassengers.keys()),
+      );
     }
   }
 
@@ -221,11 +246,31 @@ export class RideGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     // Notify accepted driver
     const driverInfo = this.connectedDrivers.get(data.driverId);
+    console.log(
+      `Looking for driver ${data.driverId}, found:`,
+      driverInfo ? `Socket ${driverInfo.socketId}` : 'NOT CONNECTED',
+    );
+
     if (driverInfo) {
-      this.server.to(driverInfo.socketId).emit('offerAccepted', {
+      const acceptPayload = {
         rideId: data.rideId,
         passengerId: data.passengerId,
-      });
+        driverId: data.driverId,
+        counterFare: offer.counterFare,
+        message: 'Your counter offer was accepted!',
+      };
+
+      this.server.to(driverInfo.socketId).emit('offerAccepted', acceptPayload);
+
+      console.log(`✅ Sent offerAccepted to driver ${data.driverId}`);
+      console.log(`   Socket ID: ${driverInfo.socketId}`);
+      console.log(`   Payload:`, acceptPayload);
+    } else {
+      console.log(`❌ Driver ${data.driverId} is not connected`);
+      console.log(
+        `   Available drivers:`,
+        Array.from(this.connectedDrivers.keys()),
+      );
     }
 
     // Notify other drivers that their offer was rejected

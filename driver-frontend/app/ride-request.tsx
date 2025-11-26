@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -12,19 +12,28 @@ import {
   KeyboardAvoidingView,
   Platform,
   Keyboard,
-} from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import MapView from 'react-native-maps';
-import { RideRequestMap } from '@/components/RideRequestMap';
-import { PassengerInfo } from '@/components/PassengerInfo';
-import { LocationDetails } from '@/components/LocationDetails';
-import { getCoordinatesFromAddress, getRouteCoordinates, getSharedRideRoute } from '@/utils/getRoute';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { calculateTimeToNearestPickup, calculateSharedRideDistance, calculateDistanceAndTime } from '@/utils/distanceCalculation';
-import Constants from 'expo-constants';
-import polyline from '@mapbox/polyline';
+} from "react-native";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import MapView from "react-native-maps";
+import { RideRequestMap } from "@/components/RideRequestMap";
+import { PassengerInfo } from "@/components/PassengerInfo";
+import { LocationDetails } from "@/components/LocationDetails";
+import {
+  getCoordinatesFromAddress,
+  getRouteCoordinates,
+  getSharedRideRoute,
+} from "@/utils/getRoute";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import {
+  calculateTimeToNearestPickup,
+  calculateSharedRideDistance,
+  calculateDistanceAndTime,
+} from "@/utils/distanceCalculation";
+import Constants from "expo-constants";
+import polyline from "@mapbox/polyline";
+import { getDriverSocket } from "@/utils/socket";
 
-const { width, height } = Dimensions.get('window');
+const { width, height } = Dimensions.get("window");
 const GOOGLE_MAPS_API_KEY = Constants.expoConfig?.extra?.googleMapsApiKey;
 
 type RideParams = {
@@ -37,9 +46,10 @@ type RideParams = {
   profilePhoto?: string;
   timeAway?: string;
   passengerPhone?: string;
+  passengerId?: string;
   driverLat?: string;
   driverLng?: string;
-  rideType?: 'solo' | 'shared';
+  rideType?: "solo" | "shared";
 };
 
 interface Coordinate {
@@ -48,13 +58,13 @@ interface Coordinate {
 }
 
 interface SharedRideStop {
-  type: 'pickup' | 'destination';
+  type: "pickup" | "destination";
   address: string;
   passengerName: string;
   fare: string;
   stopNumber: number;
   isFirstInSequence?: boolean;
-  coordinate: Coordinate; 
+  coordinate: Coordinate;
 }
 
 export default function RideRequestPage() {
@@ -62,45 +72,171 @@ export default function RideRequestPage() {
   const params = useLocalSearchParams() as RideParams;
   const mapRef = useRef<MapView>(null);
   const inputRef = useRef<TextInput>(null);
-  
 
   const [isAcceptButtonDisabled, setIsAcceptButtonDisabled] = useState(false);
-  const [counterFare, setCounterFare] = useState('');
+  const [counterFare, setCounterFare] = useState("");
   const [pickupCoords, setPickupCoords] = useState<Coordinate[]>([]);
   const [destinationCoords, setDestinationCoords] = useState<Coordinate[]>([]);
   const [routeCoords, setRouteCoords] = useState<Coordinate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [optimizedStops, setOptimizedStops] = useState<SharedRideStop[]>([]);
-  const [sharedRideDistance, setSharedRideDistance] = useState('Calculating...');
-  const [timeToPickup, setTimeToPickup] = useState('Calculating...');
+  const [sharedRideDistance, setSharedRideDistance] =
+    useState("Calculating...");
+  const [timeToPickup, setTimeToPickup] = useState("Calculating...");
 
-  const isSharedRide = params.rideType === 'shared';
+  const isSharedRide = params.rideType === "shared";
 
   // Parse array data for shared rides
-  const pickups = isSharedRide && params.pickup ? JSON.parse(params.pickup) : [params.pickup];
-  const destinations = isSharedRide && params.destination ? JSON.parse(params.destination) : [params.destination];
-  const passengerNames = isSharedRide && params.passengerName ? JSON.parse(params.passengerName) : [params.passengerName];
-  const fares = isSharedRide && params.fare ? JSON.parse(params.fare) : [params.fare];
+  const pickups =
+    isSharedRide && params.pickup ? JSON.parse(params.pickup) : [params.pickup];
+  const destinations =
+    isSharedRide && params.destination
+      ? JSON.parse(params.destination)
+      : [params.destination];
+  const passengerNames =
+    isSharedRide && params.passengerName
+      ? JSON.parse(params.passengerName)
+      : [params.passengerName];
+  const fares =
+    isSharedRide && params.fare ? JSON.parse(params.fare) : [params.fare];
 
-  const totalFare = fares.reduce((sum: number, fare: string) => sum + (Number(fare) || 0), 0);
+  const totalFare = fares.reduce(
+    (sum: number, fare: string) => sum + (Number(fare) || 0),
+    0
+  );
 
   useEffect(() => {
     loadRouteData();
 
-    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
-      setIsKeyboardVisible(true);
-    });
+    const keyboardDidShowListener = Keyboard.addListener(
+      "keyboardDidShow",
+      () => {
+        setIsKeyboardVisible(true);
+      }
+    );
 
-    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
-      setIsKeyboardVisible(false);
-    });
+    const keyboardDidHideListener = Keyboard.addListener(
+      "keyboardDidHide",
+      () => {
+        setIsKeyboardVisible(false);
+      }
+    );
 
     return () => {
       keyboardDidShowListener.remove();
       keyboardDidHideListener.remove();
     };
   }, []);
+
+  // Listen for offer acceptance from passenger
+  useEffect(() => {
+    const socket = getDriverSocket();
+
+    if (!socket) {
+      console.warn("⚠️ Socket not available for offerAccepted listener");
+      return;
+    }
+
+    console.log("🔌 Socket connection status:", socket.connected);
+    console.log("🔌 Socket ID:", socket.id);
+
+    const handleOfferAccepted = (data: {
+      rideId: string;
+      driverId: string;
+      passengerId?: string;
+      message?: string;
+      counterFare?: number;
+    }) => {
+      console.log("🎉 ========================================");
+      console.log("🎉 OFFER ACCEPTED EVENT RECEIVED!");
+      console.log("🎉 Event data:", data);
+      console.log("🎉 Current ride ID:", params.rideId);
+      console.log("🎉 Counter fare received:", data.counterFare);
+      console.log("🎉 ========================================");
+
+      // Check if this is the current ride
+      if (data.rideId === params.rideId) {
+        console.log("✅ This is our ride! Navigating to pickup...");
+
+        // Show success alert and navigate
+        Alert.alert(
+          "Offer Accepted! 🎉",
+          data.message ||
+            "Passenger accepted your counter offer. Ready to start the ride?",
+          [
+            {
+              text: "Start Navigation",
+              onPress: () => {
+                console.log("🚗 User clicked Start Navigation");
+
+                // Navigate directly here instead of calling handleAcceptRide
+                const pickupParams: any = {
+                  ...params,
+                  rideType: isSharedRide ? "shared" : "solo",
+                };
+
+                // Override fare with accepted counter fare if available
+                if (data.counterFare) {
+                  console.log(
+                    "💰 Updating fare to counter offer:",
+                    data.counterFare
+                  );
+                  if (isSharedRide) {
+                    // For shared rides, update the fare array
+                    const updatedFares = [...fares];
+                    updatedFares[0] = data.counterFare.toString();
+                    pickupParams.fare = JSON.stringify(updatedFares);
+                  } else {
+                    // For solo rides, just update the single fare
+                    pickupParams.fare = data.counterFare.toString();
+                  }
+                }
+
+                if (isSharedRide && optimizedStops.length > 0) {
+                  pickupParams.optimizedStops = JSON.stringify(optimizedStops);
+                }
+
+                console.log(
+                  "🚗 Navigating to pickup with params:",
+                  pickupParams
+                );
+
+                router.push({
+                  pathname: "/pickup",
+                  params: pickupParams,
+                });
+              },
+            },
+          ],
+          { cancelable: false }
+        );
+      } else {
+        console.log(
+          "ℹ️ Offer accepted but for different ride:",
+          data.rideId,
+          "vs",
+          params.rideId
+        );
+      }
+    };
+
+    // Add listener
+    socket.on("offerAccepted", handleOfferAccepted);
+
+    console.log("👂 ========================================");
+    console.log("👂 LISTENER ATTACHED FOR offerAccepted");
+    console.log("👂 Listening on ride:", params.rideId);
+    console.log("👂 Socket ID:", socket.id);
+    console.log("👂 Socket connected:", socket.connected);
+    console.log("👂 ========================================");
+
+    // Cleanup on unmount
+    return () => {
+      socket.off("offerAccepted", handleOfferAccepted);
+      console.log("🔇 Removed offerAccepted listener for ride:", params.rideId);
+    };
+  }, [params.rideId, isSharedRide, optimizedStops, router]);
 
   const loadRouteData = async () => {
     try {
@@ -112,7 +248,7 @@ export default function RideRequestPage() {
       }
 
       if (!pickups.length || !destinations.length) {
-        Alert.alert('Error', 'Pickup or destination data missing.');
+        Alert.alert("Error", "Pickup or destination data missing.");
         return;
       }
 
@@ -121,11 +257,17 @@ export default function RideRequestPage() {
         pickups.map((pickup: string) => getCoordinatesFromAddress(pickup))
       );
       const destinationCoordinates = await Promise.all(
-        destinations.map((destination: string) => getCoordinatesFromAddress(destination))
+        destinations.map((destination: string) =>
+          getCoordinatesFromAddress(destination)
+        )
       );
 
-      const validPickupCoords = pickupCoordinates.filter(Boolean) as Coordinate[];
-      const validDestinationCoords = destinationCoordinates.filter(Boolean) as Coordinate[];
+      const validPickupCoords = pickupCoordinates.filter(
+        Boolean
+      ) as Coordinate[];
+      const validDestinationCoords = destinationCoordinates.filter(
+        Boolean
+      ) as Coordinate[];
 
       if (validPickupCoords.length > 0 && validDestinationCoords.length > 0) {
         setPickupCoords(validPickupCoords);
@@ -133,10 +275,16 @@ export default function RideRequestPage() {
 
         // For shared rides, calculate optimized route and stops
         if (isSharedRide) {
-          await calculateOptimizedSharedRide(validPickupCoords, validDestinationCoords);
+          await calculateOptimizedSharedRide(
+            validPickupCoords,
+            validDestinationCoords
+          );
         } else {
           // Solo ride
-          const route = await getRouteCoordinates(validPickupCoords[0], validDestinationCoords[0]);
+          const route = await getRouteCoordinates(
+            validPickupCoords[0],
+            validDestinationCoords[0]
+          );
           setRouteCoords(route);
         }
 
@@ -151,11 +299,14 @@ export default function RideRequestPage() {
           }
         }, 1000);
       } else {
-        Alert.alert('Error', 'Could not fetch coordinates for the given locations.');
+        Alert.alert(
+          "Error",
+          "Could not fetch coordinates for the given locations."
+        );
       }
     } catch (error) {
-      console.error('Error loading route:', error);
-      Alert.alert('Error', 'Failed to load route information.');
+      console.error("Error loading route:", error);
+      Alert.alert("Error", "Failed to load route information.");
     } finally {
       setIsLoading(false);
 
@@ -166,51 +317,69 @@ export default function RideRequestPage() {
     }
   };
 
-  const calculateOptimizedSharedRide = async (pickupCoords: Coordinate[], destinationCoords: Coordinate[]) => {
+  const calculateOptimizedSharedRide = async (
+    pickupCoords: Coordinate[],
+    destinationCoords: Coordinate[]
+  ) => {
     try {
       // Get driver location from params
-      const driverLocation = params.driverLat && params.driverLng ? {
-        latitude: parseFloat(params.driverLat),
-        longitude: parseFloat(params.driverLng)
-      } : {
-        latitude: 31.5204, // Default Lahore coordinates as fallback
-        longitude: 74.3587
-      };
+      const driverLocation =
+        params.driverLat && params.driverLng
+          ? {
+              latitude: parseFloat(params.driverLat),
+              longitude: parseFloat(params.driverLng),
+            }
+          : {
+              latitude: 31.5204, // Default Lahore coordinates as fallback
+              longitude: 74.3587,
+            };
 
       // Calculate time to nearest pickup
-      const timeResult = await calculateTimeToNearestPickup(driverLocation, pickups);
+      const timeResult = await calculateTimeToNearestPickup(
+        driverLocation,
+        pickups
+      );
       setTimeToPickup(timeResult.timeAway);
 
       // Calculate shared ride distance
-      const distanceResult = await calculateSharedRideDistance(pickups, destinations);
+      const distanceResult = await calculateSharedRideDistance(
+        pickups,
+        destinations
+      );
       setSharedRideDistance(distanceResult.distance);
 
       // Determine optimized route order
       const optimizedOrder = await determineTrueOptimalRouteOrder(
-        driverLocation, 
-        pickupCoords, 
-        destinationCoords, 
-        passengerNames, 
+        driverLocation,
+        pickupCoords,
+        destinationCoords,
+        passengerNames,
         fares
       );
       setOptimizedStops(optimizedOrder);
 
       // Get route for optimized order
-      const route = await calculateOptimizedRoute(optimizedOrder, pickupCoords, destinationCoords);
+      const route = await calculateOptimizedRoute(
+        optimizedOrder,
+        pickupCoords,
+        destinationCoords
+      );
       setRouteCoords(route);
-
     } catch (error) {
-      console.error('Error optimizing shared ride:', error);
+      console.error("Error optimizing shared ride:", error);
       // Fallback to default order
       const defaultStops = createDefaultStops();
       setOptimizedStops(defaultStops);
-      
+
       // Try to get a basic route
       try {
-        const basicRoute = await getSharedRideRoute(pickupCoords, destinationCoords);
+        const basicRoute = await getSharedRideRoute(
+          pickupCoords,
+          destinationCoords
+        );
         setRouteCoords(basicRoute);
       } catch (routeError) {
-        console.error('Error getting basic route:', routeError);
+        console.error("Error getting basic route:", routeError);
         setRouteCoords([]);
       }
     }
@@ -224,17 +393,21 @@ export default function RideRequestPage() {
     try {
       // Create an array of coordinates in the optimized order
       const orderedCoords: Coordinate[] = [];
-      
+
       for (const stop of optimizedOrder) {
-        if (stop.type === 'pickup') {
+        if (stop.type === "pickup") {
           // Add type annotation to the addr parameter
-          const index = pickups.findIndex((addr: string) => addr === stop.address);
+          const index = pickups.findIndex(
+            (addr: string) => addr === stop.address
+          );
           if (index >= 0 && pickupCoords[index]) {
             orderedCoords.push(pickupCoords[index]);
           }
         } else {
           // Add type annotation to the addr parameter
-          const index = destinations.findIndex((addr: string) => addr === stop.address);
+          const index = destinations.findIndex(
+            (addr: string) => addr === stop.address
+          );
           if (index >= 0 && destinationCoords[index]) {
             orderedCoords.push(destinationCoords[index]);
           }
@@ -246,27 +419,34 @@ export default function RideRequestPage() {
         const origin = orderedCoords[0];
         const destination = orderedCoords[orderedCoords.length - 1];
         const waypoints = orderedCoords.slice(1, -1);
-        
+
         if (waypoints.length > 0) {
-          const waypointsStr = waypoints.map(wp => `${wp.latitude},${wp.longitude}`).join('|');
+          const waypointsStr = waypoints
+            .map((wp) => `${wp.latitude},${wp.longitude}`)
+            .join("|");
           const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}&waypoints=optimize:true|${waypointsStr}&mode=driving&key=${GOOGLE_MAPS_API_KEY}`;
 
           const response = await fetch(url);
           const data = await response.json();
 
           if (data.status === "OK" && data.routes && data.routes.length > 0) {
-            const points = polyline.decode(data.routes[0].overview_polyline.points);
-            return points.map(([latitude, longitude]) => ({ latitude, longitude }));
+            const points = polyline.decode(
+              data.routes[0].overview_polyline.points
+            );
+            return points.map(([latitude, longitude]) => ({
+              latitude,
+              longitude,
+            }));
           }
         } else {
           // Direct route without waypoints
           return await getRouteCoordinates(origin, destination);
         }
       }
-      
+
       return [];
     } catch (error) {
-      console.error('Error calculating optimized route:', error);
+      console.error("Error calculating optimized route:", error);
       return [];
     }
   };
@@ -287,31 +467,36 @@ export default function RideRequestPage() {
               `${driverLocation.latitude},${driverLocation.longitude}`,
               `${coord.latitude},${coord.longitude}`
             );
-            return { 
-              index, 
-              distance: result.distanceValue, 
+            return {
+              index,
+              distance: result.distanceValue,
               coord,
               address: pickups[index],
-              passengerName: passengerNames[index]
+              passengerName: passengerNames[index],
             };
           } catch (error) {
-            console.warn(`Error calculating distance to pickup ${index}:`, error);
-            return { 
-              index, 
+            console.warn(
+              `Error calculating distance to pickup ${index}:`,
+              error
+            );
+            return {
+              index,
               distance: 1000000 + index,
               coord,
               address: pickups[index],
-              passengerName: passengerNames[index]
+              passengerName: passengerNames[index],
             };
           }
         })
       );
-      
+
       // Sort pickups by distance to driver
-      const sortedPickups = [...pickupDistances].sort((a, b) => a.distance - b.distance);
-      
-      const firstPickup = sortedPickups[0]; 
-      const secondPickup = sortedPickups[1]; 
+      const sortedPickups = [...pickupDistances].sort(
+        (a, b) => a.distance - b.distance
+      );
+
+      const firstPickup = sortedPickups[0];
+      const secondPickup = sortedPickups[1];
 
       // 2. From second pickup (stop 2), find closest destination
       const destinationDistances = await Promise.all(
@@ -326,67 +511,72 @@ export default function RideRequestPage() {
               distance: result.distanceValue,
               coord,
               address: destinations[index],
-              passengerName: passengerNames[index]
+              passengerName: passengerNames[index],
             };
           } catch (error) {
-            console.warn(`Error calculating distance to destination ${index}:`, error);
+            console.warn(
+              `Error calculating distance to destination ${index}:`,
+              error
+            );
             return {
               index,
               distance: 1000000 + index,
               coord,
               address: destinations[index],
-              passengerName: passengerNames[index]
+              passengerName: passengerNames[index],
             };
           }
         })
       );
 
       // Sort destinations by distance from second pickup
-      const sortedDestinations = [...destinationDistances].sort((a, b) => a.distance - b.distance);
-      
-      const firstDestination = sortedDestinations[0]; 
-      const secondDestination = sortedDestinations[1]; 
+      const sortedDestinations = [...destinationDistances].sort(
+        (a, b) => a.distance - b.distance
+      );
+
+      const firstDestination = sortedDestinations[0];
+      const secondDestination = sortedDestinations[1];
 
       return [
         {
-          type: 'pickup',
+          type: "pickup",
           address: firstPickup.address,
           passengerName: firstPickup.passengerName,
           fare: fares[firstPickup.index],
           stopNumber: 1,
           isFirstInSequence: true,
-          coordinate: firstPickup.coord
+          coordinate: firstPickup.coord,
         },
         {
-          type: 'pickup',
+          type: "pickup",
           address: secondPickup.address,
           passengerName: secondPickup.passengerName,
           fare: fares[secondPickup.index],
           stopNumber: 2,
           isFirstInSequence: false,
-          coordinate: secondPickup.coord
+          coordinate: secondPickup.coord,
         },
         {
-          type: 'destination',
+          type: "destination",
           address: firstDestination.address,
           passengerName: firstDestination.passengerName,
           fare: fares[firstDestination.index],
           stopNumber: 3,
           isFirstInSequence: true,
-          coordinate: firstDestination.coord
+          coordinate: firstDestination.coord,
         },
         {
-          type: 'destination',
+          type: "destination",
           address: secondDestination.address,
           passengerName: secondDestination.passengerName,
           fare: fares[secondDestination.index],
           stopNumber: 4,
           isFirstInSequence: false,
-          coordinate: secondDestination.coord
-        }
+          coordinate: secondDestination.coord,
+        },
       ];
     } catch (error) {
-      console.error('Error determining optimal route:', error);
+      console.error("Error determining optimal route:", error);
       return createDefaultStops();
     }
   };
@@ -394,100 +584,155 @@ export default function RideRequestPage() {
   const createDefaultStops = (): SharedRideStop[] => {
     return [
       {
-        type: 'pickup',
+        type: "pickup",
         address: pickups[0],
         passengerName: passengerNames[0],
         fare: fares[0],
         stopNumber: 1,
         isFirstInSequence: true,
-        coordinate: pickupCoords[0] || { latitude: 0, longitude: 0 }
+        coordinate: pickupCoords[0] || { latitude: 0, longitude: 0 },
       },
       {
-        type: 'pickup',
+        type: "pickup",
         address: pickups[1],
         passengerName: passengerNames[1],
         fare: fares[1],
         stopNumber: 2,
         isFirstInSequence: false,
-        coordinate: pickupCoords[1] || { latitude: 0, longitude: 0 }
+        coordinate: pickupCoords[1] || { latitude: 0, longitude: 0 },
       },
       {
-        type: 'destination',
+        type: "destination",
         address: destinations[0],
         passengerName: passengerNames[0],
         fare: fares[0],
         stopNumber: 3,
         isFirstInSequence: true,
-        coordinate: destinationCoords[0] || { latitude: 0, longitude: 0 }
+        coordinate: destinationCoords[0] || { latitude: 0, longitude: 0 },
       },
       {
-        type: 'destination',
+        type: "destination",
         address: destinations[1],
         passengerName: passengerNames[1],
         fare: fares[1],
         stopNumber: 4,
         isFirstInSequence: false,
-        coordinate: destinationCoords[1] || { latitude: 0, longitude: 0 }
-      }
+        coordinate: destinationCoords[1] || { latitude: 0, longitude: 0 },
+      },
     ];
   };
 
-  const getPinColor = (stopNumber: number, type: 'pickup' | 'destination') => {
+  const getPinColor = (stopNumber: number, type: "pickup" | "destination") => {
     if (!isSharedRide) {
-      return type === 'pickup' ? '#FF4444' : '#4CAF50';
+      return type === "pickup" ? "#FF4444" : "#4CAF50";
     }
 
-    if (type === 'pickup') {
-      return '#FF4444'; 
+    if (type === "pickup") {
+      return "#FF4444";
     } else {
-      return '#4CAF50'; 
+      return "#4CAF50";
     }
   };
 
-  const getPinIcon = (stopNumber: number, type: 'pickup' | 'destination'): 'map-marker' | 'map-marker-outline' => {
+  const getPinIcon = (
+    stopNumber: number,
+    type: "pickup" | "destination"
+  ): "map-marker" | "map-marker-outline" => {
     if (!isSharedRide) {
-      return type === 'pickup' ? 'map-marker-outline' : 'map-marker';
+      return type === "pickup" ? "map-marker-outline" : "map-marker";
     }
 
-    // For shared rides: 
+    // For shared rides:
     // - Stop 1 (first pickup): outline red
-    // - Stop 2 (second pickup): filled red  
+    // - Stop 2 (second pickup): filled red
     // - Stop 3 (first destination): outline green
     // - Stop 4 (second destination): filled green
-    
-    if (type === 'pickup') {
-      return stopNumber === 1 ? 'map-marker-outline' : 'map-marker';
-    } else {  
-      return stopNumber === 3 ? 'map-marker-outline' : 'map-marker';
+
+    if (type === "pickup") {
+      return stopNumber === 1 ? "map-marker-outline" : "map-marker";
+    } else {
+      return stopNumber === 3 ? "map-marker-outline" : "map-marker";
     }
   };
 
   // In your RideRequestPage, update the handleAcceptRide function:
 
-const handleAcceptRide = () => {
-  // Prepare the params for pickup page - use type assertion to avoid TypeScript errors
-  const pickupParams: any = {
-    ...params,
-    rideType: isSharedRide ? 'shared' : 'solo',
+  const handleAcceptRide = () => {
+    if (!isSharedRide) {
+      // For solo rides, emit counter offer with the original fare
+      const offeredFare = fares[0] ? Number(fares[0]) : 0;
+
+      if (!offeredFare || offeredFare <= 0) {
+        Alert.alert("Error", "Invalid fare amount");
+        return;
+      }
+
+      // Get the driver socket
+      const socket = getDriverSocket();
+
+      if (!socket.connected) {
+        Alert.alert(
+          "Connection Error",
+          "Not connected to server. Please try again."
+        );
+        return;
+      }
+
+      // Prepare counter offer data with original fare
+      const counterOfferData = {
+        driverId: "68908c87f5bd1d56dcc631b8",
+        passengerId: params.passengerId,
+        rideId: params.rideId,
+        counterFare: offeredFare, // Send original fare as counter offer
+      };
+
+      console.log(
+        "📤 Sending ride acceptance as counter offer:",
+        counterOfferData
+      );
+
+      try {
+        // Emit counter offer to backend
+        socket.emit("sendCounterOffer", counterOfferData);
+
+        console.log("✅ Ride acceptance sent successfully to backend");
+
+        Alert.alert(
+          "Waiting for Passenger",
+          `Ride accepted for Rs ${offeredFare}. Waiting for passenger confirmation...`,
+          [{ text: "OK" }]
+        );
+      } catch (error: any) {
+        console.error("❌ Error sending ride acceptance:", error);
+        Alert.alert("Error", `Failed to send acceptance: ${error.message}`, [
+          { text: "OK" },
+        ]);
+      }
+    } else {
+      // For shared rides, use the old flow (direct navigation)
+      const pickupParams: any = {
+        ...params,
+        rideType: "shared",
+      };
+
+      // For shared rides, pass the optimized stops
+      if (optimizedStops.length > 0) {
+        pickupParams.optimizedStops = JSON.stringify(optimizedStops);
+      }
+
+      router.push({
+        pathname: "/pickup",
+        params: pickupParams,
+      });
+
+      Alert.alert(
+        "Ride Accepted",
+        "Navigate to pickup locations",
+        [{ text: "OK" }],
+        { cancelable: false }
+      );
+    }
   };
-
-  // For shared rides, pass the optimized stops
-  if (isSharedRide && optimizedStops.length > 0) {
-    pickupParams.optimizedStops = JSON.stringify(optimizedStops);
-  }
-
-  router.push({
-    pathname: '/pickup',
-    params: pickupParams,
-  });
-  
-  Alert.alert(
-    'Ride Accepted',
-    `Navigate to ${isSharedRide ? 'pickup locations' : 'pickup location'}`,
-    [{ text: 'OK' }],
-    { cancelable: false },
-  );
-};
 
   const handleOfferFare = () => {
     if (!isSharedRide) {
@@ -495,17 +740,59 @@ const handleAcceptRide = () => {
       const fareValue = counterFare ? Number(counterFare) : 0;
 
       if (!counterFare || fareValue <= 0) {
-        Alert.alert('Invalid Fare', 'Please enter a valid fare amount');
+        Alert.alert("Invalid Fare", "Please enter a valid fare amount");
         return;
       }
 
       if (fareValue < offeredFare) {
-        Alert.alert('Invalid Fare', `Your fare must be at least Rs ${offeredFare}`);
+        Alert.alert(
+          "Invalid Fare",
+          `Your fare must be at least Rs ${offeredFare}`
+        );
         return;
       }
 
-      Alert.alert('Counter Offer Sent', `Your offer of Rs ${fareValue} has been sent to the passenger.`);
-      router.back();
+      // Get the driver socket
+      const socket = getDriverSocket();
+
+      if (!socket.connected) {
+        Alert.alert(
+          "Connection Error",
+          "Not connected to server. Please try again."
+        );
+        return;
+      }
+
+      // Prepare counter offer data
+      const counterOfferData = {
+        driverId: "68908c87f5bd1d56dcc631b8", // Same driver ID as in index.tsx
+        passengerId: params.passengerId,
+        rideId: params.rideId,
+        counterFare: fareValue, // Send as number, not string
+      };
+
+      console.log("📤 Sending counter offer:", counterOfferData);
+
+      try {
+        // Emit counter offer to backend
+        socket.emit("sendCounterOffer", counterOfferData);
+
+        console.log("✅ Counter offer emitted successfully to backend");
+
+        // Clear the input field
+        setCounterFare("");
+
+        Alert.alert(
+          "Counter Offer Sent",
+          `Your offer of Rs ${fareValue} has been sent to the passenger. Waiting for acceptance...`,
+          [{ text: "OK" }]
+        );
+      } catch (error: any) {
+        console.error("❌ Error emitting counter offer:", error);
+        Alert.alert("Error", `Failed to send counter offer: ${error.message}`, [
+          { text: "OK" },
+        ]);
+      }
     }
   };
 
@@ -522,19 +809,20 @@ const handleAcceptRide = () => {
           </View>
           <View style={styles.stopInfo}>
             <Text style={styles.stopType}>
-              {stop.type === 'pickup' ? 'Pickup' : 'Destination'} • {stop.passengerName}
+              {stop.type === "pickup" ? "Pickup" : "Destination"} •{" "}
+              {stop.passengerName}
             </Text>
-            
-            {stop.type === 'destination' && (
+
+            {stop.type === "destination" && (
               <Text style={styles.stopFare}>Rs {stop.fare}</Text>
             )}
           </View>
         </View>
         <View style={styles.stopAddressRow}>
-          <MaterialCommunityIcons 
-            name={getPinIcon(stop.stopNumber, stop.type)} 
-            size={20} 
-            color={getPinColor(stop.stopNumber, stop.type)} 
+          <MaterialCommunityIcons
+            name={getPinIcon(stop.stopNumber, stop.type)}
+            size={20}
+            color={getPinColor(stop.stopNumber, stop.type)}
           />
           <Text style={styles.stopAddress}>{stop.address}</Text>
         </View>
@@ -547,10 +835,19 @@ const handleAcceptRide = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar backgroundColor="transparent" barStyle="dark-content" translucent />
+      <StatusBar
+        backgroundColor="transparent"
+        barStyle="dark-content"
+        translucent
+      />
 
       {/* Map */}
-      <View style={[styles.mapContainer, isKeyboardVisible && styles.mapContainerKeyboard]}>
+      <View
+        style={[
+          styles.mapContainer,
+          isKeyboardVisible && styles.mapContainerKeyboard,
+        ]}
+      >
         <RideRequestMap
           pickupCoords={pickupCoords}
           destinationCoords={destinationCoords}
@@ -566,20 +863,24 @@ const handleAcceptRide = () => {
 
       {/* Ride Details Card - Non Scrollable */}
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.keyboardAvoidingView}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
       >
-        <View style={[
-          styles.card, 
-          isSharedRide ? styles.cardShared : styles.cardSolo,
-          isKeyboardVisible && styles.cardKeyboard
-        ]}>
+        <View
+          style={[
+            styles.card,
+            isSharedRide ? styles.cardShared : styles.cardSolo,
+            isKeyboardVisible && styles.cardKeyboard,
+          ]}
+        >
           {/* Shared Ride Header */}
           {isSharedRide && (
             <View style={styles.sharedRideHeader}>
               <View style={styles.sharedRideInfo}>
-                <Text style={styles.sharedRideDistance}>Distance: {sharedRideDistance}</Text>
+                <Text style={styles.sharedRideDistance}>
+                  Distance: {sharedRideDistance}
+                </Text>
                 <Text style={styles.sharedRideTimeAway}>{timeToPickup}</Text>
               </View>
               <Text style={styles.totalFareAmount}>Rs {totalFare}</Text>
@@ -595,7 +896,10 @@ const handleAcceptRide = () => {
             // Solo Ride Content
             <>
               {passengerNames.map((name: string, index: number) => (
-                <View key={`passenger-${index}`} style={styles.passengerSection}>
+                <View
+                  key={`passenger-${index}`}
+                  style={styles.passengerSection}
+                >
                   <PassengerInfo
                     name={name}
                     profilePhoto={params.profilePhoto}
@@ -633,7 +937,10 @@ const handleAcceptRide = () => {
                       }}
                     />
                   </View>
-                  <TouchableOpacity style={styles.sendButton} onPress={handleOfferFare}>
+                  <TouchableOpacity
+                    style={styles.sendButton}
+                    onPress={handleOfferFare}
+                  >
                     <Text style={styles.sendText}>Send</Text>
                   </TouchableOpacity>
                 </View>
@@ -642,25 +949,25 @@ const handleAcceptRide = () => {
           )}
 
           {/* Accept Button */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[
-              styles.acceptButton, 
-              isAcceptButtonDisabled && styles.acceptButtonDisabled
-            ]} 
+              styles.acceptButton,
+              isAcceptButtonDisabled && styles.acceptButtonDisabled,
+            ]}
             onPress={handleAcceptRide}
             disabled={isAcceptButtonDisabled}
           >
-            <Text style={[
-              styles.acceptText,
-              isAcceptButtonDisabled && styles.acceptTextDisabled
-            ]}>
-              {isAcceptButtonDisabled 
-                ? 'Loading...' 
-                : (isSharedRide 
-                    ? `Accept Shared Ride - Rs ${totalFare}` 
-                    : `Accept for Rs ${fares[0] || '250'}`
-                  )
-              }
+            <Text
+              style={[
+                styles.acceptText,
+                isAcceptButtonDisabled && styles.acceptTextDisabled,
+              ]}
+            >
+              {isAcceptButtonDisabled
+                ? "Loading..."
+                : isSharedRide
+                ? `Accept Shared Ride - Rs ${totalFare}`
+                : `Accept for Rs ${fares[0] || "250"}`}
             </Text>
           </TouchableOpacity>
         </View>
@@ -672,11 +979,11 @@ const handleAcceptRide = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: "#f5f5f5",
   },
   mapContainer: {
     flex: 1,
-    position: 'relative' as const,
+    position: "relative" as const,
   },
   mapContainerKeyboard: {
     flex: 0.5,
@@ -686,18 +993,18 @@ const styles = StyleSheet.create({
   },
   // Card styles - non scrollable
   card: {
-    backgroundColor: '#E3F2FD',
+    backgroundColor: "#E3F2FD",
     padding: 20,
     borderTopLeftRadius: 40,
     borderTopRightRadius: 40,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 8,
   },
   cardSolo: {
-    maxHeight: height * 0.50,
+    maxHeight: height * 0.5,
     minHeight: height * 0.4,
   },
   cardShared: {
@@ -709,167 +1016,167 @@ const styles = StyleSheet.create({
   },
   sharedRideContent: {
     flex: 1,
-    marginBottom: 8, 
+    marginBottom: 8,
   },
   stopContainer: {
-    marginBottom: 4, 
+    marginBottom: 4,
   },
   stopHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 6,
   },
   stopNumberContainer: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#0286FF',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#0286FF",
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 12,
     zIndex: 2,
   },
   stopNumber: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   stopInfo: {
     flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   stopType: {
     fontSize: 15,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: "600",
+    color: "#333",
   },
   stopFare: {
     fontSize: 15,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: "600",
+    color: "#333",
   },
   stopAddressRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: 8,
     paddingHorizontal: 12,
-    backgroundColor: '#f8f8f8',
+    backgroundColor: "#f8f8f8",
     borderRadius: 20,
-    marginLeft: 36, 
-    marginBottom: 4, 
+    marginLeft: 36,
+    marginBottom: 4,
   },
   stopAddress: {
     fontSize: 15,
     flex: 1,
-    color: '#333',
+    color: "#333",
     marginLeft: 12,
   },
   stopConnector: {
-    position: 'absolute',
+    position: "absolute",
     width: 2,
-    height: 28, 
-    backgroundColor: '#BBDEFB',
-    left: 11, 
-    top: 32, 
-    zIndex: 1, 
+    height: 28,
+    backgroundColor: "#BBDEFB",
+    left: 11,
+    top: 32,
+    zIndex: 1,
   },
   passengerSection: {
     marginBottom: 8,
   },
   sharedRideHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16, 
-    paddingBottom: 12, 
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+    paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#BBDEFB',
+    borderBottomColor: "#BBDEFB",
   },
   sharedRideInfo: {
     flex: 1,
   },
   sharedRideDistance: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: "600",
+    color: "#333",
     marginBottom: 2,
   },
   sharedRideTimeAway: {
     fontSize: 14,
-    color: '#666',
+    color: "#666",
   },
   totalFareAmount: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: "bold",
+    color: "#333",
   },
   acceptButton: {
-    backgroundColor: '#0286FF',
+    backgroundColor: "#0286FF",
     paddingVertical: 16,
     borderRadius: 24,
-    alignItems: 'center',
-    marginTop: 4, 
+    alignItems: "center",
+    marginTop: 4,
     marginBottom: -6,
   },
   acceptButtonDisabled: {
-    backgroundColor: '#cccccc',
+    backgroundColor: "#cccccc",
   },
   acceptText: {
-    color: '#fff',
-    fontWeight: '600',
+    color: "#fff",
+    fontWeight: "600",
     fontSize: 16,
   },
   acceptTextDisabled: {
-    color: '#666666',
+    color: "#666666",
   },
   offerText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: "600",
+    color: "#333",
     marginBottom: 8,
   },
   fareInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 16,
     gap: 12,
   },
   counterRow: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f8f8f8',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f8f8f8",
     borderRadius: 24,
     height: 45,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   currencyText: {
     fontSize: 16,
-    color: '#333',
+    color: "#333",
     paddingHorizontal: 12,
   },
   input: {
     flex: 1,
     fontSize: 16,
-    color: '#333',
-    height: '100%',
+    color: "#333",
+    height: "100%",
     paddingHorizontal: 8,
     paddingRight: 12,
   },
   sendButton: {
-    backgroundColor: '#4CAF50',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#4CAF50",
+    justifyContent: "center",
+    alignItems: "center",
     paddingHorizontal: 30,
     height: 45,
     borderRadius: 24,
     minWidth: 100,
   },
   sendText: {
-    color: '#fff',
-    fontWeight: '600',
+    color: "#fff",
+    fontWeight: "600",
     fontSize: 16,
   },
 });

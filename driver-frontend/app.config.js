@@ -75,12 +75,13 @@ export default {
       ],
     ],
 
-
     experiments: {
       typedRoutes: true,
     },
     extra: {
       googleMapsApiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY,
+      MAPS_API_KEY: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY, // For mapsApi.ts
+      BACKEND_URL: process.env.EXPO_PUBLIC_BACKEND_URL,
       eas: {
         projectId: "36030896-40c2-4ba5-9dd2-b824c19e182f",
       },

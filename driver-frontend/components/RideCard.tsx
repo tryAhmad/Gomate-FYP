@@ -1,23 +1,24 @@
-import React from "react"
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native"
-import { Ionicons } from "@expo/vector-icons"
+import React from "react";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 
 export interface RideRequest {
-  id: string
-  pickup: string | string[]
-  destination: string | string[]
-  fare: number | number[]
-  distance: string
-  timeAway: string
-  passengerName: string | string[]
-  passengerPhone: string | string[]
-  isCalculating?: boolean
-  type: "solo" | "shared"
+  id: string;
+  pickup: string | string[];
+  destination: string | string[];
+  fare: number | number[];
+  distance: string;
+  timeAway: string;
+  passengerName: string | string[];
+  passengerPhone: string | string[];
+  passengerId: string | string[]; // Added for socket communication
+  isCalculating?: boolean;
+  type: "solo" | "shared";
 }
 
 interface RideCardProps {
-  ride: RideRequest
-  onViewRide: (rideId: string) => void
+  ride: RideRequest;
+  onViewRide: (rideId: string) => void;
 }
 
 const RideCard: React.FC<RideCardProps> = ({ ride, onViewRide }) => {
@@ -56,25 +57,29 @@ const RideCard: React.FC<RideCardProps> = ({ ride, onViewRide }) => {
                 <Ionicons name="location" size={16} color="#4CAF50" />
               </View>
             </View>
-            <Text style={styles.locationText}>{ride.destination as string}</Text>
+            <Text style={styles.locationText}>
+              {ride.destination as string}
+            </Text>
           </View>
         </View>
       </>
-    )
-  }
+    );
+  };
 
   const renderSharedRide = () => {
-    const passengers = ride.passengerName as string[]
-    const fares = ride.fare as number[]
-    const pickups = ride.pickup as string[]
-    const destinations = ride.destination as string[]
-    
+    const passengers = ride.passengerName as string[];
+    const fares = ride.fare as number[];
+    const pickups = ride.pickup as string[];
+    const destinations = ride.destination as string[];
+
     return (
       <>
         {/* Shared Ride Header with Distance and Time Away */}
         <View style={styles.sharedRideHeader}>
           <View style={styles.sharedRideInfo}>
-            <Text style={styles.sharedRideDistance}>Distance: {ride.distance}</Text>
+            <Text style={styles.sharedRideDistance}>
+              Distance: {ride.distance}
+            </Text>
             <Text style={styles.sharedRideTimeAway}>{ride.timeAway}</Text>
           </View>
           <Text style={styles.totalFareAmount}>PKR {fares[0] + fares[1]}</Text>
@@ -157,15 +162,18 @@ const RideCard: React.FC<RideCardProps> = ({ ride, onViewRide }) => {
           </View>
         </View>
       </>
-    )
-  }
+    );
+  };
 
   return (
     <View style={styles.rideCard}>
       {ride.type === "solo" ? renderSoloRide() : renderSharedRide()}
 
       <TouchableOpacity
-        style={[styles.viewRideButton, ride.isCalculating && styles.viewRideButtonDisabled]}
+        style={[
+          styles.viewRideButton,
+          ride.isCalculating && styles.viewRideButtonDisabled,
+        ]}
         onPress={() => onViewRide(ride.id)}
         disabled={ride.isCalculating}
       >
@@ -174,8 +182,8 @@ const RideCard: React.FC<RideCardProps> = ({ ride, onViewRide }) => {
         </Text>
       </TouchableOpacity>
     </View>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   rideCard: {
@@ -329,6 +337,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontSize: 16,
   },
-})
+});
 
-export default RideCard
+export default RideCard;
