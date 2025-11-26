@@ -1,185 +1,252 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Search, MoreHorizontal, Trash2, Edit2, Eye, CheckCircle, XCircle } from "lucide-react"
-import { API_CONFIG } from "@/lib/api-config"
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Search,
+  MoreHorizontal,
+  Trash2,
+  Edit2,
+  Eye,
+  CheckCircle,
+  XCircle,
+} from "lucide-react";
+import { API_CONFIG } from "@/lib/api-config";
 
 interface Driver {
-  _id: string
+  _id: string;
   fullname: {
-    firstname: string
-    lastname?: string
-  }
-  email: string
-  phoneNumber: string
-  status: 'active' | 'inactive'
+    firstname: string;
+    lastname?: string;
+  };
+  email: string;
+  phoneNumber: string;
+  status: "active" | "inactive";
   vehicle: {
-    color: string
-    plate: string
-    capacity: number
-    vehicleType: 'car' | 'motorcycle' | 'auto'
-    company?: string
-    model?: string
-  }
+    color: string;
+    plate: string;
+    capacity: number;
+    vehicleType: "car" | "motorcycle" | "auto";
+    company?: string;
+    model?: string;
+  };
   location: {
-    type: 'Point'
-    coordinates: [number, number]
-  }
-  role: string
-  createdAt: string
-  updatedAt: string
+    type: "Point";
+    coordinates: [number, number];
+  };
+  role: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export default function DriversPage() {
-  const [searchTerm, setSearchTerm] = useState("")
-  const [drivers, setDrivers] = useState<Driver[]>([])
-  const [rideCounts, setRideCounts] = useState<Record<string, number>>({})
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [searchTerm, setSearchTerm] = useState("");
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [rideCounts, setRideCounts] = useState<Record<string, number>>({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchDriversAndRides = async () => {
       try {
-        setLoading(true)
-        setError(null)
+        setLoading(true);
+        setError(null);
 
         // Fetch drivers and ride counts in parallel
         const [driversResponse, rideCountsResponse] = await Promise.all([
           fetch(`${API_CONFIG.BASE_URL}/drivers`),
           fetch(`${API_CONFIG.BASE_URL}/statistics/driver-ride-counts`),
-        ])
-        
-        if (!driversResponse.ok || !rideCountsResponse.ok) {
-          throw new Error('Failed to fetch data')
+        ]);
+
+        if (!driversResponse.ok) {
+          const errorText = await driversResponse.text();
+          console.error("Drivers API error:", errorText);
+          throw new Error(
+            `Failed to fetch drivers (${driversResponse.status}). Is the backend running at ${API_CONFIG.BASE_URL}?`
+          );
         }
 
-        const driversData = await driversResponse.json()
-        const rideCountsData = await rideCountsResponse.json()
-        
-        setDrivers(driversData.drivers || [])
-        setRideCounts(rideCountsData.data || {})
-      } catch (err) {
-        console.error('Error fetching data:', err)
-        setError(err instanceof Error ? err.message : 'An error occurred')
-      } finally {
-        setLoading(false)
-      }
-    }
+        if (!rideCountsResponse.ok) {
+          const errorText = await rideCountsResponse.text();
+          console.error("Ride counts API error:", errorText);
+          throw new Error(
+            `Failed to fetch ride counts (${rideCountsResponse.status})`
+          );
+        }
 
-    fetchDriversAndRides()
-  }, [])
+        const driversData = await driversResponse.json();
+        const rideCountsData = await rideCountsResponse.json();
+
+        setDrivers(driversData.drivers || []);
+        setRideCounts(rideCountsData.data || {});
+      } catch (err) {
+        console.error("Error fetching data:", err);
+        setError(
+          err instanceof Error
+            ? err.message
+            : "An error occurred. Please ensure the backend is running."
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDriversAndRides();
+  }, []);
 
   const getDriverName = (driver: Driver) => {
-    return `${driver.fullname.firstname} ${driver.fullname.lastname || ''}`.trim()
-  }
+    return `${driver.fullname.firstname} ${
+      driver.fullname.lastname || ""
+    }`.trim();
+  };
 
-  const getVehicleDescription = (vehicle: Driver['vehicle']) => {
-    return `${vehicle.company || ''} ${vehicle.model || ''} (${vehicle.plate})`.trim()
-  }
+  const getVehicleDescription = (vehicle: Driver["vehicle"]) => {
+    return `${vehicle.color || ""} ${vehicle.company || ""} ${
+      vehicle.model || ""
+    }`.trim();
+  };
 
   const filteredDrivers = drivers.filter(
     (driver) =>
       getDriverName(driver).toLowerCase().includes(searchTerm.toLowerCase()) ||
       driver.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      driver.vehicle.plate.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+      driver.vehicle.plate.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this driver?')) {
-      return
+    if (!confirm("Are you sure you want to delete this driver?")) {
+      return;
     }
 
     try {
       const response = await fetch(`${API_CONFIG.BASE_URL}/drivers/${id}`, {
-        method: 'DELETE',
-      })
+        method: "DELETE",
+      });
 
       if (!response.ok) {
-        throw new Error('Failed to delete driver')
+        throw new Error("Failed to delete driver");
       }
 
-      setDrivers(drivers.filter((driver) => driver._id !== id))
+      setDrivers(drivers.filter((driver) => driver._id !== id));
     } catch (err) {
-      console.error('Error deleting driver:', err)
-      alert('Failed to delete driver')
+      console.error("Error deleting driver:", err);
+      alert("Failed to delete driver");
     }
-  }
+  };
 
-  const handleStatusToggle = async (id: string, currentStatus: 'active' | 'inactive') => {
+  const handleStatusToggle = async (
+    id: string,
+    currentStatus: "active" | "inactive"
+  ) => {
     try {
-      const newStatus = currentStatus === 'active' ? 'inactive' : 'active'
+      const newStatus = currentStatus === "active" ? "inactive" : "active";
       const response = await fetch(`${API_CONFIG.BASE_URL}/drivers/${id}`, {
-        method: 'PATCH',
+        method: "PATCH",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ status: newStatus }),
-      })
+      });
 
       if (!response.ok) {
-        throw new Error('Failed to update driver status')
+        const errorData = await response.json().catch(() => null);
+        const errorMessage =
+          errorData?.message ||
+          `Failed to update driver status (${response.status})`;
+        console.error("Status update error:", errorData || errorMessage);
+        throw new Error(errorMessage);
       }
 
       // Update local state
-      setDrivers(drivers.map(driver => 
-        driver._id === id ? { ...driver, status: newStatus } : driver
-      ))
+      setDrivers(
+        drivers.map((driver) =>
+          driver._id === id ? { ...driver, status: newStatus } : driver
+        )
+      );
     } catch (err) {
-      console.error('Error updating driver status:', err)
-      alert('Failed to update driver status')
+      console.error("Error updating driver status:", err);
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to update driver status";
+      alert(errorMessage);
     }
-  }
+  };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    })
-  }
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
 
-  const getStatusColor = (status: 'active' | 'inactive') => {
+  const getStatusColor = (status: "active" | "inactive") => {
     switch (status) {
       case "active":
-        return "bg-green-100 text-green-800"
+        return "bg-green-100 text-green-800";
       case "inactive":
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 text-gray-800";
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 text-gray-800";
     }
-  }
+  };
 
   const capitalizeStatus = (status: string) => {
-    return status.charAt(0).toUpperCase() + status.slice(1)
-  }
+    return status.charAt(0).toUpperCase() + status.slice(1);
+  };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-lg">Loading drivers...</div>
       </div>
-    )
+    );
   }
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-lg text-red-500">Error: {error}</div>
+      <div className="flex flex-col items-center justify-center h-96 space-y-4">
+        <div className="text-center space-y-2">
+          <h2 className="text-lg font-semibold text-red-500">
+            Failed to Load Drivers
+          </h2>
+          <p className="text-muted-foreground max-w-md">{error}</p>
+          <p className="text-sm text-muted-foreground">
+            API URL: {API_CONFIG.BASE_URL}
+          </p>
+        </div>
+        <Button onClick={() => window.location.reload()} variant="outline">
+          Retry
+        </Button>
       </div>
-    )
+    );
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Drivers Management</h1>
-          <p className="text-muted-foreground mt-2">Manage and monitor all platform drivers</p>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Drivers Management
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            Manage and monitor all platform drivers
+          </p>
         </div>
         <Button>Add New Driver</Button>
       </div>
@@ -197,21 +264,31 @@ export default function DriversPage() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Active Drivers</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Active Drivers
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{drivers.filter((d) => d.status === "active").length}</div>
+            <div className="text-2xl font-bold">
+              {drivers.filter((d) => d.status === "active").length}
+            </div>
             <p className="text-xs text-muted-foreground">Currently available</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Inactive Drivers</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Inactive Drivers
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{drivers.filter((d) => d.status === "inactive").length}</div>
-            <p className="text-xs text-muted-foreground">Not currently available</p>
+            <div className="text-2xl font-bold">
+              {drivers.filter((d) => d.status === "inactive").length}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Not currently available
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -250,22 +327,34 @@ export default function DriversPage() {
                     <TableCell>
                       <div>
                         <p className="font-medium">{getDriverName(driver)}</p>
-                        <p className="text-sm text-muted-foreground">{driver.email}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {driver.email}
+                        </p>
                       </div>
                     </TableCell>
-                    <TableCell className="text-sm">{driver.phoneNumber}</TableCell>
-                    <TableCell className="text-sm">{getVehicleDescription(driver.vehicle)}</TableCell>
-                    <TableCell className="font-mono text-sm">{driver.vehicle.plate}</TableCell>
+                    <TableCell className="text-sm">
+                      {driver.phoneNumber}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {getVehicleDescription(driver.vehicle)}
+                    </TableCell>
+                    <TableCell className="font-mono text-sm">
+                      {driver.vehicle.plate}
+                    </TableCell>
                     <TableCell>
                       <span
-                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusColor(driver.status)}`}
+                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusColor(
+                          driver.status
+                        )}`}
                       >
                         {capitalizeStatus(driver.status)}
                       </span>
                     </TableCell>
                     <TableCell className="text-sm">
                       <div className="flex items-center gap-1">
-                        <span className="font-semibold">{rideCounts[driver._id] || 0}</span>
+                        <span className="font-semibold">
+                          {rideCounts[driver._id] || 0}
+                        </span>
                         <span className="text-muted-foreground">rides</span>
                       </div>
                     </TableCell>
@@ -285,8 +374,12 @@ export default function DriversPage() {
                             <Edit2 className="h-4 w-4 mr-2" />
                             Edit
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleStatusToggle(driver._id, driver.status)}>
-                            {driver.status === 'active' ? (
+                          <DropdownMenuItem
+                            onClick={() =>
+                              handleStatusToggle(driver._id, driver.status)
+                            }
+                          >
+                            {driver.status === "active" ? (
                               <>
                                 <XCircle className="h-4 w-4 mr-2" />
                                 Set Inactive
@@ -298,7 +391,10 @@ export default function DriversPage() {
                               </>
                             )}
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(driver._id)}>
+                          <DropdownMenuItem
+                            className="text-destructive"
+                            onClick={() => handleDelete(driver._id)}
+                          >
                             <Trash2 className="h-4 w-4 mr-2" />
                             Delete
                           </DropdownMenuItem>
@@ -319,5 +415,5 @@ export default function DriversPage() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }
