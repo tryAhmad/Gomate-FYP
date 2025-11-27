@@ -181,7 +181,7 @@ export default function RideDetailModal({ visible, onClose, ride }: Props) {
                 destination={dropoffCoords}
                 apikey={GOOGLE_MAPS_APIKEY}
                 strokeWidth={4}
-                strokeColor="black"
+                strokeColor="#0486FE"
               />
             )}
           </MapView>

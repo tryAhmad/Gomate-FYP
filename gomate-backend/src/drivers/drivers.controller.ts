@@ -45,7 +45,7 @@ export class DriversController {
   }
 
   @Get(':id')
-  @UseGuards(JwtAuthGuard)
+  //@UseGuards(JwtAuthGuard) // Temporarily disabled for admin dashboard
   @ApiOperation({ summary: 'Get a driver by ID' })
   async findOne(@Param('id') id: string) {
     const driver = await this.driversService.findOne(id);

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -19,6 +20,24 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Search,
   MoreHorizontal,
   Trash2,
@@ -26,8 +45,10 @@ import {
   Eye,
   CheckCircle,
   XCircle,
+  Loader2,
 } from "lucide-react";
 import { API_CONFIG } from "@/lib/api-config";
+import { useToast } from "@/hooks/use-toast";
 
 interface Driver {
   _id: string;
@@ -62,51 +83,79 @@ export default function DriversPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchDriversAndRides = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+  // View Modal States
+  const [viewModalOpen, setViewModalOpen] = useState(false);
+  const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null);
+  const [viewLoading, setViewLoading] = useState(false);
 
-        // Fetch drivers and ride counts in parallel
-        const [driversResponse, rideCountsResponse] = await Promise.all([
-          fetch(`${API_CONFIG.BASE_URL}/drivers`),
-          fetch(`${API_CONFIG.BASE_URL}/statistics/driver-ride-counts`),
-        ]);
+  // Edit Modal States
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    firstname: "",
+    lastname: "",
+    email: "",
+    phoneNumber: "",
+    vehicleColor: "",
+    vehiclePlate: "",
+    vehicleCapacity: 0,
+    vehicleType: "car" as "car" | "motorcycle" | "auto",
+    vehicleCompany: "",
+    vehicleModel: "",
+  });
+  const [editLoading, setEditLoading] = useState(false);
 
-        if (!driversResponse.ok) {
-          const errorText = await driversResponse.text();
-          console.error("Drivers API error:", errorText);
-          throw new Error(
-            `Failed to fetch drivers (${driversResponse.status}). Is the backend running at ${API_CONFIG.BASE_URL}?`
-          );
-        }
+  // Delete Modal States
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [driverToDelete, setDriverToDelete] = useState<Driver | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
-        if (!rideCountsResponse.ok) {
-          const errorText = await rideCountsResponse.text();
-          console.error("Ride counts API error:", errorText);
-          throw new Error(
-            `Failed to fetch ride counts (${rideCountsResponse.status})`
-          );
-        }
+  const { toast } = useToast();
 
-        const driversData = await driversResponse.json();
-        const rideCountsData = await rideCountsResponse.json();
+  const fetchDriversAndRides = async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-        setDrivers(driversData.drivers || []);
-        setRideCounts(rideCountsData.data || {});
-      } catch (err) {
-        console.error("Error fetching data:", err);
-        setError(
-          err instanceof Error
-            ? err.message
-            : "An error occurred. Please ensure the backend is running."
+      // Fetch drivers and ride counts in parallel
+      const [driversResponse, rideCountsResponse] = await Promise.all([
+        fetch(`${API_CONFIG.BASE_URL}/drivers`),
+        fetch(`${API_CONFIG.BASE_URL}/statistics/driver-ride-counts`),
+      ]);
+
+      if (!driversResponse.ok) {
+        const errorText = await driversResponse.text();
+        console.error("Drivers API error:", errorText);
+        throw new Error(
+          `Failed to fetch drivers (${driversResponse.status}). Is the backend running at ${API_CONFIG.BASE_URL}?`
         );
-      } finally {
-        setLoading(false);
       }
-    };
 
+      if (!rideCountsResponse.ok) {
+        const errorText = await rideCountsResponse.text();
+        console.error("Ride counts API error:", errorText);
+        throw new Error(
+          `Failed to fetch ride counts (${rideCountsResponse.status})`
+        );
+      }
+
+      const driversData = await driversResponse.json();
+      const rideCountsData = await rideCountsResponse.json();
+
+      setDrivers(driversData.drivers || []);
+      setRideCounts(rideCountsData.data || {});
+    } catch (err) {
+      console.error("Error fetching data:", err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "An error occurred. Please ensure the backend is running."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchDriversAndRides();
   }, []);
 
@@ -129,24 +178,187 @@ export default function DriversPage() {
       driver.vehicle.plate.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this driver?")) {
-      return;
-    }
+  // View Driver Handler
+  const handleView = async (driverId: string) => {
+    setViewLoading(true);
+    setViewModalOpen(true);
 
     try {
-      const response = await fetch(`${API_CONFIG.BASE_URL}/drivers/${id}`, {
-        method: "DELETE",
+      const response = await fetch(
+        `${API_CONFIG.BASE_URL}/drivers/${driverId}`
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        const errorMessage =
+          errorData?.message ||
+          `Failed to fetch driver details (${response.status})`;
+        console.error("View driver error:", errorData || errorMessage);
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
+      setSelectedDriver(data.driver);
+    } catch (err) {
+      console.error("Error fetching driver details:", err);
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to load driver details";
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
       });
+      setViewModalOpen(false);
+    } finally {
+      setViewLoading(false);
+    }
+  };
+
+  // Edit Driver Handler
+  const handleEdit = async (driverId: string) => {
+    setEditLoading(true);
+
+    try {
+      const response = await fetch(
+        `${API_CONFIG.BASE_URL}/drivers/${driverId}`
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        const errorMessage =
+          errorData?.message ||
+          `Failed to fetch driver details (${response.status})`;
+        console.error("Edit driver error:", errorData || errorMessage);
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
+      const driver = data.driver;
+
+      setSelectedDriver(driver);
+      setEditFormData({
+        firstname: driver.fullname.firstname,
+        lastname: driver.fullname.lastname || "",
+        email: driver.email,
+        phoneNumber: driver.phoneNumber,
+        vehicleColor: driver.vehicle.color,
+        vehiclePlate: driver.vehicle.plate,
+        vehicleCapacity: driver.vehicle.capacity,
+        vehicleType: driver.vehicle.vehicleType,
+        vehicleCompany: driver.vehicle.company || "",
+        vehicleModel: driver.vehicle.model || "",
+      });
+      setEditModalOpen(true);
+    } catch (err) {
+      console.error("Error fetching driver details:", err);
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to load driver details";
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  // Save Edit Handler
+  const handleSaveEdit = async () => {
+    if (!selectedDriver) return;
+
+    setEditLoading(true);
+
+    try {
+      const response = await fetch(
+        `${API_CONFIG.BASE_URL}/drivers/${selectedDriver._id}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            fullname: {
+              firstname: editFormData.firstname,
+              lastname: editFormData.lastname,
+            },
+            email: editFormData.email,
+            phoneNumber: editFormData.phoneNumber,
+            vehicle: {
+              color: editFormData.vehicleColor,
+              plate: editFormData.vehiclePlate,
+              capacity: editFormData.vehicleCapacity,
+              vehicleType: editFormData.vehicleType,
+              company: editFormData.vehicleCompany,
+              model: editFormData.vehicleModel,
+            },
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to update driver");
+      }
+
+      toast({
+        title: "Success",
+        description: "Driver updated successfully",
+      });
+
+      setEditModalOpen(false);
+      await fetchDriversAndRides();
+    } catch (err) {
+      console.error("Error updating driver:", err);
+      toast({
+        title: "Error",
+        description: "Failed to update driver",
+        variant: "destructive",
+      });
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  // Delete Driver Handler
+  const handleDeleteClick = (driver: Driver) => {
+    setDriverToDelete(driver);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!driverToDelete) return;
+
+    setDeleteLoading(true);
+
+    try {
+      const response = await fetch(
+        `${API_CONFIG.BASE_URL}/drivers/${driverToDelete._id}`,
+        {
+          method: "DELETE",
+        }
+      );
 
       if (!response.ok) {
         throw new Error("Failed to delete driver");
       }
 
-      setDrivers(drivers.filter((driver) => driver._id !== id));
+      toast({
+        title: "Success",
+        description: "Driver deleted successfully",
+      });
+
+      setDeleteDialogOpen(false);
+      setDriverToDelete(null);
+      await fetchDriversAndRides();
     } catch (err) {
       console.error("Error deleting driver:", err);
-      alert("Failed to delete driver");
+      toast({
+        title: "Error",
+        description: "Failed to delete driver",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -366,11 +578,15 @@ export default function DriversPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleView(driver._id)}
+                          >
                             <Eye className="h-4 w-4 mr-2" />
                             View Details
                           </DropdownMenuItem>
-                          <DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleEdit(driver._id)}
+                          >
                             <Edit2 className="h-4 w-4 mr-2" />
                             Edit
                           </DropdownMenuItem>
@@ -393,7 +609,7 @@ export default function DriversPage() {
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             className="text-destructive"
-                            onClick={() => handleDelete(driver._id)}
+                            onClick={() => handleDeleteClick(driver)}
                           >
                             <Trash2 className="h-4 w-4 mr-2" />
                             Delete
@@ -414,6 +630,357 @@ export default function DriversPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* View Driver Modal */}
+      <Dialog open={viewModalOpen} onOpenChange={setViewModalOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Driver Details</DialogTitle>
+            <DialogDescription>
+              Complete information about the selected driver
+            </DialogDescription>
+          </DialogHeader>
+
+          {viewLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : selectedDriver ? (
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right font-semibold">ID:</Label>
+                <div className="col-span-3 text-sm">{selectedDriver._id}</div>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right font-semibold">Name:</Label>
+                <div className="col-span-3 text-sm">
+                  {getDriverName(selectedDriver)}
+                </div>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right font-semibold">Email:</Label>
+                <div className="col-span-3 text-sm">{selectedDriver.email}</div>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right font-semibold">Phone:</Label>
+                <div className="col-span-3 text-sm">
+                  {selectedDriver.phoneNumber}
+                </div>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right font-semibold">Status:</Label>
+                <div className="col-span-3">
+                  <span
+                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusColor(
+                      selectedDriver.status
+                    )}`}
+                  >
+                    {capitalizeStatus(selectedDriver.status)}
+                  </span>
+                </div>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right font-semibold">
+                  Vehicle Type:
+                </Label>
+                <div className="col-span-3 text-sm">
+                  {capitalizeStatus(selectedDriver.vehicle.vehicleType)}
+                </div>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right font-semibold">Vehicle:</Label>
+                <div className="col-span-3 text-sm">
+                  {getVehicleDescription(selectedDriver.vehicle)}
+                </div>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right font-semibold">Plate:</Label>
+                <div className="col-span-3 text-sm font-mono">
+                  {selectedDriver.vehicle.plate}
+                </div>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right font-semibold">Capacity:</Label>
+                <div className="col-span-3 text-sm">
+                  {selectedDriver.vehicle.capacity} passengers
+                </div>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right font-semibold">
+                  Completed Rides:
+                </Label>
+                <div className="col-span-3 text-sm">
+                  {rideCounts[selectedDriver._id] || 0} rides
+                </div>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right font-semibold">Location:</Label>
+                <div className="col-span-3 text-sm">
+                  {selectedDriver.location.coordinates[1].toFixed(4)},{" "}
+                  {selectedDriver.location.coordinates[0].toFixed(4)}
+                </div>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right font-semibold">Created:</Label>
+                <div className="col-span-3 text-sm">
+                  {formatDate(selectedDriver.createdAt)}
+                </div>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right font-semibold">Updated:</Label>
+                <div className="col-span-3 text-sm">
+                  {formatDate(selectedDriver.updatedAt)}
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          <DialogFooter>
+            <Button onClick={() => setViewModalOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Driver Modal */}
+      <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Driver</DialogTitle>
+            <DialogDescription>
+              Update driver information. Click save when you&apos;re done.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label className="font-semibold">Personal Information</Label>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="firstname">First Name</Label>
+                <Input
+                  id="firstname"
+                  value={editFormData.firstname}
+                  onChange={(e) =>
+                    setEditFormData({
+                      ...editFormData,
+                      firstname: e.target.value,
+                    })
+                  }
+                  placeholder="Enter first name"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="lastname">Last Name</Label>
+                <Input
+                  id="lastname"
+                  value={editFormData.lastname}
+                  onChange={(e) =>
+                    setEditFormData({
+                      ...editFormData,
+                      lastname: e.target.value,
+                    })
+                  }
+                  placeholder="Enter last name"
+                />
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={editFormData.email}
+                onChange={(e) =>
+                  setEditFormData({ ...editFormData, email: e.target.value })
+                }
+                placeholder="Enter email"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="phone">Phone Number</Label>
+              <Input
+                id="phone"
+                value={editFormData.phoneNumber}
+                onChange={(e) =>
+                  setEditFormData({
+                    ...editFormData,
+                    phoneNumber: e.target.value,
+                  })
+                }
+                placeholder="03XXXXXXXXX"
+                maxLength={11}
+              />
+            </div>
+
+            <div className="grid gap-2 mt-4">
+              <Label className="font-semibold">Vehicle Information</Label>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="vehicleType">Vehicle Type</Label>
+                <select
+                  id="vehicleType"
+                  value={editFormData.vehicleType}
+                  onChange={(e) =>
+                    setEditFormData({
+                      ...editFormData,
+                      vehicleType: e.target.value as
+                        | "car"
+                        | "motorcycle"
+                        | "auto",
+                    })
+                  }
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <option value="car">Car</option>
+                  <option value="motorcycle">Motorcycle</option>
+                  <option value="auto">Auto</option>
+                </select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="vehicleCapacity">Capacity</Label>
+                <Input
+                  id="vehicleCapacity"
+                  type="number"
+                  min="1"
+                  max="20"
+                  value={editFormData.vehicleCapacity}
+                  onChange={(e) =>
+                    setEditFormData({
+                      ...editFormData,
+                      vehicleCapacity: parseInt(e.target.value) || 0,
+                    })
+                  }
+                  placeholder="Passenger capacity"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="vehicleColor">Color</Label>
+                <Input
+                  id="vehicleColor"
+                  value={editFormData.vehicleColor}
+                  onChange={(e) =>
+                    setEditFormData({
+                      ...editFormData,
+                      vehicleColor: e.target.value,
+                    })
+                  }
+                  placeholder="Vehicle color"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="vehiclePlate">Plate Number</Label>
+                <Input
+                  id="vehiclePlate"
+                  value={editFormData.vehiclePlate}
+                  onChange={(e) =>
+                    setEditFormData({
+                      ...editFormData,
+                      vehiclePlate: e.target.value,
+                    })
+                  }
+                  placeholder="License plate"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="vehicleCompany">Company/Make</Label>
+                <Input
+                  id="vehicleCompany"
+                  value={editFormData.vehicleCompany}
+                  onChange={(e) =>
+                    setEditFormData({
+                      ...editFormData,
+                      vehicleCompany: e.target.value,
+                    })
+                  }
+                  placeholder="e.g., Toyota, Honda"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="vehicleModel">Model</Label>
+                <Input
+                  id="vehicleModel"
+                  value={editFormData.vehicleModel}
+                  onChange={(e) =>
+                    setEditFormData({
+                      ...editFormData,
+                      vehicleModel: e.target.value,
+                    })
+                  }
+                  placeholder="e.g., Corolla, Civic"
+                />
+              </div>
+            </div>
+
+            {selectedDriver && (
+              <div className="grid gap-2 mt-4">
+                <Label className="text-muted-foreground">Additional Info</Label>
+                <div className="text-sm space-y-1 text-muted-foreground">
+                  <p>Driver ID: {selectedDriver._id}</p>
+                  <p>
+                    Current Status: {capitalizeStatus(selectedDriver.status)}
+                  </p>
+                  <p>Created: {formatDate(selectedDriver.createdAt)}</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setEditModalOpen(false)}
+              disabled={editLoading}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleSaveEdit} disabled={editLoading}>
+              {editLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the
+              driver account
+              {driverToDelete && (
+                <span className="font-semibold">
+                  {" "}
+                  &quot;{getDriverName(driverToDelete)}&quot;
+                </span>
+              )}{" "}
+              and remove all associated data from the system.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteLoading}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              disabled={deleteLoading}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteLoading && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Delete Driver
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

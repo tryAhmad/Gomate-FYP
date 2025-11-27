@@ -909,7 +909,7 @@ const newHome = () => {
   return (
     <SafeAreaView className="flex-1 bg-white">
       <StatusBar
-        barStyle="dark-content"
+        barStyle="light-content"
         translucent
         backgroundColor="transparent"
       />
