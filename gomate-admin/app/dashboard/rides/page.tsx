@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import { API_CONFIG } from "@/lib/api-config";
 import { RideDetailsModal } from "@/components/rides/ride-details-modal";
+import { RouteMapModal } from "@/components/rides/route-map-modal";
 import { reverseGeocodeShortCached } from "@/lib/geocoding-cache";
 
 interface Ride {
@@ -82,6 +83,8 @@ export default function RidesPage() {
   const [loading, setLoading] = useState(true);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [selectedRideId, setSelectedRideId] = useState<string | null>(null);
+  const [routeModalOpen, setRouteModalOpen] = useState(false);
+  const [selectedRide, setSelectedRide] = useState<Ride | null>(null);
   const [locationNames, setLocationNames] = useState<Map<string, string>>(
     new Map()
   );
@@ -161,6 +164,11 @@ export default function RidesPage() {
   const handleViewDetails = (rideId: string) => {
     setSelectedRideId(rideId);
     setDetailsModalOpen(true);
+  };
+
+  const handleViewRoute = (ride: Ride) => {
+    setSelectedRide(ride);
+    setRouteModalOpen(true);
   };
 
   const getPassengerName = (ride: Ride) => {
@@ -433,7 +441,9 @@ export default function RidesPage() {
                                 <Eye className="h-4 w-4 mr-2" />
                                 View Details
                               </DropdownMenuItem>
-                              <DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleViewRoute(ride)}
+                              >
                                 <MapPin className="h-4 w-4 mr-2" />
                                 View Route
                               </DropdownMenuItem>
@@ -462,6 +472,22 @@ export default function RidesPage() {
             setDetailsModalOpen(false);
             setSelectedRideId(null);
           }}
+        />
+      )}
+
+      {selectedRide && (
+        <RouteMapModal
+          open={routeModalOpen}
+          onClose={() => {
+            setRouteModalOpen(false);
+            setSelectedRide(null);
+          }}
+          pickupCoordinates={selectedRide.pickupLocation.coordinates}
+          dropoffCoordinates={selectedRide.dropoffLocation.coordinates}
+          pickupLabel={getLocationName(selectedRide.pickupLocation.coordinates)}
+          dropoffLabel={getLocationName(
+            selectedRide.dropoffLocation.coordinates
+          )}
         />
       )}
     </div>
