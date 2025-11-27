@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Param } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { StatisticsService } from './statistics.service';
 
@@ -54,6 +54,16 @@ export class StatisticsController {
     return {
       message: 'All rides retrieved successfully',
       data: rides,
+    };
+  }
+
+  @Get('ride/:id')
+  @ApiOperation({ summary: 'Get a single ride by ID with full details' })
+  async getRideById(@Param('id') id: string) {
+    const ride = await this.statisticsService.getRideById(id);
+    return {
+      message: 'Ride retrieved successfully',
+      data: ride,
     };
   }
 }

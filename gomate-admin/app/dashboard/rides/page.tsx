@@ -8,6 +8,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Search, MoreHorizontal, Eye, MapPin, DollarSign, Clock, Car, CheckCircle2, Loader2, TrendingUp } from "lucide-react"
 import { API_CONFIG } from "@/lib/api-config"
+import { RideDetailsModal } from "@/components/rides/ride-details-modal"
+import { reverseGeocodeShortCached } from "@/lib/geocoding-cache"
 
 interface Ride {
   _id: string
@@ -55,10 +57,20 @@ export default function RidesPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [rides, setRides] = useState<Ride[]>([])
   const [loading, setLoading] = useState(true)
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false)
+  const [selectedRideId, setSelectedRideId] = useState<string | null>(null)
+  const [locationNames, setLocationNames] = useState<Map<string, string>>(new Map())
+  const [geocodingInProgress, setGeocodingInProgress] = useState(false)
 
   useEffect(() => {
     fetchRides()
   }, [])
+
+  useEffect(() => {
+    if (rides.length > 0 && !geocodingInProgress) {
+      geocodeLocations()
+    }
+  }, [rides])
 
   const fetchRides = async () => {
     try {
@@ -73,6 +85,57 @@ export default function RidesPage() {
     }
   }
 
+  const geocodeLocations = async () => {
+    setGeocodingInProgress(true)
+    const newLocationNames = new Map<string, string>()
+
+    try {
+      // Geocode locations in batches to avoid overwhelming the API
+      const BATCH_SIZE = 5
+      for (let i = 0; i < rides.length; i += BATCH_SIZE) {
+        const batch = rides.slice(i, i + BATCH_SIZE)
+        
+        await Promise.all(
+          batch.flatMap(ride => [
+            (async () => {
+              const key = `${ride.pickupLocation.coordinates[1]},${ride.pickupLocation.coordinates[0]}`
+              const name = await reverseGeocodeShortCached(
+                ride.pickupLocation.coordinates[1],
+                ride.pickupLocation.coordinates[0]
+              )
+              if (name) newLocationNames.set(key, name)
+            })(),
+            (async () => {
+              const key = `${ride.dropoffLocation.coordinates[1]},${ride.dropoffLocation.coordinates[0]}`
+              const name = await reverseGeocodeShortCached(
+                ride.dropoffLocation.coordinates[1],
+                ride.dropoffLocation.coordinates[0]
+              )
+              if (name) newLocationNames.set(key, name)
+            })(),
+          ])
+        )
+
+        // Update state after each batch for progressive rendering
+        setLocationNames(new Map(newLocationNames))
+
+        // Small delay between batches
+        if (i + BATCH_SIZE < rides.length) {
+          await new Promise(resolve => setTimeout(resolve, 100))
+        }
+      }
+    } catch (error) {
+      console.error('Error geocoding locations:', error)
+    } finally {
+      setGeocodingInProgress(false)
+    }
+  }
+
+  const handleViewDetails = (rideId: string) => {
+    setSelectedRideId(rideId)
+    setDetailsModalOpen(true)
+  }
+
   const getPassengerName = (ride: Ride) => {
     return ride.passengerID?.username || "Unknown Passenger"
   }
@@ -85,6 +148,11 @@ export default function RidesPage() {
 
   const formatLocation = (coordinates: [number, number]) => {
     return `${coordinates[1].toFixed(4)}, ${coordinates[0].toFixed(4)}`
+  }
+
+  const getLocationName = (coordinates: [number, number]): string => {
+    const key = `${coordinates[1]},${coordinates[0]}`
+    return locationNames.get(key) || formatLocation(coordinates)
   }
 
   const formatDateTime = (dateString: string) => {
@@ -249,14 +317,14 @@ export default function RidesPage() {
                           <div className="text-xs space-y-1">
                             <div className="flex items-center gap-1">
                               <MapPin className="h-3 w-3 text-green-600" />
-                              <span className="truncate max-w-[200px]">
-                                {formatLocation(ride.pickupLocation.coordinates)}
+                              <span className="truncate max-w-[200px]" title={formatLocation(ride.pickupLocation.coordinates)}>
+                                {getLocationName(ride.pickupLocation.coordinates)}
                               </span>
                             </div>
                             <div className="flex items-center gap-1">
                               <MapPin className="h-3 w-3 text-red-600" />
-                              <span className="truncate max-w-[200px]">
-                                {formatLocation(ride.dropoffLocation.coordinates)}
+                              <span className="truncate max-w-[200px]" title={formatLocation(ride.dropoffLocation.coordinates)}>
+                                {getLocationName(ride.dropoffLocation.coordinates)}
                               </span>
                             </div>
                           </div>
@@ -284,7 +352,7 @@ export default function RidesPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleViewDetails(ride._id)}>
                                 <Eye className="h-4 w-4 mr-2" />
                                 View Details
                               </DropdownMenuItem>
@@ -308,6 +376,17 @@ export default function RidesPage() {
           </div>
         </CardContent>
       </Card>
+
+      {selectedRideId && (
+        <RideDetailsModal
+          rideId={selectedRideId}
+          open={detailsModalOpen}
+          onClose={() => {
+            setDetailsModalOpen(false)
+            setSelectedRideId(null)
+          }}
+        />
+      )}
     </div>
   )
 }

@@ -184,4 +184,18 @@ export class StatisticsService {
 
     return rides;
   }
+
+  async getRideById(id: string) {
+    const ride = await this.rideRequestModel
+      .findById(id)
+      .populate('passengerID', 'username email phoneNumber')
+      .populate('driverID', 'fullname email phoneNumber vehicle status')
+      .lean();
+
+    if (!ride) {
+      throw new Error('Ride not found');
+    }
+
+    return ride;
+  }
 }
