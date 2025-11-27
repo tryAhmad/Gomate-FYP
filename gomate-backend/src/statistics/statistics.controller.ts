@@ -18,7 +18,9 @@ export class StatisticsController {
   }
 
   @Get('rides-revenue-trend')
-  @ApiOperation({ summary: 'Get rides and revenue trend for the last 6 months' })
+  @ApiOperation({
+    summary: 'Get rides and revenue trend for the last 6 months',
+  })
   async getRidesAndRevenueTrend() {
     const trend = await this.statisticsService.getRidesAndRevenueTrend();
     return {
@@ -30,7 +32,8 @@ export class StatisticsController {
   @Get('driver-status')
   @ApiOperation({ summary: 'Get driver status distribution' })
   async getDriverStatusDistribution() {
-    const distribution = await this.statisticsService.getDriverStatusDistribution();
+    const distribution =
+      await this.statisticsService.getDriverStatusDistribution();
     return {
       message: 'Driver status distribution retrieved successfully',
       data: distribution,
@@ -48,7 +51,10 @@ export class StatisticsController {
   }
 
   @Get('all-rides')
-  @ApiOperation({ summary: 'Get all rides with passenger and driver details for admin dashboard' })
+  @ApiOperation({
+    summary:
+      'Get all rides with passenger and driver details for admin dashboard',
+  })
   async getAllRides() {
     const rides = await this.statisticsService.getAllRidesWithDetails();
     return {

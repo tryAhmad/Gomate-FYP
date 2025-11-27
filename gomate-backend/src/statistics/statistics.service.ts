@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Passenger, PassengerDocument } from '../passengers/schemas/passenger.schema';
+import {
+  Passenger,
+  PassengerDocument,
+} from '../passengers/schemas/passenger.schema';
 import { Driver, DriverDocument } from '../drivers/schemas/driver.schema';
 import { RideRequest } from '../rides/ride-request/schemas/ride-request.schema';
 
@@ -27,19 +30,27 @@ export class StatisticsService {
     const lastMonthUsers = await this.passengerModel.countDocuments({
       createdAt: { $lt: currentMonthStart },
     });
-    const userGrowth = lastMonthUsers > 0 
-      ? ((totalUsers - lastMonthUsers) / lastMonthUsers * 100).toFixed(1)
-      : 0;
+    const userGrowth =
+      lastMonthUsers > 0
+        ? (((totalUsers - lastMonthUsers) / lastMonthUsers) * 100).toFixed(1)
+        : 0;
 
     // Active drivers count
-    const activeDrivers = await this.driverModel.countDocuments({ status: 'active' });
+    const activeDrivers = await this.driverModel.countDocuments({
+      status: 'active',
+    });
     const lastMonthActiveDrivers = await this.driverModel.countDocuments({
       status: 'active',
       createdAt: { $lt: currentMonthStart },
     });
-    const driverGrowth = lastMonthActiveDrivers > 0
-      ? ((activeDrivers - lastMonthActiveDrivers) / lastMonthActiveDrivers * 100).toFixed(1)
-      : 0;
+    const driverGrowth =
+      lastMonthActiveDrivers > 0
+        ? (
+            ((activeDrivers - lastMonthActiveDrivers) /
+              lastMonthActiveDrivers) *
+            100
+          ).toFixed(1)
+        : 0;
 
     // Total rides count
     const totalRides = await this.rideRequestModel.countDocuments({
@@ -49,9 +60,10 @@ export class StatisticsService {
       status: { $in: ['completed', 'started', 'accepted', 'matched'] },
       createdAt: { $lt: currentMonthStart },
     });
-    const rideGrowth = lastMonthRides > 0
-      ? ((totalRides - lastMonthRides) / lastMonthRides * 100).toFixed(1)
-      : 0;
+    const rideGrowth =
+      lastMonthRides > 0
+        ? (((totalRides - lastMonthRides) / lastMonthRides) * 100).toFixed(1)
+        : 0;
 
     // Total revenue (sum of all completed rides' fares)
     const revenueResult = await this.rideRequestModel.aggregate([
@@ -69,10 +81,15 @@ export class StatisticsService {
       },
       { $group: { _id: null, total: { $sum: '$fare' } } },
     ]);
-    const lastMonthRevenue = lastMonthRevenueResult.length > 0 ? lastMonthRevenueResult[0].total : 0;
-    const revenueGrowth = lastMonthRevenue > 0
-      ? ((totalRevenue - lastMonthRevenue) / lastMonthRevenue * 100).toFixed(1)
-      : 0;
+    const lastMonthRevenue =
+      lastMonthRevenueResult.length > 0 ? lastMonthRevenueResult[0].total : 0;
+    const revenueGrowth =
+      lastMonthRevenue > 0
+        ? (
+            ((totalRevenue - lastMonthRevenue) / lastMonthRevenue) *
+            100
+          ).toFixed(1)
+        : 0;
 
     return {
       totalUsers,
@@ -118,7 +135,20 @@ export class StatisticsService {
     ]);
 
     // Format the data
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthNames = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     const formattedData = monthlyData.map((item) => ({
       month: monthNames[item._id.month - 1],
       rides: item.rides,
@@ -130,16 +160,23 @@ export class StatisticsService {
 
   async getDriverStatusDistribution() {
     const totalDrivers = await this.driverModel.countDocuments();
-    const activeDrivers = await this.driverModel.countDocuments({ status: 'active' });
-    const inactiveDrivers = await this.driverModel.countDocuments({ status: 'inactive' });
-    
+    const activeDrivers = await this.driverModel.countDocuments({
+      status: 'active',
+    });
+    const inactiveDrivers = await this.driverModel.countDocuments({
+      status: 'inactive',
+    });
+
     // Count drivers with no status set or pending verification (if applicable)
     const pendingDrivers = totalDrivers - activeDrivers - inactiveDrivers;
 
     // Calculate percentages
-    const activePercentage = totalDrivers > 0 ? Math.round((activeDrivers / totalDrivers) * 100) : 0;
-    const inactivePercentage = totalDrivers > 0 ? Math.round((inactiveDrivers / totalDrivers) * 100) : 0;
-    const pendingPercentage = totalDrivers > 0 ? Math.round((pendingDrivers / totalDrivers) * 100) : 0;
+    const activePercentage =
+      totalDrivers > 0 ? Math.round((activeDrivers / totalDrivers) * 100) : 0;
+    const inactivePercentage =
+      totalDrivers > 0 ? Math.round((inactiveDrivers / totalDrivers) * 100) : 0;
+    const pendingPercentage =
+      totalDrivers > 0 ? Math.round((pendingDrivers / totalDrivers) * 100) : 0;
 
     return [
       { name: 'Active', value: activePercentage },
