@@ -1,33 +1,52 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Search, MoreHorizontal, CheckCircle, XCircle, Eye, Clock } from "lucide-react"
-import { DriverRequestModal } from "@/components/driver-requests/driver-request-modal"
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Search,
+  MoreHorizontal,
+  CheckCircle,
+  XCircle,
+  Eye,
+  Clock,
+} from "lucide-react";
+import { DriverRequestModal } from "@/components/driver-requests/driver-request-modal";
 
 const mockRequests = [
   {
     id: 1,
-    name: "Robert Taylor",
-    email: "robert@example.com",
-    phone: "+1234567890",
+    name: "Muhammad Usman",
+    email: "muhammad.usman@gmail.com",
+    phone: "03123456789",
     dob: "1990-05-15",
-    licenseNumber: "DL789012",
-    vehicle: "BMW 3 Series 2023",
-    submittedDate: "2024-03-15",
+    licenseNumber: "AVA9012",
+    vehicle: "Honda Civic 2023",
+    submittedDate: "2025-08-15",
     status: "Pending",
-    documents: ["License", "Insurance", "Registration"],
+    documents: ["License", "Registration"],
     profilePhoto: "/profile-photo.jpg",
     cnic: { front: "/cnic-front.jpg", back: "/cnic-back.jpg" },
     selfieWithId: "/selfie-with-id.jpg",
     license: { front: "/license-front.jpg", back: "/license-back.jpg" },
     vehicleDetails: {
       type: "Car",
-      model: "BMW 3 Series",
+      model: "Honda Civic",
       color: "Black",
       registration: "ABC-123-XYZ",
       photos: ["/vehicle-1.jpg", "/vehicle-2.jpg", "/vehicle-3.jpg"],
@@ -35,22 +54,22 @@ const mockRequests = [
   },
   {
     id: 2,
-    name: "Lisa Anderson",
-    email: "lisa@example.com",
-    phone: "+1234567891",
+    name: "Alina Ashfaq",
+    email: "alina.ashfaq@gmail.com",
+    phone: "03123456790",
     dob: "1992-08-22",
-    licenseNumber: "DL789013",
-    vehicle: "Audi A4 2022",
+    licenseNumber: "ANP9013",
+    vehicle: "Suzuki WagonR 2022",
     submittedDate: "2024-03-14",
     status: "Under Review",
-    documents: ["License", "Insurance", "Registration", "Background Check"],
+    documents: ["License", "Registration", "Background Check"],
     profilePhoto: "/profile-photo-2.jpg",
     cnic: { front: "/cnic-front-2.jpg", back: "/cnic-back-2.jpg" },
     selfieWithId: "/selfie-with-id-2.jpg",
     license: { front: "/license-front-2.jpg", back: "/license-back-2.jpg" },
     vehicleDetails: {
       type: "Car",
-      model: "Audi A4",
+      model: "Suzuki WagonR",
       color: "Silver",
       registration: "DEF-456-UVW",
       photos: ["/vehicle-1.jpg", "/vehicle-2.jpg", "/vehicle-3.jpg"],
@@ -58,12 +77,12 @@ const mockRequests = [
   },
   {
     id: 3,
-    name: "Thomas White",
-    email: "thomas@example.com",
-    phone: "+1234567892",
+    name: "Junaid Ali",
+    email: "junaid.ali@example.com",
+    phone: "03123456792",
     dob: "1988-03-10",
-    licenseNumber: "DL789014",
-    vehicle: "Mercedes C-Class 2023",
+    licenseNumber: "DLM8914",
+    vehicle: "Suzuki Alto 2023",
     submittedDate: "2024-03-13",
     status: "Pending",
     documents: ["License", "Insurance"],
@@ -73,7 +92,7 @@ const mockRequests = [
     license: { front: "/license-front.jpg", back: "/license-back.jpg" },
     vehicleDetails: {
       type: "Car",
-      model: "Mercedes C-Class",
+      model: "Suzuki Alto",
       color: "White",
       registration: "GHI-789-RST",
       photos: ["/vehicle-1.jpg", "/vehicle-2.jpg", "/vehicle-3.jpg"],
@@ -81,22 +100,22 @@ const mockRequests = [
   },
   {
     id: 4,
-    name: "Jennifer Lee",
-    email: "jennifer@example.com",
-    phone: "+1234567893",
+    name: "Saba Khan",
+    email: "saba.khan@example.com",
+    phone: "03123456793",
     dob: "1995-11-30",
-    licenseNumber: "DL789015",
-    vehicle: "Volkswagen Jetta 2022",
+    licenseNumber: "AYP7715",
+    vehicle: "Honda City 2022",
     submittedDate: "2024-03-12",
     status: "Approved",
-    documents: ["License", "Insurance", "Registration", "Background Check"],
+    documents: ["License", "Registration", "Background Check"],
     profilePhoto: "/profile-photo-2.jpg",
     cnic: { front: "/cnic-front-2.jpg", back: "/cnic-back-2.jpg" },
     selfieWithId: "/selfie-with-id-2.jpg",
     license: { front: "/license-front-2.jpg", back: "/license-back-2.jpg" },
     vehicleDetails: {
       type: "Car",
-      model: "Volkswagen Jetta",
+      model: "Honda City",
       color: "Blue",
       registration: "JKL-012-MNO",
       photos: ["/vehicle-1.jpg", "/vehicle-2.jpg", "/vehicle-3.jpg"],
@@ -104,12 +123,12 @@ const mockRequests = [
   },
   {
     id: 5,
-    name: "Christopher Davis",
-    email: "chris@example.com",
-    phone: "+1234567894",
+    name: "Ahmad Ali",
+    email: "ahmad.ali@example.com",
+    phone: "03123456794",
     dob: "1991-07-18",
-    licenseNumber: "DL789016",
-    vehicle: "Mazda CX-5 2023",
+    licenseNumber: "LHR8329",
+    vehicle: "Toyota Corolla 2023",
     submittedDate: "2024-03-11",
     status: "Rejected",
     documents: ["License", "Insurance"],
@@ -119,86 +138,108 @@ const mockRequests = [
     license: { front: "/license-front.jpg", back: "/license-back.jpg" },
     vehicleDetails: {
       type: "Car",
-      model: "Mazda CX-5",
+      model: "Toyota Corolla",
       color: "Red",
       registration: "PQR-345-STU",
       photos: ["/vehicle-1.jpg", "/vehicle-2.jpg", "/vehicle-3.jpg"],
     },
   },
-]
+];
 
 export default function RequestsPage() {
-  const [searchTerm, setSearchTerm] = useState("")
-  const [requests, setRequests] = useState(mockRequests)
-  const [selectedRequest, setSelectedRequest] = useState<(typeof mockRequests)[0] | null>(null)
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("All");
+  const [requests, setRequests] = useState(mockRequests);
+  const [selectedRequest, setSelectedRequest] = useState<
+    (typeof mockRequests)[0] | null
+  >(null);
 
-  const filteredRequests = requests.filter(
-    (request) =>
+  const filteredRequests = requests.filter((request) => {
+    const matchesSearch =
       request.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       request.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      request.licenseNumber.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+      request.licenseNumber.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesStatus =
+      statusFilter === "All" || request.status === statusFilter;
+
+    return matchesSearch && matchesStatus;
+  });
 
   const handleApprove = (id: number) => {
-    setRequests(requests.map((req) => (req.id === id ? { ...req, status: "Approved" } : req)))
-    setSelectedRequest(null)
-  }
+    setRequests(
+      requests.map((req) =>
+        req.id === id ? { ...req, status: "Approved" } : req
+      )
+    );
+    setSelectedRequest(null);
+  };
 
   const handleReject = (id: number) => {
-    setRequests(requests.map((req) => (req.id === id ? { ...req, status: "Rejected" } : req)))
-    setSelectedRequest(null)
-  }
+    setRequests(
+      requests.map((req) =>
+        req.id === id ? { ...req, status: "Rejected" } : req
+      )
+    );
+    setSelectedRequest(null);
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case "Pending":
-        return "bg-yellow-100 text-yellow-800"
+        return "bg-yellow-100 text-yellow-800";
       case "Under Review":
-        return "bg-blue-100 text-blue-800"
+        return "bg-blue-100 text-blue-800";
       case "Approved":
-        return "bg-green-100 text-green-800"
+        return "bg-green-100 text-green-800";
       case "Rejected":
-        return "bg-red-100 text-red-800"
+        return "bg-red-100 text-red-800";
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 text-gray-800";
     }
-  }
+  };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "Pending":
-        return <Clock className="h-4 w-4" />
+        return <Clock className="h-4 w-4" />;
       case "Under Review":
-        return <Eye className="h-4 w-4" />
+        return <Eye className="h-4 w-4" />;
       case "Approved":
-        return <CheckCircle className="h-4 w-4" />
+        return <CheckCircle className="h-4 w-4" />;
       case "Rejected":
-        return <XCircle className="h-4 w-4" />
+        return <XCircle className="h-4 w-4" />;
       default:
-        return null
+        return null;
     }
-  }
+  };
 
   const stats = {
     total: requests.length,
     pending: requests.filter((r) => r.status === "Pending").length,
     underReview: requests.filter((r) => r.status === "Under Review").length,
     approved: requests.filter((r) => r.status === "Approved").length,
-  }
+  };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Driver Registration Requests</h1>
-          <p className="text-muted-foreground mt-2">Review and manage driver registration applications</p>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Driver Registration Requests
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            Review and manage driver registration applications
+          </p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Requests</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Total Requests
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.total}</div>
@@ -211,7 +252,9 @@ export default function RequestsPage() {
             <CardTitle className="text-sm font-medium">Pending</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
+            <div className="text-2xl font-bold text-yellow-600">
+              {stats.pending}
+            </div>
             <p className="text-xs text-muted-foreground">Awaiting review</p>
           </CardContent>
         </Card>
@@ -221,7 +264,9 @@ export default function RequestsPage() {
             <CardTitle className="text-sm font-medium">Under Review</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{stats.underReview}</div>
+            <div className="text-2xl font-bold text-blue-600">
+              {stats.underReview}
+            </div>
             <p className="text-xs text-muted-foreground">Being processed</p>
           </CardContent>
         </Card>
@@ -231,7 +276,9 @@ export default function RequestsPage() {
             <CardTitle className="text-sm font-medium">Approved</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.approved}</div>
+            <div className="text-2xl font-bold text-green-600">
+              {stats.approved}
+            </div>
             <p className="text-xs text-muted-foreground">Completed</p>
           </CardContent>
         </Card>
@@ -250,6 +297,17 @@ export default function RequestsPage() {
               onChange={(e) => setSearchTerm(e.target.value)}
               className="flex-1"
             />
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              <option value="All">All Status</option>
+              <option value="Pending">Pending</option>
+              <option value="Under Review">Under Review</option>
+              <option value="Approved">Approved</option>
+              <option value="Rejected">Rejected</option>
+            </select>
           </div>
 
           <div className="overflow-x-auto">
@@ -271,10 +329,14 @@ export default function RequestsPage() {
                     <TableCell>
                       <div>
                         <p className="font-medium">{request.name}</p>
-                        <p className="text-sm text-muted-foreground">{request.email}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {request.email}
+                        </p>
                       </div>
                     </TableCell>
-                    <TableCell className="font-mono text-sm">{request.licenseNumber}</TableCell>
+                    <TableCell className="font-mono text-sm">
+                      {request.licenseNumber}
+                    </TableCell>
                     <TableCell className="text-sm">{request.vehicle}</TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
@@ -288,10 +350,14 @@ export default function RequestsPage() {
                         ))}
                       </div>
                     </TableCell>
-                    <TableCell className="text-sm">{request.submittedDate}</TableCell>
+                    <TableCell className="text-sm">
+                      {request.submittedDate}
+                    </TableCell>
                     <TableCell>
                       <span
-                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusColor(request.status)}`}
+                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusColor(
+                          request.status
+                        )}`}
                       >
                         {getStatusIcon(request.status)}
                         {request.status}
@@ -305,17 +371,25 @@ export default function RequestsPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => setSelectedRequest(request)}>
+                          <DropdownMenuItem
+                            onClick={() => setSelectedRequest(request)}
+                          >
                             <Eye className="h-4 w-4 mr-2" />
                             View Details
                           </DropdownMenuItem>
-                          {request.status === "Pending" || request.status === "Under Review" ? (
+                          {request.status === "Pending" ||
+                          request.status === "Under Review" ? (
                             <>
-                              <DropdownMenuItem onClick={() => handleApprove(request.id)}>
+                              <DropdownMenuItem
+                                onClick={() => handleApprove(request.id)}
+                              >
                                 <CheckCircle className="h-4 w-4 mr-2 text-green-600" />
                                 Approve
                               </DropdownMenuItem>
-                              <DropdownMenuItem className="text-destructive" onClick={() => handleReject(request.id)}>
+                              <DropdownMenuItem
+                                className="text-destructive"
+                                onClick={() => handleReject(request.id)}
+                              >
                                 <XCircle className="h-4 w-4 mr-2" />
                                 Reject
                               </DropdownMenuItem>
@@ -364,5 +438,5 @@ export default function RequestsPage() {
         />
       )}
     </div>
-  )
+  );
 }
