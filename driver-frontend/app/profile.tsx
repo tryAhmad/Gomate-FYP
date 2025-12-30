@@ -14,14 +14,17 @@ import {
   KeyboardAvoidingView,
   Platform,
   Keyboard,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import BurgerMenu from "@/components/BurgerMenu";
+import { useAuth } from "@/contexts/AuthContext";
 
 const { width } = Dimensions.get("window");
+const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
 
 interface DriverProfile {
   profilePhoto?: string;
@@ -38,19 +41,21 @@ interface DriverProfile {
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const { driver, authToken, updateDriver, logout } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<DriverProfile>({
-    username: "Ahmad",
-    email: "ahmad@example.com",
-    phone: "+92 300 1234567",
+    username: "",
+    email: "",
+    phone: "",
     vehicle: {
-      company: "Toyota",
-      model: "Corolla",
-      registrationNumber: "ABC-123",
-      color: "White"
-    }
+      company: "",
+      model: "",
+      registrationNumber: "",
+      color: "",
+    },
   });
-  
+
   const scrollViewRef = useRef<ScrollView>(null);
   const phoneInputRef = useRef<TextInput>(null);
 
@@ -81,13 +86,53 @@ export default function ProfileScreen() {
   }, []);
 
   const loadProfile = async () => {
+    if (!driver || !authToken) {
+      setLoading(false);
+      return;
+    }
+
     try {
-      const savedProfile = await AsyncStorage.getItem("driverProfile");
-      if (savedProfile) {
-        setProfile(JSON.parse(savedProfile));
+      setLoading(true);
+      // Fetch fresh driver data from backend
+      const response = await fetch(`${API_URL}/drivers/${driver._id}`, {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.driver) {
+        const driverData = data.driver;
+
+        // Map backend data to profile format
+        const loadedProfile: DriverProfile = {
+          username: `${driverData.fullname.firstname} ${
+            driverData.fullname.lastname || ""
+          }`.trim(),
+          email: driverData.email,
+          phone: driverData.phoneNumber || "",
+          profilePhoto: driverData.profilePhoto?.url,
+          vehicle: {
+            company: driverData.vehicle?.company || "",
+            model: driverData.vehicle?.model || "",
+            registrationNumber: driverData.vehicle?.plate || "",
+            color: driverData.vehicle?.color || "",
+          },
+        };
+
+        setProfile(loadedProfile);
+
+        // Update context with latest data
+        await updateDriver(driverData);
+      } else {
+        Alert.alert("Error", "Failed to load profile data");
       }
     } catch (error) {
       console.error("Error loading profile:", error);
+      Alert.alert("Error", "Failed to load profile. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -107,25 +152,21 @@ export default function ProfileScreen() {
 
     if (profile.profilePhoto) {
       // options to change or remove photo
-      Alert.alert(
-        "Profile Photo",
-        "What would you like to do?",
-        [
-          {
-            text: "Change Photo",
-            onPress: pickImage,
-          },
-          {
-            text: "Remove Photo",
-            style: "destructive",
-            onPress: removeProfilePhoto,
-          },
-          {
-            text: "Cancel",
-            style: "cancel",
-          },
-        ]
-      );
+      Alert.alert("Profile Photo", "What would you like to do?", [
+        {
+          text: "Change Photo",
+          onPress: pickImage,
+        },
+        {
+          text: "Remove Photo",
+          style: "destructive",
+          onPress: removeProfilePhoto,
+        },
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+      ]);
     } else {
       pickImage();
     }
@@ -134,7 +175,7 @@ export default function ProfileScreen() {
   const pickImage = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: "images",
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
@@ -143,10 +184,13 @@ export default function ProfileScreen() {
       if (!result.canceled) {
         const updatedProfile = {
           ...profile,
-          profilePhoto: result.assets[0].uri
+          profilePhoto: result.assets[0].uri,
         };
         setProfile(updatedProfile);
-        await AsyncStorage.setItem("driverProfile", JSON.stringify(updatedProfile));
+        await AsyncStorage.setItem(
+          "driverProfile",
+          JSON.stringify(updatedProfile)
+        );
       }
     } catch (error) {
       console.error("Error picking image:", error);
@@ -158,33 +202,63 @@ export default function ProfileScreen() {
     try {
       const updatedProfile = {
         ...profile,
-        profilePhoto: undefined
+        profilePhoto: undefined,
       };
       setProfile(updatedProfile);
-      await AsyncStorage.setItem("driverProfile", JSON.stringify(updatedProfile));
+      await AsyncStorage.setItem(
+        "driverProfile",
+        JSON.stringify(updatedProfile)
+      );
     } catch (error) {
       console.error("Error removing profile photo:", error);
       Alert.alert("Error", "Failed to remove profile photo");
     }
   };
 
-  const handleInputChange = (field: keyof Omit<DriverProfile, 'vehicle'>, value: string) => {
-    setProfile(prev => ({
+  const handleInputChange = (
+    field: keyof Omit<DriverProfile, "vehicle">,
+    value: string
+  ) => {
+    setProfile((prev) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
   };
 
   // Auto-scroll to input field when focused
   const handleInputFocus = (inputName: string) => {
     setTimeout(() => {
-      if (inputName === 'phone') {
+      if (inputName === "phone") {
         scrollViewRef.current?.scrollTo({ y: 300, animated: true });
       }
     }, 100);
   };
 
-  const getInitial = (name: string) => name?.charAt(0).toUpperCase() || "A";
+  const getInitial = (name: string) => name?.charAt(0).toUpperCase() || "D";
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <StatusBar backgroundColor="transparent" barStyle="dark-content" />
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.menuButton} onPress={openSidebar}>
+            <Ionicons name="menu" size={26} color="#333" />
+          </TouchableOpacity>
+          <Text style={styles.title}>Profile</Text>
+          <View style={styles.editButton} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#007AFF" />
+          <Text style={styles.loadingText}>Loading profile...</Text>
+        </View>
+        <BurgerMenu
+          isVisible={sidebarVisible}
+          onClose={closeSidebar}
+          slideAnim={slideAnim}
+        />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -196,24 +270,29 @@ export default function ProfileScreen() {
           <Ionicons name="menu" size={26} color="#333" />
         </TouchableOpacity>
         <Text style={styles.title}>Profile</Text>
-        <TouchableOpacity 
-          style={[styles.editButton, isEditing && styles.editButtonActive]} 
-          onPress={() => isEditing ? saveProfile() : setIsEditing(true)}
+        <TouchableOpacity
+          style={[styles.editButton, isEditing && styles.editButtonActive]}
+          onPress={() => (isEditing ? saveProfile() : setIsEditing(true))}
         >
-          <Text style={[styles.editButtonText, isEditing && styles.editButtonTextActive]}>
+          <Text
+            style={[
+              styles.editButtonText,
+              isEditing && styles.editButtonTextActive,
+            ]}
+          >
             {isEditing ? "Save" : "Edit"}
           </Text>
         </TouchableOpacity>
       </View>
 
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         style={styles.keyboardAvoidingView}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
       >
-        <ScrollView 
+        <ScrollView
           ref={scrollViewRef}
-          style={styles.scrollView} 
+          style={styles.scrollView}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
@@ -222,7 +301,10 @@ export default function ProfileScreen() {
           <View style={styles.profilePhotoSection}>
             <TouchableOpacity onPress={handlePhotoAction} disabled={!isEditing}>
               {profile.profilePhoto ? (
-                <Image source={{ uri: profile.profilePhoto }} style={styles.profileImage} />
+                <Image
+                  source={{ uri: profile.profilePhoto }}
+                  style={styles.profileImage}
+                />
               ) : (
                 <View style={styles.profileImagePlaceholder}>
                   <Text style={styles.profileInitial}>
@@ -243,16 +325,18 @@ export default function ProfileScreen() {
           {/* Personal Information */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Personal Information</Text>
-            
+
             {isEditing ? (
-              // Editing mode 
+              // Editing mode
               <>
                 <View style={styles.inputGroup}>
                   <Text style={styles.label}>Username</Text>
                   <TextInput
                     style={styles.input}
                     value={profile.username}
-                    onChangeText={(value) => handleInputChange('username', value)}
+                    onChangeText={(value) =>
+                      handleInputChange("username", value)
+                    }
                     placeholder="Enter username"
                     returnKeyType="next"
                   />
@@ -263,7 +347,7 @@ export default function ProfileScreen() {
                   <TextInput
                     style={styles.input}
                     value={profile.email}
-                    onChangeText={(value) => handleInputChange('email', value)}
+                    onChangeText={(value) => handleInputChange("email", value)}
                     placeholder="Enter email"
                     keyboardType="email-address"
                     returnKeyType="next"
@@ -276,11 +360,11 @@ export default function ProfileScreen() {
                     ref={phoneInputRef}
                     style={styles.input}
                     value={profile.phone}
-                    onChangeText={(value) => handleInputChange('phone', value)}
+                    onChangeText={(value) => handleInputChange("phone", value)}
                     placeholder="Enter phone number"
                     keyboardType="phone-pad"
                     returnKeyType="done"
-                    onFocus={() => handleInputFocus('phone')}
+                    onFocus={() => handleInputFocus("phone")}
                   />
                 </View>
               </>
@@ -292,13 +376,13 @@ export default function ProfileScreen() {
                   <Text style={styles.value}>{profile.username}</Text>
                 </View>
                 <View style={styles.separator} />
-                
+
                 <View style={styles.row}>
                   <Text style={styles.label}>Email</Text>
                   <Text style={styles.value}>{profile.email}</Text>
                 </View>
                 <View style={styles.separator} />
-                
+
                 <View style={styles.row}>
                   <Text style={styles.label}>Phone Number</Text>
                   <Text style={styles.value}>{profile.phone}</Text>
@@ -310,25 +394,27 @@ export default function ProfileScreen() {
           {/* Vehicle Information - Always non-editable */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Vehicle Information</Text>
-            
+
             <View style={styles.row}>
               <Text style={styles.label}>Company</Text>
               <Text style={styles.value}>{profile.vehicle.company}</Text>
             </View>
             <View style={styles.separator} />
-            
+
             <View style={styles.row}>
               <Text style={styles.label}>Model</Text>
               <Text style={styles.value}>{profile.vehicle.model}</Text>
             </View>
             <View style={styles.separator} />
-            
+
             <View style={styles.row}>
               <Text style={styles.label}>Registration Number</Text>
-              <Text style={styles.value}>{profile.vehicle.registrationNumber}</Text>
+              <Text style={styles.value}>
+                {profile.vehicle.registrationNumber}
+              </Text>
             </View>
             <View style={styles.separator} />
-            
+
             <View style={styles.row}>
               <Text style={styles.label}>Color</Text>
               <Text style={styles.value}>{profile.vehicle.color}</Text>
@@ -338,11 +424,11 @@ export default function ProfileScreen() {
       </KeyboardAvoidingView>
 
       {/* Burger Menu */}
-      <BurgerMenu 
-        isVisible={sidebarVisible} 
-        onClose={closeSidebar} 
-        slideAnim={slideAnim} 
-        profile={profile}  
+      <BurgerMenu
+        isVisible={sidebarVisible}
+        onClose={closeSidebar}
+        slideAnim={slideAnim}
+        profile={profile}
       />
     </View>
   );
@@ -365,15 +451,15 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     paddingHorizontal: 16,
   },
-  menuButton: { 
-    padding: 8, 
-    borderRadius: 20 
+  menuButton: {
+    padding: 8,
+    borderRadius: 20,
   },
-  title: { 
-    fontSize: 24, 
-    fontWeight: "bold", 
-    color: "#0286FF", 
-    textAlign: "center" 
+  title: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#0286FF",
+    textAlign: "center",
   },
   editButton: {
     paddingHorizontal: 20,
@@ -393,6 +479,16 @@ const styles = StyleSheet.create({
   },
   editButtonTextActive: {
     color: "#fff",
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  loadingText: {
+    fontSize: 16,
+    color: "#666",
+    marginTop: 16,
   },
   scrollView: {
     flex: 1,

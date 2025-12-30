@@ -13,7 +13,10 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import MapView, { Marker, PROVIDER_GOOGLE, Polyline } from "react-native-maps";
 import Constants from "expo-constants";
-import { getCoordinatesFromAddress, getRouteCoordinates } from "@/utils/getRoute";
+import {
+  getCoordinatesFromAddress,
+  getRouteCoordinates,
+} from "@/utils/getRoute";
 
 const GOOGLE_MAPS_APIKEY = Constants.expoConfig?.extra?.MAPS_API_KEY;
 
@@ -42,13 +45,27 @@ interface StopWithCoords extends OptimizedStop {
   coordinate: { latitude: number; longitude: number };
 }
 
-export default function DriverRideDetailModal({ visible, onClose, ride }: Props) {
+export default function DriverRideDetailModal({
+  visible,
+  onClose,
+  ride,
+}: Props) {
   const mapRef = useRef<MapView>(null);
-  const [pickupCoord, setPickupCoord] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [destinationCoord, setDestinationCoord] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [routeCoords, setRouteCoords] = useState<{ latitude: number; longitude: number }[]>([]);
+  const [pickupCoord, setPickupCoord] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+  const [destinationCoord, setDestinationCoord] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+  const [routeCoords, setRouteCoords] = useState<
+    { latitude: number; longitude: number }[]
+  >([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [optimizedStopsWithCoords, setOptimizedStopsWithCoords] = useState<StopWithCoords[]>([]);
+  const [optimizedStopsWithCoords, setOptimizedStopsWithCoords] = useState<
+    StopWithCoords[]
+  >([]);
 
   const DEFAULT_REGION = {
     latitude: 31.5204,
@@ -71,8 +88,12 @@ export default function DriverRideDetailModal({ visible, onClose, ride }: Props)
   const loadRouteData = async () => {
     try {
       setIsLoading(true);
-      
-      if (ride.type === "shared" && ride.optimizedStops && ride.optimizedStops.length > 0) {
+
+      if (
+        ride.type === "shared" &&
+        ride.optimizedStops &&
+        ride.optimizedStops.length > 0
+      ) {
         await loadSharedRideData();
       } else {
         await loadSoloRideData();
@@ -87,7 +108,10 @@ export default function DriverRideDetailModal({ visible, onClose, ride }: Props)
 
   const loadSharedRideData = async () => {
     try {
-      console.log("Loading shared ride data with optimized stops:", ride.optimizedStops);
+      console.log(
+        "Loading shared ride data with optimized stops:",
+        ride.optimizedStops
+      );
 
       // Get coordinates for all optimized stops
       const stopsWithCoords = await Promise.all(
@@ -95,7 +119,7 @@ export default function DriverRideDetailModal({ visible, onClose, ride }: Props)
           const coordinate = await getCoordinatesFromAddress(stop.address);
           return {
             ...stop,
-            coordinate: coordinate || DEFAULT_REGION
+            coordinate: coordinate || DEFAULT_REGION,
           };
         })
       );
@@ -105,13 +129,16 @@ export default function DriverRideDetailModal({ visible, onClose, ride }: Props)
       // Get complete route by connecting all stops in sequence
       if (stopsWithCoords.length >= 2) {
         let completeRoute: { latitude: number; longitude: number }[] = [];
-        
+
         // Get routes between consecutive stops
         for (let i = 0; i < stopsWithCoords.length - 1; i++) {
           const currentStop = stopsWithCoords[i];
           const nextStop = stopsWithCoords[i + 1];
-          
-          const segmentRoute = await getRouteCoordinates(currentStop.coordinate, nextStop.coordinate);
+
+          const segmentRoute = await getRouteCoordinates(
+            currentStop.coordinate,
+            nextStop.coordinate
+          );
           if (segmentRoute && segmentRoute.length > 0) {
             // Add this segment to the complete route
             completeRoute = [...completeRoute, ...segmentRoute];
@@ -124,8 +151,8 @@ export default function DriverRideDetailModal({ visible, onClose, ride }: Props)
         setTimeout(() => {
           if (mapRef.current && stopsWithCoords.length > 0) {
             const allCoordinates = [
-              ...stopsWithCoords.map(stop => stop.coordinate),
-              ...completeRoute
+              ...stopsWithCoords.map((stop) => stop.coordinate),
+              ...completeRoute,
             ];
             mapRef.current.fitToCoordinates(allCoordinates, {
               edgePadding: { top: 80, right: 80, bottom: 80, left: 80 },
@@ -142,59 +169,90 @@ export default function DriverRideDetailModal({ visible, onClose, ride }: Props)
 
   const loadSoloRideData = async () => {
     try {
-      // Get pickup and destination addresses from ride object
-      const pickupAddress = ride.pickupLocation?.address || ride.pickup || "Pickup Location";
-      const destinationAddress = ride.dropoffLocation?.address || ride.destination || "Destination";
+      let pickupCoords: { latitude: number; longitude: number } | null = null;
+      let destinationCoords: { latitude: number; longitude: number } | null =
+        null;
 
-      console.log("Loading route for:", { pickupAddress, destinationAddress });
+      // Check if coordinates are available in ride object (from backend)
+      if (
+        ride.pickupLocation?.coordinates &&
+        ride.pickupLocation.coordinates.length === 2
+      ) {
+        const [lng, lat] = ride.pickupLocation.coordinates;
+        pickupCoords = { latitude: lat, longitude: lng };
+        console.log("Using pickup coordinates from backend:", pickupCoords);
+      } else {
+        // Fallback to geocoding from address
+        const pickupAddress =
+          ride.pickupLocation?.address || ride.pickup || "Pickup Location";
+        console.log("Geocoding pickup address:", pickupAddress);
+        pickupCoords = await getCoordinatesFromAddress(pickupAddress);
+      }
 
-      if (!pickupAddress || !destinationAddress) {
-        Alert.alert("Error", "Pickup or destination address missing.");
+      if (
+        ride.dropoffLocation?.coordinates &&
+        ride.dropoffLocation.coordinates.length === 2
+      ) {
+        const [lng, lat] = ride.dropoffLocation.coordinates;
+        destinationCoords = { latitude: lat, longitude: lng };
+        console.log(
+          "Using dropoff coordinates from backend:",
+          destinationCoords
+        );
+      } else {
+        // Fallback to geocoding from address
+        const destinationAddress =
+          ride.dropoffLocation?.address || ride.destination || "Destination";
+        console.log("Geocoding destination address:", destinationAddress);
+        destinationCoords = await getCoordinatesFromAddress(destinationAddress);
+      }
+
+      if (!pickupCoords || !destinationCoords) {
+        Alert.alert(
+          "Error",
+          "Could not fetch coordinates for the given locations."
+        );
         return;
       }
 
-      // Use the same geocoding functions as RideRequestPage
-      const pickupCoords = await getCoordinatesFromAddress(pickupAddress);
-      const destinationCoords = await getCoordinatesFromAddress(destinationAddress);
+      console.log("Final coordinates:", { pickupCoords, destinationCoords });
 
-      if (pickupCoords && destinationCoords) {
-        console.log("Geocoded coordinates:", { pickupCoords, destinationCoords });
-        
-        const route = await getRouteCoordinates(pickupCoords, destinationCoords);
-        setRouteCoords(route);
+      // Use the same routing functions as RideRequestPage
+      const route = await getRouteCoordinates(pickupCoords, destinationCoords);
+      setRouteCoords(route);
 
-        if (route.length > 0) {
-          const exactPickupCoord = route[0];
-          const exactDestinationCoord = route[route.length - 1];
+      if (route.length > 0) {
+        const exactPickupCoord = route[0];
+        const exactDestinationCoord = route[route.length - 1];
 
-          setPickupCoord(exactPickupCoord);
-          setDestinationCoord(exactDestinationCoord);
+        setPickupCoord(exactPickupCoord);
+        setDestinationCoord(exactDestinationCoord);
 
-          // Fit map to show both markers with padding
-          setTimeout(() => {
-            if (mapRef.current) {
-              mapRef.current.fitToCoordinates([exactPickupCoord, exactDestinationCoord], {
+        // Fit map to show both markers with padding
+        setTimeout(() => {
+          if (mapRef.current) {
+            mapRef.current.fitToCoordinates(
+              [exactPickupCoord, exactDestinationCoord],
+              {
                 edgePadding: { top: 80, right: 80, bottom: 80, left: 80 },
                 animated: true,
-              });
-            }
-          }, 1000);
-        } else {
-          // Fallback if no route coordinates
-          setPickupCoord(pickupCoords);
-          setDestinationCoord(destinationCoords);
-
-          setTimeout(() => {
-            if (mapRef.current) {
-              mapRef.current.fitToCoordinates([pickupCoords, destinationCoords], {
-                edgePadding: { top: 80, right: 80, bottom: 80, left: 80 },
-                animated: true,
-              });
-            }
-          }, 1000);
-        }
+              }
+            );
+          }
+        }, 1000);
       } else {
-        Alert.alert("Error", "Could not fetch coordinates for the given locations.");
+        // Fallback if no route coordinates
+        setPickupCoord(pickupCoords);
+        setDestinationCoord(destinationCoords);
+
+        setTimeout(() => {
+          if (mapRef.current) {
+            mapRef.current.fitToCoordinates([pickupCoords, destinationCoords], {
+              edgePadding: { top: 80, right: 80, bottom: 80, left: 80 },
+              animated: true,
+            });
+          }
+        }, 1000);
       }
     } catch (error) {
       console.error("Error loading solo ride data:", error);
@@ -205,7 +263,10 @@ export default function DriverRideDetailModal({ visible, onClose, ride }: Props)
     return type === "pickup" ? "#FF4444" : "#4CAF50";
   };
 
-  const getPinIcon = (stopNumber: number, type: "pickup" | "destination"): "location" | "location-outline" => {
+  const getPinIcon = (
+    stopNumber: number,
+    type: "pickup" | "destination"
+  ): "location" | "location-outline" => {
     if (type === "pickup") {
       return stopNumber === 1 ? "location-outline" : "location";
     }
@@ -230,11 +291,15 @@ export default function DriverRideDetailModal({ visible, onClose, ride }: Props)
       <View style={styles.routeSection}>
         <View style={styles.routeRow}>
           <Ionicons name="radio-button-on" size={20} color="#FF4444" />
-          <Text style={styles.routeText}>{ride.pickupLocation?.address || ride.pickup}</Text>
+          <Text style={styles.routeText}>
+            {ride.pickupLocation?.address || ride.pickup}
+          </Text>
         </View>
         <View style={styles.routeRow}>
           <Ionicons name="radio-button-on" size={20} color="#22c55e" />
-          <Text style={styles.routeText}>{ride.dropoffLocation?.address || ride.destination}</Text>
+          <Text style={styles.routeText}>
+            {ride.dropoffLocation?.address || ride.destination}
+          </Text>
         </View>
       </View>
 
@@ -298,155 +363,169 @@ export default function DriverRideDetailModal({ visible, onClose, ride }: Props)
   if (!ride) return null;
 
   // Get addresses for display
-  const pickupAddress = ride.pickupLocation?.address || ride.pickup || "Pickup Location";
-  const destinationAddress = ride.dropoffLocation?.address || ride.destination || "Destination";
+  const pickupAddress =
+    ride.pickupLocation?.address || ride.pickup || "Pickup Location";
+  const destinationAddress =
+    ride.dropoffLocation?.address || ride.destination || "Destination";
 
   return (
-  <Modal visible={visible} animationType="slide">
-    <View style={styles.container}>
-      {/* Close button */}
-      <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-        <Ionicons name="close" size={22} color="#fff" />
-      </TouchableOpacity>
+    <Modal visible={visible} animationType="slide">
+      <View style={styles.container}>
+        {/* Close button */}
+        <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+          <Ionicons name="close" size={22} color="#fff" />
+        </TouchableOpacity>
 
-      {/* Header with date left and tag right */}
-      <View style={styles.modalHeader}>
-        <Text style={styles.date}>
-          {new Date(ride.createdAt).toDateString()}
-        </Text>
-        
-        {/* Ride Type Tag */}
-        {ride.type && (
-          <View style={[styles.rideTypeTag, ride.type === "shared" && styles.sharedRideTag]}>
-            <Text style={styles.rideTypeText}>{ride.type.toUpperCase()} RIDE</Text>
-          </View>
-        )}
-      </View>
+        {/* Header with date left and tag right */}
+        <View style={styles.modalHeader}>
+          <Text style={styles.date}>
+            {new Date(ride.createdAt).toDateString()}
+          </Text>
 
-      {/* Map Container */}
-      <View style={styles.mapContainer}>
-        <MapView
-          ref={mapRef}
-          style={styles.map}
-          provider={PROVIDER_GOOGLE}
-          initialRegion={DEFAULT_REGION}
-          showsUserLocation={false}
-          showsMyLocationButton={false}
-          mapType="standard"
-        >
-          {ride.type === "shared" ? (
-            // Shared ride markers
-            optimizedStopsWithCoords.map((stop, index) => (
-              <Marker
-                key={index}
-                coordinate={stop.coordinate}
-                title={`${stop.passengerName} - ${stop.type === "pickup" ? "Pickup" : "Drop-off"}`}
-                description={stop.address}
-                anchor={{ x: 0.5, y: 1 }}
-              >
-                <Ionicons 
-                  name={getPinIcon(stop.stopNumber, stop.type)} 
-                  size={30} 
-                  color={getPinColor(stop.stopNumber, stop.type)} 
-                />
-              </Marker>
-            ))
-          ) : (
-            // Solo ride markers
-            <>
-              {pickupCoord && (
+          {/* Ride Type Tag */}
+          {ride.type && (
+            <View
+              style={[
+                styles.rideTypeTag,
+                ride.type === "shared" && styles.sharedRideTag,
+              ]}
+            >
+              <Text style={styles.rideTypeText}>
+                {ride.type.toUpperCase()} RIDE
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* Map Container */}
+        <View style={styles.mapContainer}>
+          <MapView
+            ref={mapRef}
+            style={styles.map}
+            provider={PROVIDER_GOOGLE}
+            initialRegion={DEFAULT_REGION}
+            showsUserLocation={false}
+            showsMyLocationButton={false}
+            mapType="standard"
+          >
+            {ride.type === "shared" ? (
+              // Shared ride markers
+              optimizedStopsWithCoords.map((stop, index) => (
                 <Marker
-                  coordinate={pickupCoord}
-                  title="Pickup Location"
-                  description={pickupAddress}
+                  key={index}
+                  coordinate={stop.coordinate}
+                  title={`${stop.passengerName} - ${
+                    stop.type === "pickup" ? "Pickup" : "Drop-off"
+                  }`}
+                  description={stop.address}
                   anchor={{ x: 0.5, y: 1 }}
                 >
-                  <Ionicons name="location" size={30} color="#FF4444" />
+                  <Ionicons
+                    name={getPinIcon(stop.stopNumber, stop.type)}
+                    size={30}
+                    color={getPinColor(stop.stopNumber, stop.type)}
+                  />
                 </Marker>
-              )}
+              ))
+            ) : (
+              // Solo ride markers
+              <>
+                {pickupCoord && (
+                  <Marker
+                    coordinate={pickupCoord}
+                    title="Pickup Location"
+                    description={pickupAddress}
+                    anchor={{ x: 0.5, y: 1 }}
+                  >
+                    <Ionicons name="location" size={30} color="#FF4444" />
+                  </Marker>
+                )}
 
-              {destinationCoord && (
-                <Marker
-                  coordinate={destinationCoord}
-                  title="Destination"
-                  description={destinationAddress}
-                  anchor={{ x: 0.5, y: 1 }}
-                >
-                  <Ionicons name="location" size={30} color="#22c55e" />
-                </Marker>
-              )}
-            </>
+                {destinationCoord && (
+                  <Marker
+                    coordinate={destinationCoord}
+                    title="Destination"
+                    description={destinationAddress}
+                    anchor={{ x: 0.5, y: 1 }}
+                  >
+                    <Ionicons name="location" size={30} color="#22c55e" />
+                  </Marker>
+                )}
+              </>
+            )}
+
+            {routeCoords.length > 0 && (
+              <Polyline
+                coordinates={routeCoords}
+                strokeWidth={4}
+                strokeColor="#007AFF"
+              />
+            )}
+          </MapView>
+
+          {isLoading && (
+            <View style={styles.loadingOverlay}>
+              <ActivityIndicator size="large" color="#007AFF" />
+              <Text style={styles.loadingText}>Loading route...</Text>
+            </View>
           )}
+        </View>
 
-          {routeCoords.length > 0 && (
-            <Polyline 
-              coordinates={routeCoords} 
-              strokeWidth={4} 
-              strokeColor="#007AFF" 
-            />
-          )}
-        </MapView>
+        {/* Ride Details */}
+        {ride.type === "shared"
+          ? renderSharedRideDetails()
+          : renderSoloRideDetails()}
 
-        {isLoading && (
-          <View style={styles.loadingOverlay}>
-            <ActivityIndicator size="large" color="#007AFF" />
-            <Text style={styles.loadingText}>Loading route...</Text>
-          </View>
-        )}
+        {/* Status */}
+        <View style={styles.statusContainer}>
+          <Text style={styles.statusLabel}>Status:</Text>
+          <Text
+            style={[styles.status, styles[ride.status as keyof typeof styles]]}
+          >
+            {ride.status}
+          </Text>
+        </View>
       </View>
-
-      {/* Ride Details */}
-      {ride.type === "shared" ? renderSharedRideDetails() : renderSoloRideDetails()}
-
-      {/* Status */}
-      <View style={styles.statusContainer}>
-        <Text style={styles.statusLabel}>Status:</Text>
-        <Text style={[styles.status, styles[ride.status as keyof typeof styles]]}>
-          {ride.status}
-        </Text>
-      </View>
-    </View>
-  </Modal>
-);
-    
+    </Modal>
+  );
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: "#f9fafb", 
-    padding: 20 
+  container: {
+    flex: 1,
+    backgroundColor: "#f9fafb",
+    padding: 20,
   },
   closeButton: {
-    position: "absolute", 
-    top: 50, 
+    position: "absolute",
+    top: 50,
     left: 20,
-    backgroundColor: "#6b7280", 
-    padding: 8, 
-    borderRadius: 20, 
+    backgroundColor: "#6b7280",
+    padding: 8,
+    borderRadius: 20,
     zIndex: 10,
   },
-  date: { 
-    fontSize: 20, 
-    fontWeight: "700", 
+  date: {
+    fontSize: 20,
+    fontWeight: "700",
     color: "#0286FF",
-    flex: 1, 
+    flex: 1,
   },
   rideTypeTag: {
     backgroundColor: "#FFB347",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
-    marginLeft: 10, 
+    marginLeft: 10,
   },
   sharedRideTag: {
     backgroundColor: "#FF6B35",
   },
-   modalHeader: {
+  modalHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginTop: 80, 
+    marginTop: 80,
     marginBottom: 15,
     paddingHorizontal: 10,
     width: "100%",
@@ -492,77 +571,77 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#333",
   },
-  passengerSection: { 
-    flexDirection: "row", 
-    alignItems: "center", 
-    marginBottom: 18 
+  passengerSection: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 18,
   },
-  avatar: { 
-    width: 50, 
-    height: 50, 
-    borderRadius: 25, 
-    marginRight: 12 
-  },
-  avatarPlaceholder: {
-    width: 50, 
-    height: 50, 
-    borderRadius: 25, 
-    backgroundColor: "#E0E0E0",
-    justifyContent: "center", 
-    alignItems: "center", 
+  avatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     marginRight: 12,
   },
-  avatarInitial: { 
-    fontSize: 20, 
-    fontWeight: "600", 
-    color: "#0286FF" 
+  avatarPlaceholder: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: "#E0E0E0",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
   },
-  passengerName: { 
-    fontSize: 18, 
-    fontWeight: "600", 
-    color: "#333" 
+  avatarInitial: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#0286FF",
   },
-  routeSection: { 
-    marginVertical: 20 
-  },
-  routeRow: { 
-    flexDirection: "row", 
-    alignItems: "center", 
-    marginBottom: 8 
-  },
-  routeText: { 
-    marginLeft: 10, 
-    fontSize: 16, 
+  passengerName: {
+    fontSize: 18,
+    fontWeight: "600",
     color: "#333",
-    flex: 1 
   },
-  fare: { 
-    fontSize: 20, 
-    fontWeight: "700", 
-    color: "#333", 
-    marginTop: 10 
+  routeSection: {
+    marginVertical: 20,
   },
-  fareHighlight: { 
-    color: "#0286FF" 
+  routeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
   },
-  statusContainer: { 
-    flexDirection: "row", 
-    alignItems: "center", 
-    marginTop: 20 
+  routeText: {
+    marginLeft: 10,
+    fontSize: 16,
+    color: "#333",
+    flex: 1,
   },
-  statusLabel: { 
-    fontSize: 18, 
-    fontWeight: "600", 
-    marginRight: 8, 
-    color: "#333" 
+  fare: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#333",
+    marginTop: 10,
+  },
+  fareHighlight: {
+    color: "#0286FF",
+  },
+  statusContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 20,
+  },
+  statusLabel: {
+    fontSize: 18,
+    fontWeight: "600",
+    marginRight: 8,
+    color: "#333",
   },
   status: {
-    fontSize: 16, 
-    fontWeight: "600", 
-    color: "#fff", 
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#fff",
     paddingHorizontal: 10,
-    paddingVertical: 4, 
-    borderRadius: 8, 
+    paddingVertical: 4,
+    borderRadius: 8,
     textTransform: "capitalize",
   },
   pending: { backgroundColor: "#facc15" },

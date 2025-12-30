@@ -1,41 +1,55 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Card } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { X } from "lucide-react"
+import { useState } from "react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { X } from "lucide-react";
 
 interface DriverRequest {
-  id: number
-  name: string
-  phone: string
-  dob: string
-  profilePhoto: string
-  cnic: { front: string; back: string }
-  selfieWithId: string
-  license: { front: string; back: string }
-  vehicle: { type: string; model: string; color: string; registration: string; photos: string[] }
-  status: string
+  id: string | number;
+  name: string;
+  email: string;
+  phone: string;
+  dob: string;
+  submittedDate: string;
+  status: string;
+  documents: string[];
+  profilePhoto: string;
+  cnic: { front: string; back: string };
+  selfieWithId: string;
+  license: { front: string; back: string };
+  vehicle: {
+    type: string;
+    model: string;
+    color: string;
+    registration: string;
+    photos: string[];
+  };
 }
 
 interface DriverRequestModalProps {
-  request: DriverRequest
-  onApprove: () => void
-  onReject: (reason: string) => void
-  onClose: () => void
+  request: DriverRequest;
+  onApprove: () => void;
+  onReject: (reason: string) => void;
+  onClose: () => void;
 }
 
-export function DriverRequestModal({ request, onApprove, onReject, onClose }: DriverRequestModalProps) {
-  const [rejectionReason, setRejectionReason] = useState("")
-  const [showRejectForm, setShowRejectForm] = useState(false)
+export function DriverRequestModal({
+  request,
+  onApprove,
+  onReject,
+  onClose,
+}: DriverRequestModalProps) {
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [showRejectForm, setShowRejectForm] = useState(false);
 
   const handleReject = () => {
     if (rejectionReason.trim()) {
-      onReject(rejectionReason)
-      setRejectionReason("")
-      setShowRejectForm(false)
+      onReject(rejectionReason);
+      setRejectionReason("");
+      setShowRejectForm(false);
     }
-  }
+  };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -50,10 +64,14 @@ export function DriverRequestModal({ request, onApprove, onReject, onClose }: Dr
         <div className="p-6 space-y-8">
           {/* Personal Info */}
           <div>
-            <h3 className="text-lg font-semibold text-foreground mb-4">Personal Information</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-4">
+              Personal Information
+            </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
-                <p className="text-sm text-muted-foreground mb-2">Profile Photo</p>
+                <p className="text-sm text-muted-foreground mb-2">
+                  Profile Photo
+                </p>
                 <img
                   src={request.profilePhoto || "/placeholder.svg"}
                   alt="Profile"
@@ -63,7 +81,9 @@ export function DriverRequestModal({ request, onApprove, onReject, onClose }: Dr
               <div>
                 <p className="text-sm text-muted-foreground mb-2">Phone</p>
                 <p className="text-foreground font-medium">{request.phone}</p>
-                <p className="text-sm text-muted-foreground mt-4">Date of Birth</p>
+                <p className="text-sm text-muted-foreground mt-4">
+                  Date of Birth
+                </p>
                 <p className="text-foreground font-medium">{request.dob}</p>
               </div>
             </div>
@@ -71,7 +91,9 @@ export function DriverRequestModal({ request, onApprove, onReject, onClose }: Dr
 
           {/* Documents */}
           <div>
-            <h3 className="text-lg font-semibold text-foreground mb-4">Documents</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-4">
+              Documents
+            </h3>
             <div className="space-y-6">
               {/* CNIC */}
               <div>
@@ -98,7 +120,9 @@ export function DriverRequestModal({ request, onApprove, onReject, onClose }: Dr
 
               {/* Selfie */}
               <div>
-                <p className="text-sm font-medium text-foreground mb-3">Selfie with ID</p>
+                <p className="text-sm font-medium text-foreground mb-3">
+                  Selfie with ID
+                </p>
                 <img
                   src={request.selfieWithId || "/placeholder.svg"}
                   alt="Selfie"
@@ -108,7 +132,9 @@ export function DriverRequestModal({ request, onApprove, onReject, onClose }: Dr
 
               {/* License */}
               <div>
-                <p className="text-sm font-medium text-foreground mb-3">Driver's License</p>
+                <p className="text-sm font-medium text-foreground mb-3">
+                  Driver's License
+                </p>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-xs text-muted-foreground mb-2">Front</p>
@@ -133,26 +159,38 @@ export function DriverRequestModal({ request, onApprove, onReject, onClose }: Dr
 
           {/* Vehicle Details */}
           <div>
-            <h3 className="text-lg font-semibold text-foreground mb-4">Vehicle Details</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-4">
+              Vehicle Details
+            </h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
               <div>
                 <p className="text-sm text-muted-foreground">Type</p>
-                <p className="text-foreground font-medium">{request.vehicle.type}</p>
+                <p className="text-foreground font-medium">
+                  {request.vehicle.type}
+                </p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Model</p>
-                <p className="text-foreground font-medium">{request.vehicle.model}</p>
+                <p className="text-foreground font-medium">
+                  {request.vehicle.model}
+                </p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Color</p>
-                <p className="text-foreground font-medium">{request.vehicle.color}</p>
+                <p className="text-foreground font-medium">
+                  {request.vehicle.color}
+                </p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Registration</p>
-                <p className="text-foreground font-medium">{request.vehicle.registration}</p>
+                <p className="text-foreground font-medium">
+                  {request.vehicle.registration}
+                </p>
               </div>
             </div>
-            <p className="text-sm font-medium text-foreground mb-3">Vehicle Photos</p>
+            <p className="text-sm font-medium text-foreground mb-3">
+              Vehicle Photos
+            </p>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               {request.vehicle.photos.map((photo, idx) => (
                 <img
@@ -169,10 +207,17 @@ export function DriverRequestModal({ request, onApprove, onReject, onClose }: Dr
           <div className="border-t border-border pt-6">
             {!showRejectForm ? (
               <div className="flex gap-3">
-                <Button onClick={onApprove} className="flex-1 bg-green-600 hover:bg-green-700">
+                <Button
+                  onClick={onApprove}
+                  className="flex-1 bg-green-600 hover:bg-green-700"
+                >
                   Approve Request
                 </Button>
-                <Button onClick={() => setShowRejectForm(true)} variant="destructive" className="flex-1">
+                <Button
+                  onClick={() => setShowRejectForm(true)}
+                  variant="destructive"
+                  className="flex-1"
+                >
                   Reject Request
                 </Button>
               </div>
@@ -186,10 +231,18 @@ export function DriverRequestModal({ request, onApprove, onReject, onClose }: Dr
                   rows={4}
                 />
                 <div className="flex gap-3">
-                  <Button onClick={handleReject} variant="destructive" className="flex-1">
+                  <Button
+                    onClick={handleReject}
+                    variant="destructive"
+                    className="flex-1"
+                  >
                     Confirm Rejection
                   </Button>
-                  <Button onClick={() => setShowRejectForm(false)} variant="outline" className="flex-1">
+                  <Button
+                    onClick={() => setShowRejectForm(false)}
+                    variant="outline"
+                    className="flex-1"
+                  >
                     Cancel
                   </Button>
                 </div>
@@ -199,5 +252,5 @@ export function DriverRequestModal({ request, onApprove, onReject, onClose }: Dr
         </div>
       </Card>
     </div>
-  )
+  );
 }

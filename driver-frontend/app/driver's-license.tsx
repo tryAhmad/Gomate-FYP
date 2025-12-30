@@ -9,12 +9,16 @@ import {
   Text,
   TouchableOpacity,
   View,
+  ActivityIndicator,
 } from "react-native";
+import { useDocuments } from "@/utils/DocumentContext";
 
 export default function DriverLicense() {
   const router = useRouter();
-  const [frontImage, setFrontImage] = useState<string | null>(null);
-  const [backImage, setBackImage] = useState<string | null>(null);
+  const { images, setImage, uploadDocuments, isUploading } = useDocuments();
+  // TODO: Get from auth context when authentication is implemented
+  // For now using the same ID as in index.tsx for testing
+  const [driverId] = useState("68908c87f5bd1d56dcc631b8");
 
   const pickImage = async (side: "front" | "back") => {
     Alert.alert(
@@ -24,7 +28,8 @@ export default function DriverLicense() {
         {
           text: "Take Photo",
           onPress: async () => {
-            const cameraPermission = await ImagePicker.requestCameraPermissionsAsync();
+            const cameraPermission =
+              await ImagePicker.requestCameraPermissionsAsync();
             if (!cameraPermission.granted) {
               Alert.alert("Permission required", "Camera access is needed.");
               return;
@@ -37,28 +42,28 @@ export default function DriverLicense() {
 
             if (!result.canceled) {
               const uri = result.assets[0].uri;
-              side === "front" ? setFrontImage(uri) : setBackImage(uri);
+              setImage(side === "front" ? "licenseFront" : "licenseBack", uri);
             }
           },
         },
         {
           text: "Choose from Gallery",
           onPress: async () => {
-            const galleryPermission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            const galleryPermission =
+              await ImagePicker.requestMediaLibraryPermissionsAsync();
             if (!galleryPermission.granted) {
               Alert.alert("Permission required", "Gallery access is needed.");
               return;
             }
 
             const result = await ImagePicker.launchImageLibraryAsync({
-              mediaTypes: ImagePicker.MediaTypeOptions.Images,
-              allowsEditing: true,
+              mediaTypes: "images",
               quality: 0.7,
             });
 
             if (!result.canceled) {
               const uri = result.assets[0].uri;
-              side === "front" ? setFrontImage(uri) : setBackImage(uri);
+              setImage(side === "front" ? "licenseFront" : "licenseBack", uri);
             }
           },
         },
@@ -78,13 +83,16 @@ export default function DriverLicense() {
     ]);
   };
 
-  const handleNext = () => {
-    if (!frontImage || !backImage) {
-      Alert.alert("Both sides required", "Please upload both sides of your license.");
+  const handleSubmit = async () => {
+    if (!images.licenseFront || !images.licenseBack) {
+      Alert.alert(
+        "Both sides required",
+        "Please upload both sides of your license."
+      );
       return;
     }
 
-    // TODO: send to backend
+    // Don't upload yet - navigate to vehicle info first
     router.push("/vehicle-info" as any);
   };
 
@@ -94,9 +102,9 @@ export default function DriverLicense() {
       <Text style={styles.subtitle}>Both sides must be clear and visible.</Text>
 
       <Text style={styles.label}>License Front</Text>
-      {frontImage ? (
+      {images.licenseFront ? (
         <TouchableOpacity onPress={() => handleRetakePrompt("front")}>
-          <Image source={{ uri: frontImage }} style={styles.image} />
+          <Image source={{ uri: images.licenseFront }} style={styles.image} />
         </TouchableOpacity>
       ) : (
         <TouchableOpacity
@@ -109,9 +117,9 @@ export default function DriverLicense() {
       )}
 
       <Text style={styles.label}>License Back</Text>
-      {backImage ? (
+      {images.licenseBack ? (
         <TouchableOpacity onPress={() => handleRetakePrompt("back")}>
-          <Image source={{ uri: backImage }} style={styles.image} />
+          <Image source={{ uri: images.licenseBack }} style={styles.image} />
         </TouchableOpacity>
       ) : (
         <TouchableOpacity
@@ -124,11 +132,21 @@ export default function DriverLicense() {
       )}
 
       <View style={styles.buttonRow}>
-        <TouchableOpacity style={styles.nextButtonSingle} onPress={handleNext}>
-          <Text style={styles.nextText}>Next</Text>
+        <TouchableOpacity
+          style={[
+            styles.nextButtonSingle,
+            isUploading && styles.disabledButton,
+          ]}
+          onPress={handleSubmit}
+          disabled={isUploading}
+        >
+          {isUploading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.nextText}>Submit Documents</Text>
+          )}
         </TouchableOpacity>
       </View>
-
     </View>
   );
 }
@@ -190,5 +208,8 @@ const styles = StyleSheet.create({
   nextText: {
     color: "#fff",
     fontWeight: "bold",
+  },
+  disabledButton: {
+    opacity: 0.6,
   },
 });

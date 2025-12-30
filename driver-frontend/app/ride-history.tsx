@@ -10,11 +10,15 @@ import {
   Image,
   Animated,
   Dimensions,
+  Alert,
+  RefreshControl,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import DriverRideDetailModal from "@/components/DriverRideDetailModal";
 import BurgerMenu from "@/components/BurgerMenu";
+import { useAuth } from "@/contexts/AuthContext";
+import { reverseGeocode } from "@/utils/mapsApi";
 
 const { width } = Dimensions.get("window");
 
@@ -35,8 +39,8 @@ interface OptimizedStop {
 
 interface Ride {
   _id: string;
-  pickupLocation: { address: string };
-  dropoffLocation: { address: string };
+  pickupLocation: { address: string; coordinates?: [number, number] };
+  dropoffLocation: { address: string; coordinates?: [number, number] };
   fare: number;
   passengerName: string;
   profilePhoto?: string;
@@ -53,6 +57,9 @@ export default function DriverRideHistoryScreen() {
   const [loading, setLoading] = useState(true);
   const [selectedRide, setSelectedRide] = useState<Ride | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const { authToken } = useAuth();
 
   // burgermenu states
   const [sidebarVisible, setSidebarVisible] = useState(false);
@@ -78,48 +85,112 @@ export default function DriverRideHistoryScreen() {
   };
 
   useEffect(() => {
-    const loadRides = async () => {
-      try {
-        // Load both solo and shared rides
-        const [soloRides, sharedRides] = await Promise.all([
-          AsyncStorage.getItem("driverRideHistory"),
-          AsyncStorage.getItem("driverSharedRideHistory"),
-        ]);
-
-        let allRides: Ride[] = [];
-
-        if (soloRides) {
-          const solo = JSON.parse(soloRides);
-          // Add type to solo rides
-          const soloWithType = solo.map((ride: Ride) => ({
-            ...ride,
-            type: "solo"
-          }));
-          allRides = [...allRides, ...soloWithType];
-        }
-
-        if (sharedRides) {
-          const shared = JSON.parse(sharedRides);
-          // Add type to shared rides
-          const sharedWithType = shared.map((ride: Ride) => ({
-            ...ride,
-            type: "shared"
-          }));
-          allRides = [...allRides, ...sharedWithType];
-        }
-
-        // Sort by date (newest first)
-        allRides.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        
-        setRides(allRides);
-      } catch (err) {
-        console.log("Error loading driver rides:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
     loadRides();
   }, []);
+
+  const loadRides = async () => {
+    try {
+      setLoading(true);
+
+      if (!authToken) {
+        Alert.alert("Error", "Authentication token not found");
+        return;
+      }
+
+      const response = await fetch(
+        "http://192.168.100.5:3000/ride-request/driver/history",
+        {
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch ride history: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log("Fetched driver ride history:", data);
+
+      // Map backend rides to frontend format and reverse geocode coordinates
+      const mappedRides: Ride[] = await Promise.all(
+        data.rides.map(async (ride: any) => {
+          let pickupAddress = "Pickup Location";
+          let dropoffAddress = "Dropoff Location";
+
+          try {
+            // Backend stores coordinates as [lng, lat]
+            if (
+              ride.pickupLocation?.coordinates &&
+              ride.pickupLocation.coordinates.length === 2
+            ) {
+              const [lng, lat] = ride.pickupLocation.coordinates;
+              pickupAddress = await reverseGeocode(lat, lng);
+            }
+          } catch (error) {
+            console.error("Error reverse geocoding pickup:", error);
+          }
+
+          try {
+            if (
+              ride.dropoffLocation?.coordinates &&
+              ride.dropoffLocation.coordinates.length === 2
+            ) {
+              const [lng, lat] = ride.dropoffLocation.coordinates;
+              dropoffAddress = await reverseGeocode(lat, lng);
+            }
+          } catch (error) {
+            console.error("Error reverse geocoding dropoff:", error);
+          }
+
+          return {
+            _id: ride._id,
+            pickupLocation: {
+              address: pickupAddress,
+              coordinates: ride.pickupLocation?.coordinates,
+            },
+            dropoffLocation: {
+              address: dropoffAddress,
+              coordinates: ride.dropoffLocation?.coordinates,
+            },
+            fare: ride.fare,
+            passengerName: ride.passengerID?.username || "Unknown Passenger",
+            profilePhoto: ride.passengerID?.profilePhoto,
+            createdAt: ride.createdAt,
+            status: ride.status,
+            type: ride.rideMode === "shared" ? "shared" : "solo",
+            passengerCount: ride.passengerCount,
+            passengers: ride.passengers,
+            optimizedStops: ride.optimizedStops,
+          };
+        })
+      );
+
+      // Sort by date (newest first)
+      mappedRides.sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+
+      setRides(mappedRides);
+    } catch (err) {
+      console.error("Error loading driver rides:", err);
+      Alert.alert(
+        "Error",
+        "Failed to load ride history. Please try again later."
+      );
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadRides();
+  };
 
   const renderSoloRideCard = (item: Ride) => (
     <TouchableOpacity
@@ -281,7 +352,7 @@ export default function DriverRideHistoryScreen() {
           <Ionicons name="menu" size={26} color="#333" />
         </TouchableOpacity>
         <Text style={styles.title}>My Rides</Text>
-        <View style={{ width: 34 }} /> 
+        <View style={{ width: 34 }} />
         {/* filler for symmetry so title stays centered */}
       </View>
 
@@ -291,9 +362,14 @@ export default function DriverRideHistoryScreen() {
         <FlatList
           data={rides}
           keyExtractor={(item) => item._id}
-          renderItem={({ item }) => (
-            item.type === "shared" ? renderSharedRideCard(item) : renderSoloRideCard(item)
-          )}
+          renderItem={({ item }) =>
+            item.type === "shared"
+              ? renderSharedRideCard(item)
+              : renderSoloRideCard(item)
+          }
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
         />
       )}
 
@@ -304,7 +380,11 @@ export default function DriverRideHistoryScreen() {
       />
 
       {/* Burger Menu */}
-      <BurgerMenu isVisible={sidebarVisible} onClose={closeSidebar} slideAnim={slideAnim} />
+      <BurgerMenu
+        isVisible={sidebarVisible}
+        onClose={closeSidebar}
+        slideAnim={slideAnim}
+      />
     </View>
   );
 }
@@ -319,16 +399,16 @@ const statusStyles: Record<string, any> = {
 
 const styles = StyleSheet.create({
   // Layout Containers
-  container: { 
-    flex: 1, 
-    backgroundColor: "#fff", 
-    paddingHorizontal: 16 
+  container: {
+    flex: 1,
+    backgroundColor: "#fff",
+    paddingHorizontal: 16,
   },
-  centered: { 
-    flex: 1, 
-    justifyContent: "center", 
-    alignItems: "center", 
-    backgroundColor: "#fff" 
+  centered: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#fff",
   },
 
   // Header
@@ -340,27 +420,27 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     marginBottom: 10,
   },
-  menuButton: { 
-    padding: 8, 
-    borderRadius: 20 
+  menuButton: {
+    padding: 8,
+    borderRadius: 20,
   },
-  title: { 
-    fontSize: 24, 
-    fontWeight: "bold", 
-    color: "#0286FF", 
-    textAlign: "center" 
+  title: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#0286FF",
+    textAlign: "center",
   },
 
   // Empty state
-  loadingText: { 
-    marginTop: 10, 
-    fontSize: 16, 
-    color: "#333" 
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: "#333",
   },
-  emptyText: { 
-    textAlign: "center", 
-    fontSize: 16, 
-    color: "gray" 
+  emptyText: {
+    textAlign: "center",
+    fontSize: 16,
+    color: "gray",
   },
 
   // Ride Card
@@ -375,22 +455,22 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  date: { 
-    fontSize: 17, 
-    fontWeight: "700", 
-    color: "#111", 
-    marginBottom: 8 
+  date: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#111",
+    marginBottom: 8,
   },
-  rowBetween: { 
-    flexDirection: "row", 
-    justifyContent: "space-between", 
-    alignItems: "center", 
-    marginBottom: 8 
+  rowBetween: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
   },
-  fare: { 
-    fontSize: 18, 
-    fontWeight: "bold", 
-    color: "#0286FF" 
+  fare: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#0286FF",
   },
 
   // Ride Type Tag
@@ -413,15 +493,15 @@ const styles = StyleSheet.create({
   },
 
   // Passenger Section
-  passengerSection: { 
-    flexDirection: "row", 
-    alignItems: "center" 
+  passengerSection: {
+    flexDirection: "row",
+    alignItems: "center",
   },
-  avatar: { 
-    width: 40, 
-    height: 40, 
-    borderRadius: 20, 
-    marginRight: 10 
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 10,
   },
   avatarPlaceholder: {
     width: 40,
@@ -441,38 +521,38 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginRight: 10,
   },
-  avatarInitial: { 
-    fontSize: 16, 
-    fontWeight: "600", 
-    color: "#0286FF" 
+  avatarInitial: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#0286FF",
   },
-  smallAvatarInitial: { 
-    fontSize: 14, 
-    fontWeight: "600", 
-    color: "#0286FF" 
+  smallAvatarInitial: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#0286FF",
   },
-  passengerName: { 
-    fontSize: 16, 
-    fontWeight: "600", 
-    color: "#333" 
+  passengerName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
   },
 
   // Locations
-  locationRow: { 
-    flexDirection: "row", 
-    alignItems: "center", 
-    marginTop: 2 
+  locationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 2,
   },
-  locationText: { 
-    marginLeft: 6, 
-    fontSize: 14, 
+  locationText: {
+    marginLeft: 6,
+    fontSize: 14,
     color: "#444",
-    flex: 1 
+    flex: 1,
   },
 
   // Status
-  statusContainer: { 
-    marginTop: 10 
+  statusContainer: {
+    marginTop: 10,
   },
   status: {
     paddingHorizontal: 10,
@@ -485,10 +565,10 @@ const styles = StyleSheet.create({
   },
 
   // Shared Ride Specific Styles
-  individualFare: { 
-    fontSize: 16, 
-    fontWeight: "600", 
-    color: "#666" 
+  individualFare: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#666",
   },
   passengerDivider: {
     height: 1,

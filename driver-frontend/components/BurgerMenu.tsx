@@ -1,32 +1,19 @@
 import React, { useState, useEffect } from "react";
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TouchableOpacity, 
-  Modal, 
-  Dimensions, 
-  Animated, 
-  Image 
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Modal,
+  Dimensions,
+  Animated,
+  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import AsyncStorage from "@react-native-async-storage/async-storage"; 
+import { useAuth } from "@/contexts/AuthContext";
 
 const { width } = Dimensions.get("window");
-
-interface DriverProfile {
-  profilePhoto?: string;
-  username: string;
-  email: string;
-  phone: string;
-  vehicle: {
-    company: string;
-    model: string;
-    registrationNumber: string;
-    color: string;
-  };
-}
 
 interface BurgerMenuProps {
   isVisible: boolean;
@@ -34,44 +21,19 @@ interface BurgerMenuProps {
   slideAnim: Animated.Value;
 }
 
-const BurgerMenu: React.FC<BurgerMenuProps> = ({ 
-  isVisible, 
-  onClose, 
-  slideAnim 
+const BurgerMenu: React.FC<BurgerMenuProps> = ({
+  isVisible,
+  onClose,
+  slideAnim,
 }) => {
-  const [profile, setProfile] = useState<DriverProfile | null>(null);
+  const { driver, logout } = useAuth();
 
-  // Load profile when component mounts or when sidebar becomes visible
-  useEffect(() => {
-    if (isVisible) {
-      loadProfile();
-    }
-  }, [isVisible]);
+  // Get driver name and profile photo from context
+  const driverName = driver?.fullname
+    ? `${driver.fullname.firstname} ${driver.fullname.lastname || ""}`.trim()
+    : "Driver";
 
-  const loadProfile = async () => {
-    try {
-      const savedProfile = await AsyncStorage.getItem("driverProfile");
-      if (savedProfile) {
-        setProfile(JSON.parse(savedProfile));
-      } else {
-        // Set default profile
-        const defaultProfile: DriverProfile = {
-          username: "Driver",
-          email: "driver@example.com",
-          phone: "+92 300 1234567",
-          vehicle: {
-            company: "Toyota",
-            model: "Corolla",
-            registrationNumber: "ABC-123",
-            color: "White"
-          }
-        };
-        setProfile(defaultProfile);
-      }
-    } catch (error) {
-      console.error("Error loading profile:", error);
-    }
-  };
+  const profilePhoto = driver?.profilePhoto?.url || driver?.profilePhoto;
 
   const handleProfileClick = () => {
     router.push("/profile");
@@ -105,66 +67,62 @@ const BurgerMenu: React.FC<BurgerMenuProps> = ({
     onClose();
   };
 
-  const handleLogout = () => {
-    console.log("Logging out...");
-    onClose();
+  const handleLogout = async () => {
+    try {
+      await logout();
+      onClose();
+      // Navigate to login screen
+      router.replace("/(auth)/login");
+    } catch (error) {
+      console.error("Error logging out:", error);
+    }
   };
 
   const getInitial = (name: string) => name?.charAt(0).toUpperCase() || "D";
 
   return (
-    <Modal 
-      animationType="none" 
-      transparent={true} 
-      visible={isVisible} 
+    <Modal
+      animationType="none"
+      transparent={true}
+      visible={isVisible}
       onRequestClose={onClose}
     >
-      <TouchableOpacity 
-        style={styles.modalOverlay} 
-        activeOpacity={1} 
+      <TouchableOpacity
+        style={styles.modalOverlay}
+        activeOpacity={1}
         onPress={onClose}
       >
-        <Animated.View 
-          style={[
-            styles.sidebar, 
-            { transform: [{ translateX: slideAnim }] }
-          ]}
+        <Animated.View
+          style={[styles.sidebar, { transform: [{ translateX: slideAnim }] }]}
         >
-          <TouchableOpacity 
-            activeOpacity={1} 
-            onPress={(e) => e.stopPropagation()} 
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
             style={{ flex: 1 }}
           >
             {/* Profile Section */}
             <View style={styles.sidebarHeader}>
-              <TouchableOpacity 
-                style={styles.profileSection} 
+              <TouchableOpacity
+                style={styles.profileSection}
                 onPress={handleProfileClick}
               >
-                {profile?.profilePhoto ? (
-                  <Image 
-                    source={{ uri: profile.profilePhoto }} 
-                    style={styles.profileImage} 
+                {profilePhoto ? (
+                  <Image
+                    source={{ uri: profilePhoto }}
+                    style={styles.profileImage}
                   />
                 ) : (
                   <View style={styles.profileImage}>
                     <Text style={styles.profileInitial}>
-                      {getInitial(profile?.username || "Driver")}
+                      {getInitial(driverName)}
                     </Text>
                   </View>
                 )}
                 <View style={styles.profileInfo}>
-                  <Text style={styles.profileName}>
-                    {profile?.username || "Driver"}
-                  </Text>
+                  <Text style={styles.profileName}>{driverName}</Text>
                   <View style={styles.ratingContainer}>
                     {[...Array(5)].map((_, i) => (
-                      <Ionicons 
-                        key={i} 
-                        name="star" 
-                        size={12} 
-                        color="#FFD700" 
-                      />
+                      <Ionicons key={i} name="star" size={12} color="#FFD700" />
                     ))}
                   </View>
                 </View>
@@ -173,50 +131,44 @@ const BurgerMenu: React.FC<BurgerMenuProps> = ({
 
             {/* Menu Items */}
             <View style={styles.menuItems}>
-              <TouchableOpacity 
-                style={styles.menuItem} 
+              <TouchableOpacity
+                style={styles.menuItem}
                 onPress={handleBookRide}
               >
                 <Ionicons name="car" size={22} color="black" />
                 <Text style={styles.menuText}>Book Ride</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity 
-                style={styles.menuItem} 
+              <TouchableOpacity
+                style={styles.menuItem}
                 onPress={handleRideHistory}
               >
                 <Ionicons name="time" size={20} color="black" />
                 <Text style={styles.menuText}>Ride History</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity 
-                style={styles.menuItem} 
+              <TouchableOpacity
+                style={styles.menuItem}
                 onPress={handleEarnings}
               >
                 <Ionicons name="cash" size={20} color="black" />
                 <Text style={styles.menuText}>Earnings</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity 
-                style={styles.menuItem} 
+              <TouchableOpacity
+                style={styles.menuItem}
                 onPress={handleNotifications}
               >
                 <Ionicons name="notifications" size={20} color="black" />
                 <Text style={styles.menuText}>Notifications</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity 
-                style={styles.menuItem} 
-                onPress={handleSupport}
-              >
+              <TouchableOpacity style={styles.menuItem} onPress={handleSupport}>
                 <Ionicons name="call" size={20} color="black" />
                 <Text style={styles.menuText}>Support</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity 
-                style={styles.menuItem} 
-                onPress={handleLogout}
-              >
+              <TouchableOpacity style={styles.menuItem} onPress={handleLogout}>
                 <Ionicons name="log-out" size={20} color="black" />
                 <Text style={[styles.menuText, styles.logoutText]}>
                   Log out

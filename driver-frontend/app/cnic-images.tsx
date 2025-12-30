@@ -1,7 +1,7 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect } from "react";
 import {
   Alert,
   Image,
@@ -10,11 +10,11 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useDocuments } from "@/utils/DocumentContext";
 
 export default function CNICImages() {
   const router = useRouter();
-  const [frontImage, setFrontImage] = useState<string | null>(null);
-  const [backImage, setBackImage] = useState<string | null>(null);
+  const { images, setImage } = useDocuments();
 
   const handleSourceChoice = async (side: "front" | "back") => {
     Alert.alert("Upload CNIC", "Choose an option", [
@@ -35,7 +35,7 @@ export default function CNICImages() {
 
           if (!result.canceled) {
             const uri = result.assets[0].uri;
-            side === "front" ? setFrontImage(uri) : setBackImage(uri);
+            setImage(side === "front" ? "cnicFront" : "cnicBack", uri);
           }
         },
       },
@@ -50,14 +50,14 @@ export default function CNICImages() {
           }
 
           const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            mediaTypes: "images",
             allowsEditing: true,
             quality: 0.7,
           });
 
           if (!result.canceled) {
             const uri = result.assets[0].uri;
-            side === "front" ? setFrontImage(uri) : setBackImage(uri);
+            setImage(side === "front" ? "cnicFront" : "cnicBack", uri);
           }
         },
       },
@@ -76,12 +76,11 @@ export default function CNICImages() {
   };
 
   const handleNext = () => {
-    if (!frontImage || !backImage) {
+    if (!images.cnicFront || !images.cnicBack) {
       Alert.alert("Both sides required", "Please upload both CNIC images.");
       return;
     }
 
-    // TODO: send both images to backend
     router.push("/selfie-with-id" as any);
   };
 
@@ -91,9 +90,9 @@ export default function CNICImages() {
       <Text style={styles.subtitle}>Upload clear images of your CNIC</Text>
 
       <Text style={styles.label}>CNIC Front</Text>
-      {frontImage ? (
+      {images.cnicFront ? (
         <TouchableOpacity onPress={() => handleRetakePrompt("front")}>
-          <Image source={{ uri: frontImage }} style={styles.image} />
+          <Image source={{ uri: images.cnicFront }} style={styles.image} />
         </TouchableOpacity>
       ) : (
         <TouchableOpacity
@@ -106,9 +105,9 @@ export default function CNICImages() {
       )}
 
       <Text style={styles.label}>CNIC Back</Text>
-      {backImage ? (
+      {images.cnicBack ? (
         <TouchableOpacity onPress={() => handleRetakePrompt("back")}>
-          <Image source={{ uri: backImage }} style={styles.image} />
+          <Image source={{ uri: images.cnicBack }} style={styles.image} />
         </TouchableOpacity>
       ) : (
         <TouchableOpacity
@@ -125,7 +124,6 @@ export default function CNICImages() {
           <Text style={styles.nextText}>Next</Text>
         </TouchableOpacity>
       </View>
-
     </View>
   );
 }
@@ -186,7 +184,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#0286ff",
     padding: 14,
     borderRadius: 20,
-    width: "40%", 
+    width: "40%",
     alignItems: "center",
   },
   nextText: {

@@ -65,40 +65,57 @@ export class SharedRideRequestService {
     const { ride } = await this.createSharedRideRequest(passengerID, dto);
 
     const match = await this.findCompatibleMatch(ride);
-   if (!match) {
-  try {
-    const socketId = this.rideGateway.connectedPassengers.get(
-      passengerID.toString(),
-    );
-    if (socketId) {
-      this.rideGateway.server.to(socketId).emit(
-        'sharedRideSearching',
-        { message: 'No compatible shared match found (yet)', ride },
-      );
+    if (!match) {
+      try {
+        const socketId = this.rideGateway.connectedPassengers.get(
+          passengerID.toString(),
+        );
+        if (socketId) {
+          this.rideGateway.server
+            .to(socketId)
+            .emit('sharedRideSearching', {
+              message: 'No compatible shared match found (yet)',
+              ride,
+            });
+        }
+      } catch (e) {
+        console.warn('WebSocket emit failed (sharedRideSearching):', e.message);
+      }
+
+      return {
+        message: 'No compatible shared match found (yet)',
+        ride,
+        matched: null,
+      };
     }
-  } catch (e) {
-    console.warn('WebSocket emit failed (sharedRideSearching):', e.message);
-  }
-
-  return {
-    message: 'No compatible shared match found (yet)',
-    ride,
-    matched: null,
-  };
-}
-
 
     // Pair both rides atomically
     const paired = await this.pairPassengers(ride, match);
 
     // Notify both passengers
     try {
+      const primaryPassengerId = ride.passengerID.toString();
+      const secondaryPassengerId = match.passengerID.toString();
+
+      console.log(
+        `🔔 Emitting sharedRideMatched to primary passenger: ${primaryPassengerId}`,
+      );
+      console.log(
+        `🔔 Emitting sharedRideMatched to secondary passenger: ${secondaryPassengerId}`,
+      );
+      console.log(
+        `📊 Connected passengers:`,
+        Array.from(this.rideGateway.connectedPassengers.keys()),
+      );
+
       this.rideGateway.server
-        .to(ride.passengerID.toString())
+        .to(primaryPassengerId)
         .emit('sharedRideMatched', paired.primary);
       this.rideGateway.server
-        .to(match.passengerID.toString())
+        .to(secondaryPassengerId)
         .emit('sharedRideMatched', paired.secondary);
+
+      console.log(`✅ sharedRideMatched events emitted successfully`);
     } catch (e) {
       // Non-fatal: socket may not be connected; continue
       console.warn('WebSocket emit failed (sharedRideMatched):', e.message);

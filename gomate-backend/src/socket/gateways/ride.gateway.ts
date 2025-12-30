@@ -123,7 +123,7 @@ export class RideGateway implements OnGatewayConnection, OnGatewayDisconnect {
   async handleSharedRideRequest(
     @MessageBody() data: { passengerId: string; dto: CreateRideRequestDto },
   ) {
-    return this.sharedRideRequestService.createSharedRideRequest(
+    return this.sharedRideRequestService.createSharedAndMatch(
       data.passengerId,
       data.dto,
     );

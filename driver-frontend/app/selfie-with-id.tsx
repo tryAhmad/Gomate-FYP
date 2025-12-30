@@ -1,7 +1,7 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React from "react";
 import {
   Alert,
   Image,
@@ -10,10 +10,11 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useDocuments } from "@/utils/DocumentContext";
 
 export default function SelfieWithID() {
   const router = useRouter();
-  const [image, setImage] = useState<string | null>(null);
+  const { images, setImage } = useDocuments();
 
   const pickImage = async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
@@ -28,28 +29,23 @@ export default function SelfieWithID() {
     });
 
     if (!result.canceled) {
-      setImage(result.assets[0].uri);
+      setImage("selfieWithId", result.assets[0].uri);
     }
   };
 
   const handleImagePress = () => {
-    Alert.alert(
-      "Retake Selfie",
-      "Do you want to retake your selfie?",
-      [
-        { text: "Cancel", style: "cancel" },
-        { text: "Retake", onPress: pickImage },
-      ]
-    );
+    Alert.alert("Retake Selfie", "Do you want to retake your selfie?", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Retake", onPress: pickImage },
+    ]);
   };
 
   const handleNext = () => {
-    if (!image) {
+    if (!images.selfieWithId) {
       Alert.alert("Upload Required", "Please take a selfie holding your ID.");
       return;
     }
 
-    // TODO: send image to backend here
     router.push("/driver's-license" as any);
   };
 
@@ -60,9 +56,12 @@ export default function SelfieWithID() {
         Take a clear selfie while holding your CNIC.
       </Text>
 
-      {image ? (
+      {images.selfieWithId ? (
         <TouchableOpacity onPress={handleImagePress}>
-          <Image source={{ uri: image }} style={styles.previewImage} />
+          <Image
+            source={{ uri: images.selfieWithId }}
+            style={styles.previewImage}
+          />
         </TouchableOpacity>
       ) : (
         <TouchableOpacity style={styles.uploadBox} onPress={pickImage}>
@@ -76,7 +75,6 @@ export default function SelfieWithID() {
           <Text style={styles.nextText}>Next</Text>
         </TouchableOpacity>
       </View>
-
     </View>
   );
 }
@@ -144,7 +142,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#0286ff",
     padding: 14,
     borderRadius: 20,
-    width: "40%", 
+    width: "40%",
     alignItems: "center",
   },
   nextText: {

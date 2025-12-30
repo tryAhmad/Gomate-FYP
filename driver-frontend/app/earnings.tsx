@@ -8,11 +8,14 @@ import {
   StatusBar,
   Dimensions,
   Animated,
+  Alert,
+  RefreshControl,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useRouter, useFocusEffect } from "expo-router"; 
+import { useRouter, useFocusEffect } from "expo-router";
 import BurgerMenu from "@/components/BurgerMenu";
+import { useAuth } from "@/contexts/AuthContext";
 
 const { width, height } = Dimensions.get("window");
 
@@ -35,6 +38,9 @@ export default function EarningsScreen() {
     trends: [],
   });
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const { authToken } = useAuth();
 
   // Burger menu states
   const [sidebarVisible, setSidebarVisible] = useState(false);
@@ -62,102 +68,141 @@ export default function EarningsScreen() {
   // Calculate earnings from ride history
   const calculateEarnings = async () => {
     try {
-      const cached = await AsyncStorage.getItem("driverRideHistory");
-      if (cached) {
-        const rides = JSON.parse(cached);
-        
-        // Filter only completed rides
-        const completedRides = rides.filter((ride: any) => ride.status === "completed");
-        
-        // Get current date
-        const now = new Date();
-        const currentWeek = getWeekNumber(now);
-        const currentMonth = now.getMonth();
-        const currentYear = now.getFullYear();
+      setLoading(true);
 
-        // Calculate weekly earnings (current week)
-        const weeklyEarnings = completedRides
-          .filter((ride: any) => {
-            const rideDate = new Date(ride.createdAt);
-            return (
-              getWeekNumber(rideDate) === currentWeek &&
-              rideDate.getFullYear() === currentYear
-            );
-          })
-          .reduce((sum: number, ride: any) => sum + ride.fare, 0);
-
-        // Calculate monthly earnings (current month)
-        const monthlyEarnings = completedRides
-          .filter((ride: any) => {
-            const rideDate = new Date(ride.createdAt);
-            return (
-              rideDate.getMonth() === currentMonth &&
-              rideDate.getFullYear() === currentYear
-            );
-          })
-          .reduce((sum: number, ride: any) => sum + ride.fare, 0);
-
-        // Calculate total earnings
-        const totalEarnings = completedRides.reduce(
-          (sum: number, ride: any) => sum + ride.fare,
-          0
-        );
-
-        // Calculate trends (last 6 months)
-        const trends = calculateTrends(completedRides);
-
-        setEarnings({
-          weekly: weeklyEarnings,
-          monthly: monthlyEarnings,
-          total: totalEarnings,
-          trends,
-        });
+      if (!authToken) {
+        Alert.alert("Error", "Authentication token not found");
+        return;
       }
+
+      // Fetch ride history from backend
+      const response = await fetch(
+        "http://192.168.100.5:3000/ride-request/driver/history",
+        {
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch ride history: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log("Fetched rides for earnings:", data);
+
+      const rides = data.rides;
+
+      // Filter only completed rides
+      const completedRides = rides.filter(
+        (ride: any) => ride.status === "completed"
+      );
+
+      // Get current date
+      const now = new Date();
+      const currentWeek = getWeekNumber(now);
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+
+      // Calculate weekly earnings (current week)
+      const weeklyEarnings = completedRides
+        .filter((ride: any) => {
+          const rideDate = new Date(ride.createdAt);
+          return (
+            getWeekNumber(rideDate) === currentWeek &&
+            rideDate.getFullYear() === currentYear
+          );
+        })
+        .reduce((sum: number, ride: any) => sum + ride.fare, 0);
+
+      // Calculate monthly earnings (current month)
+      const monthlyEarnings = completedRides
+        .filter((ride: any) => {
+          const rideDate = new Date(ride.createdAt);
+          return (
+            rideDate.getMonth() === currentMonth &&
+            rideDate.getFullYear() === currentYear
+          );
+        })
+        .reduce((sum: number, ride: any) => sum + ride.fare, 0);
+
+      // Calculate total earnings
+      const totalEarnings = completedRides.reduce(
+        (sum: number, ride: any) => sum + ride.fare,
+        0
+      );
+
+      // Calculate trends (last 6 months)
+      const trends = calculateTrends(completedRides);
+
+      setEarnings({
+        weekly: weeklyEarnings,
+        monthly: monthlyEarnings,
+        total: totalEarnings,
+        trends,
+      });
     } catch (error) {
       console.error("Error calculating earnings:", error);
+      Alert.alert(
+        "Error",
+        "Failed to load earnings data. Please try again later."
+      );
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
   // Helper function to get week number
   const getWeekNumber = (date: Date) => {
     const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
-    const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000;
+    const pastDaysOfYear =
+      (date.getTime() - firstDayOfYear.getTime()) / 86400000;
     return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
   };
 
   // Calculate trends for last 6 months
   const calculateTrends = (rides: any[]) => {
     const months = [
-      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
     ];
-    
+
     const trends = [];
     const now = new Date();
-    
+
     for (let i = 5; i >= 0; i--) {
       const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const month = date.getMonth();
       const year = date.getFullYear();
-      
+
       const monthlyEarnings = rides
         .filter((ride: any) => {
           const rideDate = new Date(ride.createdAt);
           return (
-            rideDate.getMonth() === month &&
-            rideDate.getFullYear() === year
+            rideDate.getMonth() === month && rideDate.getFullYear() === year
           );
         })
         .reduce((sum: number, ride: any) => sum + ride.fare, 0);
-      
+
       trends.push({
         month: months[month],
         amount: monthlyEarnings,
       });
     }
-    
+
     return trends;
   };
 
@@ -171,7 +216,12 @@ export default function EarningsScreen() {
     }, [])
   );
 
-  const maxTrendAmount = Math.max(...earnings.trends.map(t => t.amount), 1);
+  const onRefresh = () => {
+    setRefreshing(true);
+    calculateEarnings();
+  };
+
+  const maxTrendAmount = Math.max(...earnings.trends.map((t) => t.amount), 1);
 
   if (loading) {
     return (
@@ -194,10 +244,13 @@ export default function EarningsScreen() {
         <View style={{ width: 34 }} />
       </View>
 
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       >
         {/* This Week Earnings */}
         <View style={styles.earningsCard}>
@@ -205,8 +258,12 @@ export default function EarningsScreen() {
             <Ionicons name="calendar-outline" size={24} color="#030303ff" />
             <Text style={styles.cardTitle}>This Week</Text>
           </View>
-          <Text style={styles.earningsAmount}>PKR {earnings.weekly.toLocaleString()}</Text>
-          <Text style={styles.cardSubtitle}>Total earnings from completed rides this week</Text>
+          <Text style={styles.earningsAmount}>
+            PKR {earnings.weekly.toLocaleString()}
+          </Text>
+          <Text style={styles.cardSubtitle}>
+            Total earnings from completed rides this week
+          </Text>
         </View>
 
         {/* This Month Earnings */}
@@ -215,8 +272,12 @@ export default function EarningsScreen() {
             <Ionicons name="calendar-outline" size={24} color="#111111ff" />
             <Text style={styles.cardTitle}>This Month</Text>
           </View>
-          <Text style={styles.earningsAmount}>PKR {earnings.monthly.toLocaleString()}</Text>
-          <Text style={styles.cardSubtitle}>Total earnings from completed rides this month</Text>
+          <Text style={styles.earningsAmount}>
+            PKR {earnings.monthly.toLocaleString()}
+          </Text>
+          <Text style={styles.cardSubtitle}>
+            Total earnings from completed rides this month
+          </Text>
         </View>
 
         {/* Total Earnings */}
@@ -225,8 +286,12 @@ export default function EarningsScreen() {
             <Ionicons name="wallet-outline" size={24} color="#111212ff" />
             <Text style={styles.cardTitle}>Earnings to Date</Text>
           </View>
-          <Text style={styles.earningsAmount}>PKR {earnings.total.toLocaleString()}</Text>
-          <Text style={styles.cardSubtitle}>All-time earnings from completed rides</Text>
+          <Text style={styles.earningsAmount}>
+            PKR {earnings.total.toLocaleString()}
+          </Text>
+          <Text style={styles.cardSubtitle}>
+            All-time earnings from completed rides
+          </Text>
         </View>
 
         {/* Earnings Trends */}
@@ -235,9 +300,11 @@ export default function EarningsScreen() {
             <Ionicons name="trending-up" size={24} color="#0286FF" />
             <Text style={styles.cardTitle}>Earnings Trends</Text>
           </View>
-          
+
           <View style={styles.trendsHeader}>
-            <Text style={styles.trendsAmount}>PKR {earnings.total.toLocaleString()}</Text>
+            <Text style={styles.trendsAmount}>
+              PKR {earnings.total.toLocaleString()}
+            </Text>
             <View style={styles.trendsBadge}>
               <Ionicons name="arrow-up" size={12} color="#fff" />
               <Text style={styles.trendsBadgeText}>+12%</Text>
@@ -254,7 +321,10 @@ export default function EarningsScreen() {
                     style={[
                       styles.bar,
                       {
-                        height: `${Math.max((trend.amount / maxTrendAmount) * 100, 10)}%`,
+                        height: `${Math.max(
+                          (trend.amount / maxTrendAmount) * 100,
+                          10
+                        )}%`,
                         backgroundColor: "#0286FF",
                       },
                     ]}
@@ -269,10 +339,10 @@ export default function EarningsScreen() {
       </ScrollView>
 
       {/* Burger Menu */}
-      <BurgerMenu 
-        isVisible={sidebarVisible} 
-        onClose={closeSidebar} 
-        slideAnim={slideAnim} 
+      <BurgerMenu
+        isVisible={sidebarVisible}
+        onClose={closeSidebar}
+        slideAnim={slideAnim}
       />
     </View>
   );

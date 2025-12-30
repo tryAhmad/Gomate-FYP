@@ -195,6 +195,19 @@ export class RideRequestService {
     };
   }
 
+  async getDriverRideHistory(driverId: string) {
+    const rides = await this.rideRequestModel
+      .find({ driverID: driverId })
+      .populate('passengerID', 'username phoneNumber email')
+      .sort({ createdAt: -1 }) // newest first
+      .lean();
+
+    return {
+      message: 'Driver ride history retrieved successfully',
+      rides,
+    };
+  }
+
   async cancelRide(
     rideId: string,
     cancelledBy: 'passenger' | 'driver',

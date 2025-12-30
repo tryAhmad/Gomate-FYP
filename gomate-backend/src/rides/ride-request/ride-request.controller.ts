@@ -91,6 +91,15 @@ export class RideRequestController {
     return this.rideRequestService.getPassengerRideHistory(passengerId);
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Driver)
+  @Get('driver/history')
+  @ApiOperation({ summary: 'Get all ride history for logged-in driver' })
+  async getDriverRideHistory(@Req() req: any) {
+    const driverId = req.user?.userId;
+    return this.rideRequestService.getDriverRideHistory(driverId);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get ride request by ID' })
   async getById(@Param('id') id: string) {

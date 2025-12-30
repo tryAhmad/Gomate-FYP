@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +27,41 @@ import {
   Clock,
 } from "lucide-react";
 import { DriverRequestModal } from "@/components/driver-requests/driver-request-modal";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+
+interface Driver {
+  _id: string;
+  fullname: { firstname: string; lastname?: string };
+  email: string;
+  phoneNumber: string;
+  dateOfBirth?: string;
+  profilePhoto?: { url: string; publicId: string };
+  vehicle: {
+    company?: string;
+    model?: string;
+    color: string;
+    plate: string;
+    capacity: number;
+    vehicleType: string;
+    images?: Array<{ url: string; publicId: string }>;
+  };
+  documents?: {
+    cnic?: {
+      front?: { url: string };
+      back?: { url: string };
+    };
+    selfieWithId?: { url: string };
+    drivingLicense?: {
+      front?: { url: string };
+      back?: { url: string };
+    };
+  };
+  verificationStatus: "pending" | "approved" | "rejected";
+  rejectionReason?: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
 const mockRequests = [
   {
@@ -149,50 +184,116 @@ const mockRequests = [
 export default function RequestsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("All");
-  const [requests, setRequests] = useState(mockRequests);
-  const [selectedRequest, setSelectedRequest] = useState<
-    (typeof mockRequests)[0] | null
-  >(null);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null);
 
-  const filteredRequests = requests.filter((request) => {
+  useEffect(() => {
+    fetchPendingDrivers();
+  }, []);
+
+  const fetchPendingDrivers = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(
+        `${API_BASE_URL}/drivers/verification/pending`
+      );
+      const data = await response.json();
+      setDrivers(data.drivers || []);
+    } catch (error) {
+      console.error("Failed to fetch pending drivers:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredDrivers = drivers.filter((driver) => {
+    const fullName = `${driver.fullname.firstname} ${
+      driver.fullname.lastname || ""
+    }`;
     const matchesSearch =
-      request.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      request.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      request.licenseNumber.toLowerCase().includes(searchTerm.toLowerCase());
+      fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      driver.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      driver.phoneNumber.includes(searchTerm);
 
     const matchesStatus =
-      statusFilter === "All" || request.status === statusFilter;
+      statusFilter === "All" ||
+      (statusFilter === "Pending" && driver.verificationStatus === "pending") ||
+      (statusFilter === "Approved" &&
+        driver.verificationStatus === "approved") ||
+      (statusFilter === "Rejected" && driver.verificationStatus === "rejected");
 
     return matchesSearch && matchesStatus;
   });
 
-  const handleApprove = (id: number) => {
-    setRequests(
-      requests.map((req) =>
-        req.id === id ? { ...req, status: "Approved" } : req
-      )
-    );
-    setSelectedRequest(null);
+  const handleApprove = async (driverId: string) => {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/drivers/${driverId}/verification`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ verificationStatus: "approved" }),
+        }
+      );
+
+      if (response.ok) {
+        setDrivers(
+          drivers.map((driver) =>
+            driver._id === driverId
+              ? { ...driver, verificationStatus: "approved" as const }
+              : driver
+          )
+        );
+        setSelectedDriver(null);
+      }
+    } catch (error) {
+      console.error("Failed to approve driver:", error);
+    }
   };
 
-  const handleReject = (id: number) => {
-    setRequests(
-      requests.map((req) =>
-        req.id === id ? { ...req, status: "Rejected" } : req
-      )
-    );
-    setSelectedRequest(null);
+  const handleReject = async (driverId: string, reason?: string) => {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/drivers/${driverId}/verification`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            verificationStatus: "rejected",
+            rejectionReason: reason || "Documents not acceptable",
+          }),
+        }
+      );
+
+      if (response.ok) {
+        setDrivers(
+          drivers.map((driver) =>
+            driver._id === driverId
+              ? {
+                  ...driver,
+                  verificationStatus: "rejected" as const,
+                  rejectionReason: reason,
+                }
+              : driver
+          )
+        );
+        setSelectedDriver(null);
+      }
+    } catch (error) {
+      console.error("Failed to reject driver:", error);
+    }
   };
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case "Pending":
+    switch (status.toLowerCase()) {
+      case "pending":
         return "bg-yellow-100 text-yellow-800";
-      case "Under Review":
+      case "under review":
         return "bg-blue-100 text-blue-800";
-      case "Approved":
+      case "approved":
         return "bg-green-100 text-green-800";
-      case "Rejected":
+      case "rejected":
         return "bg-red-100 text-red-800";
       default:
         return "bg-gray-100 text-gray-800";
@@ -200,14 +301,14 @@ export default function RequestsPage() {
   };
 
   const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "Pending":
+    switch (status.toLowerCase()) {
+      case "pending":
         return <Clock className="h-4 w-4" />;
-      case "Under Review":
+      case "under review":
         return <Eye className="h-4 w-4" />;
-      case "Approved":
+      case "approved":
         return <CheckCircle className="h-4 w-4" />;
-      case "Rejected":
+      case "rejected":
         return <XCircle className="h-4 w-4" />;
       default:
         return null;
@@ -215,10 +316,10 @@ export default function RequestsPage() {
   };
 
   const stats = {
-    total: requests.length,
-    pending: requests.filter((r) => r.status === "Pending").length,
-    underReview: requests.filter((r) => r.status === "Under Review").length,
-    approved: requests.filter((r) => r.status === "Approved").length,
+    total: drivers.length,
+    pending: drivers.filter((r) => r.verificationStatus === "pending").length,
+    approved: drivers.filter((r) => r.verificationStatus === "approved").length,
+    rejected: drivers.filter((r) => r.verificationStatus === "rejected").length,
   };
 
   return (
@@ -261,13 +362,25 @@ export default function RequestsPage() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Under Review</CardTitle>
+            <CardTitle className="text-sm font-medium">Approved</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">
-              {stats.underReview}
+            <div className="text-2xl font-bold text-green-600">
+              {stats.approved}
             </div>
-            <p className="text-xs text-muted-foreground">Being processed</p>
+            <p className="text-xs text-muted-foreground">Verified drivers</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Rejected</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">
+              {stats.rejected}
+            </div>
+            <p className="text-xs text-muted-foreground">Not approved</p>
           </CardContent>
         </Card>
 
@@ -324,117 +437,168 @@ export default function RequestsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredRequests.map((request) => (
-                  <TableRow key={request.id}>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium">{request.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {request.email}
-                        </p>
-                      </div>
-                    </TableCell>
-                    <TableCell className="font-mono text-sm">
-                      {request.licenseNumber}
-                    </TableCell>
-                    <TableCell className="text-sm">{request.vehicle}</TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {request.documents.map((doc) => (
-                          <span
-                            key={doc}
-                            className="inline-flex items-center rounded-full bg-secondary px-2 py-1 text-xs font-medium"
-                          >
-                            {doc}
-                          </span>
-                        ))}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {request.submittedDate}
-                    </TableCell>
-                    <TableCell>
-                      <span
-                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusColor(
-                          request.status
-                        )}`}
-                      >
-                        {getStatusIcon(request.status)}
-                        {request.status}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => setSelectedRequest(request)}
-                          >
-                            <Eye className="h-4 w-4 mr-2" />
-                            View Details
-                          </DropdownMenuItem>
-                          {request.status === "Pending" ||
-                          request.status === "Under Review" ? (
-                            <>
-                              <DropdownMenuItem
-                                onClick={() => handleApprove(request.id)}
-                              >
-                                <CheckCircle className="h-4 w-4 mr-2 text-green-600" />
-                                Approve
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                className="text-destructive"
-                                onClick={() => handleReject(request.id)}
-                              >
-                                <XCircle className="h-4 w-4 mr-2" />
-                                Reject
-                              </DropdownMenuItem>
-                            </>
-                          ) : null}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8">
+                      Loading drivers...
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : filteredDrivers.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={7}
+                      className="text-center py-8 text-muted-foreground"
+                    >
+                      No driver requests found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredDrivers.map((driver) => (
+                    <TableRow key={driver._id}>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">
+                            {driver.fullname.firstname}{" "}
+                            {driver.fullname.lastname || ""}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {driver.email}
+                          </p>
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-mono text-sm">
+                        {driver.phoneNumber}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {driver.vehicle.company} {driver.vehicle.model} (
+                        {driver.vehicle.color})
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {driver.documents?.cnic && (
+                            <span className="inline-flex items-center rounded-full bg-secondary px-2 py-1 text-xs font-medium">
+                              CNIC
+                            </span>
+                          )}
+                          {driver.documents?.selfieWithId && (
+                            <span className="inline-flex items-center rounded-full bg-secondary px-2 py-1 text-xs font-medium">
+                              Selfie
+                            </span>
+                          )}
+                          {driver.documents?.drivingLicense && (
+                            <span className="inline-flex items-center rounded-full bg-secondary px-2 py-1 text-xs font-medium">
+                              License
+                            </span>
+                          )}
+                          {driver.profilePhoto && (
+                            <span className="inline-flex items-center rounded-full bg-secondary px-2 py-1 text-xs font-medium">
+                              Photo
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {new Date(driver.createdAt).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${getStatusColor(
+                            driver.verificationStatus
+                          )}`}
+                        >
+                          {getStatusIcon(driver.verificationStatus)}
+                          {driver.verificationStatus}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => setSelectedDriver(driver)}
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              View Details
+                            </DropdownMenuItem>
+                            {driver.verificationStatus === "pending" && (
+                              <>
+                                <DropdownMenuItem
+                                  onClick={() => handleApprove(driver._id)}
+                                >
+                                  <CheckCircle className="h-4 w-4 mr-2 text-green-600" />
+                                  Approve
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className="text-destructive"
+                                  onClick={() => handleReject(driver._id)}
+                                >
+                                  <XCircle className="h-4 w-4 mr-2" />
+                                  Reject
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </div>
-
-          {filteredRequests.length === 0 && (
-            <div className="text-center py-8">
-              <p className="text-muted-foreground">No requests found</p>
-            </div>
-          )}
         </CardContent>
       </Card>
 
-      {selectedRequest && (
+      {selectedDriver && (
         <DriverRequestModal
           request={{
-            id: selectedRequest.id,
-            name: selectedRequest.name,
-            phone: selectedRequest.phone,
-            dob: selectedRequest.dob,
-            profilePhoto: selectedRequest.profilePhoto,
-            cnic: selectedRequest.cnic,
-            selfieWithId: selectedRequest.selfieWithId,
-            license: selectedRequest.license,
-            vehicle: {
-              type: selectedRequest.vehicleDetails.type,
-              model: selectedRequest.vehicleDetails.model,
-              color: selectedRequest.vehicleDetails.color,
-              registration: selectedRequest.vehicleDetails.registration,
-              photos: selectedRequest.vehicleDetails.photos,
+            id: selectedDriver._id,
+            name: `${selectedDriver.fullname.firstname} ${
+              selectedDriver.fullname.lastname || ""
+            }`,
+            email: selectedDriver.email,
+            phone: selectedDriver.phoneNumber,
+            dob: selectedDriver.dateOfBirth || "N/A",
+            submittedDate: new Date(
+              selectedDriver.createdAt
+            ).toLocaleDateString(),
+            status:
+              selectedDriver.verificationStatus.charAt(0).toUpperCase() +
+              selectedDriver.verificationStatus.slice(1),
+            documents: [
+              ...(selectedDriver.documents?.cnic ? ["CNIC"] : []),
+              ...(selectedDriver.documents?.selfieWithId ? ["Selfie"] : []),
+              ...(selectedDriver.documents?.drivingLicense ? ["License"] : []),
+              ...(selectedDriver.profilePhoto ? ["Profile Photo"] : []),
+            ],
+            profilePhoto: selectedDriver.profilePhoto?.url || "",
+            cnic: {
+              front: selectedDriver.documents?.cnic?.front?.url || "",
+              back: selectedDriver.documents?.cnic?.back?.url || "",
             },
-            status: selectedRequest.status,
+            selfieWithId: selectedDriver.documents?.selfieWithId?.url || "",
+            license: {
+              front: selectedDriver.documents?.drivingLicense?.front?.url || "",
+              back: selectedDriver.documents?.drivingLicense?.back?.url || "",
+            },
+            vehicle: {
+              type: selectedDriver.vehicle.vehicleType,
+              model: `${selectedDriver.vehicle.company || ""} ${
+                selectedDriver.vehicle.model || ""
+              }`,
+              color: selectedDriver.vehicle.color,
+              registration: selectedDriver.vehicle.plate,
+              photos:
+                selectedDriver.vehicle.images?.map((img) => img.url) || [],
+            },
           }}
-          onApprove={() => handleApprove(selectedRequest.id)}
-          onReject={() => handleReject(selectedRequest.id)}
-          onClose={() => setSelectedRequest(null)}
+          onClose={() => setSelectedDriver(null)}
+          onApprove={() => handleApprove(selectedDriver._id)}
+          onReject={(reason) => handleReject(selectedDriver._id, reason)}
         />
       )}
     </div>

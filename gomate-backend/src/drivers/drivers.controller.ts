@@ -7,15 +7,23 @@ import {
   Param,
   Delete,
   UseGuards,
+  UseInterceptors,
+  UploadedFiles,
+  Query,
 } from '@nestjs/common';
 import { DriversService } from './drivers.service';
 import { CreateDriverDto } from './dto/create-driver.dto';
 import { UpdateDriverDto } from './dto/update-driver.dto';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/common/guards/roles.guard';
 import { Roles } from 'src/common/decorators/roles.decorators';
 import { Role } from 'src/common/enums/roles.enum';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
+import {
+  UploadDriverDocumentsDto,
+  UpdateVerificationStatusDto,
+} from './dto/upload-documents.dto';
 
 @ApiTags('Drivers')
 @Controller('drivers')
@@ -69,5 +77,81 @@ export class DriversController {
   async remove(@Param('id') id: string) {
     const driver = await this.driversService.remove(id);
     return { message: 'Driver removed successfully', driver };
+  }
+
+  @Post(':id/documents')
+  @ApiOperation({ summary: 'Upload driver documents' })
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'cnicFront', maxCount: 1 },
+      { name: 'cnicBack', maxCount: 1 },
+      { name: 'selfieWithId', maxCount: 1 },
+      { name: 'licenseFront', maxCount: 1 },
+      { name: 'licenseBack', maxCount: 1 },
+      { name: 'profilePhoto', maxCount: 1 },
+      { name: 'vehicleImages', maxCount: 6 },
+    ]),
+  )
+  async uploadDocuments(
+    @Param('id') id: string,
+    @UploadedFiles()
+    files: {
+      cnicFront?: Express.Multer.File[];
+      cnicBack?: Express.Multer.File[];
+      selfieWithId?: Express.Multer.File[];
+      licenseFront?: Express.Multer.File[];
+      licenseBack?: Express.Multer.File[];
+      profilePhoto?: Express.Multer.File[];
+      vehicleImages?: Express.Multer.File[];
+    },
+    @Body() body: any,
+  ) {
+    const driver = await this.driversService.uploadDriverDocuments(
+      id,
+      files,
+      body,
+    );
+    return { message: 'Documents uploaded successfully', driver };
+  }
+
+  @Get('verification/pending')
+  //@UseGuards(JwtAuthGuard, RolesGuard)
+  //@Roles(Role.Admin)
+  @ApiOperation({ summary: 'Get drivers with pending verification' })
+  async getPendingDrivers() {
+    const drivers =
+      await this.driversService.getDriversByVerificationStatus('pending');
+    return { message: 'Pending drivers retrieved successfully', drivers };
+  }
+
+  @Get('verification/status')
+  //@UseGuards(JwtAuthGuard, RolesGuard)
+  //@Roles(Role.Admin)
+  @ApiOperation({ summary: 'Get drivers by verification status' })
+  async getDriversByStatus(
+    @Query('status') status: 'pending' | 'approved' | 'rejected',
+  ) {
+    const drivers =
+      await this.driversService.getDriversByVerificationStatus(status);
+    return {
+      message: `Drivers with status ${status} retrieved successfully`,
+      drivers,
+    };
+  }
+
+  @Patch(':id/verification')
+  //@UseGuards(JwtAuthGuard, RolesGuard)
+  //@Roles(Role.Admin)
+  @ApiOperation({ summary: 'Update driver verification status' })
+  async updateVerificationStatus(
+    @Param('id') id: string,
+    @Body() updateVerificationDto: UpdateVerificationStatusDto,
+  ) {
+    const driver = await this.driversService.updateVerificationStatus(
+      id,
+      updateVerificationDto,
+    );
+    return { message: 'Verification status updated successfully', driver };
   }
 }

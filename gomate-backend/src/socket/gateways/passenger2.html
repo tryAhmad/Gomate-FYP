@@ -6,34 +6,74 @@
   </head>
   <body>
     <h1>Passenger 2 Side</h1>
+    <button onclick="createSharedRide()">Create Shared Ride Request</button>
+    <pre id="log"></pre>
     <script>
       const socket = io('http://localhost:3000', {
         transports: ['websocket'],
       });
 
       const passengerId = '688cbe7229a9f07fd08b426b';
+      const log = document.getElementById('log');
+
+      function addLog(msg) {
+        log.textContent += `[${new Date().toLocaleTimeString()}] ${msg}\n`;
+        console.log(msg);
+      }
 
       socket.on('connect', () => {
-        console.log('Passenger connected:', socket.id);
+        addLog('✅ Passenger connected: ' + socket.id);
 
-        // Optional: send passenger registration so backend knows where to send offers
+        // Register passenger so backend knows where to send events
         socket.emit('registerPassenger', {
-          passengerId: '688cbe7229a9f07fd08b426b',
+          passengerId: passengerId,
         });
+        addLog('📝 Passenger registered: ' + passengerId);
+      });
+
+      socket.on('sharedRideSearching', (data) => {
+        addLog('🔍 Shared ride searching (no match yet)...');
+        console.log('Full data:', data);
       });
 
       socket.on('sharedRideMatched', (data) => {
-        console.log(`Passenger ${passengerId} got matched ride:`, data);
+        addLog('🎉 Shared ride MATCHED! Paired with another passenger!');
+        console.log('Matched ride data:', data);
       });
 
-      // Listen for counter fare offers
+      // Listen for counter fare offers from drivers
       socket.on('receiveCounterOffer', (data) => {
-        console.log('Counter fare received:', data);
+        addLog(
+          `💰 Counter offer received: ${data.counterFare} PKR from driver ${data.driverId}`,
+        );
+        console.log('Counter offer:', data);
       });
 
       socket.on('disconnect', () => {
-        console.log('Disconnected from server');
+        addLog('❌ Disconnected from server');
       });
+
+      // Function to create shared ride request
+      function createSharedRide() {
+        addLog('🚀 Emitting createSharedRideRequest...');
+
+        socket.emit('createSharedRideRequest', {
+          passengerId: passengerId,
+          dto: {
+            pickupLocation: {
+              coordinates: [74.442301, 31.570366], // [longitude, latitude]
+            },
+            dropoffLocation: {
+              coordinates: [74.212292, 31.402887], // [longitude, latitude]
+            },
+            fare: 300,
+            rideType: 'car', // Must be: "car", "motorcycle", or "auto"
+            rideMode: 'shared', // Must be: "shared" for matching
+          },
+        });
+
+        addLog('✅ Shared ride request emitted! Waiting for matching...');
+      }
     </script>
   </body>
 </html>

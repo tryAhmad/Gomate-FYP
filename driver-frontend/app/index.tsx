@@ -34,6 +34,7 @@ import {
   extractCoordinates,
 } from "@/utils/rideConverter";
 import * as mapsApi from "@/utils/mapsApi";
+import { useAuth } from "@/contexts/AuthContext";
 
 const { width } = Dimensions.get("window");
 
@@ -53,6 +54,7 @@ interface DriverProfile {
 type TabType = "solo" | "shared";
 
 const DriverLandingPage: React.FC = () => {
+  const { driver, authToken } = useAuth();
   const [isOnline, setIsOnline] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>("solo");
@@ -74,13 +76,31 @@ const DriverLandingPage: React.FC = () => {
   const [isSocketConnected, setIsSocketConnected] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
 
-  // Driver ID for testing (same as driver.html)
-  const driverId = "68908c87f5bd1d56dcc631b8";
+  // Use driver ID from auth context
+  const driverId = driver?._id || "68908c87f5bd1d56dcc631b8";
 
-  // Load profile from AsyncStorage
+  // Load profile from driver context
   useEffect(() => {
-    loadProfile();
-  }, []);
+    if (driver) {
+      const driverProfile: DriverProfile = {
+        username: `${driver.fullname.firstname} ${
+          driver.fullname.lastname || ""
+        }`.trim(),
+        email: driver.email,
+        phone: driver.phoneNumber || "",
+        profilePhoto: typeof driver.profilePhoto === 'string' 
+          ? driver.profilePhoto 
+          : driver.profilePhoto?.url,
+        vehicle: {
+          company: driver.vehicle?.company || "",
+          model: driver.vehicle?.model || "",
+          registrationNumber: driver.vehicle?.plate || "",
+          color: driver.vehicle?.color || "",
+        },
+      };
+      setProfile(driverProfile);
+    }
+  }, [driver]);
 
   // Socket connection effect - runs on app load
   useEffect(() => {
@@ -325,38 +345,6 @@ const DriverLandingPage: React.FC = () => {
       socket.off("newRideRequest", handleNewRideRequest);
     };
   }, []);
-
-  const loadProfile = async () => {
-    try {
-      const savedProfile = await AsyncStorage.getItem("driverProfile");
-      if (savedProfile) {
-        setProfile(JSON.parse(savedProfile));
-      } else {
-        // Set default profile
-        const defaultProfile: DriverProfile = {
-          username: "Ahmad",
-          email: "ahmad@example.com",
-          phone: "+92 300 1234567",
-          vehicle: {
-            company: "Toyota",
-            model: "Corolla",
-            registrationNumber: "ABC-123",
-            color: "White",
-          },
-        };
-        setProfile(defaultProfile);
-      }
-    } catch (error) {
-      console.error("Error loading profile:", error);
-    }
-  };
-
-  // Reload profile when sidebar is opened to get latest photo
-  useEffect(() => {
-    if (sidebarVisible) {
-      loadProfile();
-    }
-  }, [sidebarVisible]);
 
   useEffect(() => {
     const getLocation = async () => {
@@ -776,6 +764,15 @@ const DriverLandingPage: React.FC = () => {
         </TouchableOpacity>
       </View>
 
+      {/* Temporary Registration Button
+      <TouchableOpacity
+        style={styles.registrationButton}
+        onPress={() => router.push("/driver-registration")}
+      >
+        <Ionicons name="person-add-outline" size={20} color="#fff" />
+        <Text style={styles.registrationButtonText}>Register as Driver</Text>
+      </TouchableOpacity> */}
+
       {/* Tabs with proper spacing */}
       <View style={styles.tabContainer}>
         <TouchableOpacity
@@ -973,6 +970,28 @@ const styles = StyleSheet.create({
   retryButtonText: {
     color: "#fff",
     fontSize: 16,
+    fontWeight: "600",
+  },
+  registrationButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#34C759",
+    marginHorizontal: 16,
+    marginVertical: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    gap: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  registrationButtonText: {
+    color: "#fff",
+    fontSize: 15,
     fontWeight: "600",
   },
 });

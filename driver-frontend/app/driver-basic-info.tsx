@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Image,
   KeyboardAvoidingView,
@@ -13,13 +13,22 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useDocuments } from "@/utils/DocumentContext";
 
 export default function DriverBasicInfo() {
   const router = useRouter();
-  const [fullName, setFullName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [dob, setDob] = useState("");
-  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const { images, basicInfo, setImage, setBasicInfo } = useDocuments();
+
+  const [fullName, setFullName] = useState(basicInfo.fullName || "");
+  const [phone, setPhone] = useState(basicInfo.phone || "");
+  const [dob, setDob] = useState(basicInfo.dateOfBirth || "");
+
+  useEffect(() => {
+    // Sync with context when component loads
+    if (basicInfo.fullName) setFullName(basicInfo.fullName);
+    if (basicInfo.phone) setPhone(basicInfo.phone);
+    if (basicInfo.dateOfBirth) setDob(basicInfo.dateOfBirth);
+  }, []);
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -29,14 +38,14 @@ export default function DriverBasicInfo() {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: "images",
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.5,
     });
 
     if (!result.canceled) {
-      setPhotoUri(result.assets[0].uri);
+      setImage("profilePhoto", result.assets[0].uri);
     }
   };
 
@@ -50,7 +59,10 @@ export default function DriverBasicInfo() {
     } else if (digits.length <= 4) {
       formatted = `${digits.slice(0, 2)}-${digits.slice(2)}`;
     } else {
-      formatted = `${digits.slice(0, 2)}-${digits.slice(2, 4)}-${digits.slice(4, 8)}`;
+      formatted = `${digits.slice(0, 2)}-${digits.slice(2, 4)}-${digits.slice(
+        4,
+        8
+      )}`;
     }
 
     if (
@@ -81,7 +93,7 @@ export default function DriverBasicInfo() {
   };
 
   const handleNext = () => {
-    if (!photoUri || !fullName || !phone || !dob) {
+    if (!images.profilePhoto || !fullName || !phone || !dob) {
       alert("Please fill out all fields and upload a photo before proceeding.");
       return;
     }
@@ -115,9 +127,11 @@ export default function DriverBasicInfo() {
       return;
     }
 
+    // Save to context
+    setBasicInfo({ fullName, phone, dateOfBirth: dob });
+
     router.push("/cnic-images" as any);
   };
-
 
   return (
     <KeyboardAvoidingView
@@ -129,8 +143,11 @@ export default function DriverBasicInfo() {
         <Text style={styles.heading}>Driver Information</Text>
 
         <View style={styles.profileContainer}>
-          {photoUri ? (
-            <Image source={{ uri: photoUri }} style={styles.profileCircle} />
+          {images.profilePhoto ? (
+            <Image
+              source={{ uri: images.profilePhoto }}
+              style={styles.profileCircle}
+            />
           ) : (
             <View style={styles.profileCircle}>
               <MaterialCommunityIcons name="account" size={64} color="#ccc" />
@@ -178,7 +195,6 @@ export default function DriverBasicInfo() {
             <Text style={styles.nextText}>Next</Text>
           </TouchableOpacity>
         </View>
-
       </ScrollView>
     </KeyboardAvoidingView>
   );

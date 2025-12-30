@@ -38,7 +38,7 @@ import {
   getAddressCoordinate,
   getDistanceTime,
 } from "@/utils/mapsApi";
-import {getSocket} from "@/utils/socket";
+import { getSocket } from "@/utils/socket";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -66,16 +66,19 @@ const rideTypes = [
     id: "bike",
     name: "Bike",
     icon: <MaterialCommunityIcons name="motorbike" size={24} color="black" />,
+    isVehicle: true,
   },
   {
     id: "car",
     name: "Car",
     icon: <MaterialCommunityIcons name="car" size={24} color="black" />,
+    isVehicle: true,
   },
   {
     id: "auto",
     name: "Auto",
     icon: <MaterialCommunityIcons name="rickshaw" size={24} color="black" />,
+    isVehicle: true,
   },
   {
     id: "shared",
@@ -83,6 +86,7 @@ const rideTypes = [
     icon: (
       <MaterialCommunityIcons name="account-multiple" size={24} color="black" />
     ),
+    isVehicle: false, // This is a ride mode, not a vehicle type
   },
 ];
 
@@ -91,6 +95,10 @@ const newHome = () => {
   const [selectedRideType, setSelectedRideType] = useState<string | null>(
     "car"
   );
+  const [isSharedMode, setIsSharedMode] = useState(false);
+  const [sharedMatchingStatus, setSharedMatchingStatus] = useState<
+    "searching" | "matched" | "finding-driver" | null
+  >(null);
   const [pickup, setPickup] = useState("");
   const [dropoff, setDropoff] = useState("");
   const [fare, setFare] = useState("");
@@ -156,7 +164,6 @@ const newHome = () => {
   const passengerId = "688c69f20653ec0f43df6e2c";
   const socket = getSocket();
 
-
   useEffect(() => {
     const handleCounterOffer = (data: any) => {
       console.log("Counter fare received:", data);
@@ -210,23 +217,55 @@ const newHome = () => {
       });
     };
 
+    // Shared ride handlers
+    const handleSharedRideSearching = (data: any) => {
+      console.log("🔍 [HANDLER] Shared ride searching:", data);
+      console.log("🔍 [HANDLER] Setting sharedMatchingStatus to 'searching'");
+      setSharedMatchingStatus("searching");
+    };
+
+    const handleSharedRideMatched = (data: any) => {
+      console.log("🎉 [HANDLER] Shared ride matched:", data);
+      console.log(
+        "🎉 [HANDLER] Setting sharedMatchingStatus to 'finding-driver'"
+      );
+      setSharedMatchingStatus("finding-driver");
+      // The ride is now matched with another passenger, transition to finding driver
+    };
+
     // 🔄 Remove old listeners first
     socket.off("receiveCounterOffer");
     socket.off("driverArrived");
     socket.off("rideStarted");
     socket.off("rideCompleted");
+    socket.off("sharedRideSearching");
+    socket.off("sharedRideMatched");
 
     // ✅ Add fresh listeners
+    console.log("📡 Registering socket listeners for passenger:", passengerId);
+    console.log(
+      "📡 Socket connected:",
+      socket.connected,
+      "Socket ID:",
+      socket.id
+    );
+
     socket.on("receiveCounterOffer", handleCounterOffer);
     socket.on("driverArrived", handleDriverArrived);
     socket.on("rideStarted", handleRideStarted);
     socket.on("rideCompleted", handleRideCompleted);
+    socket.on("sharedRideSearching", handleSharedRideSearching);
+    socket.on("sharedRideMatched", handleSharedRideMatched);
+
+    console.log("✅ Socket listeners registered successfully");
 
     return () => {
       socket.off("receiveCounterOffer", handleCounterOffer);
       socket.off("driverArrived", handleDriverArrived);
       socket.off("rideStarted", handleRideStarted);
       socket.off("rideCompleted", handleRideCompleted);
+      socket.off("sharedRideSearching", handleSharedRideSearching);
+      socket.off("sharedRideMatched", handleSharedRideMatched);
     };
   }, []);
 
@@ -337,10 +376,23 @@ const newHome = () => {
     })();
   }, []);
 
+  // Effect to show "Passenger Found!" modal briefly, then show driver offers modal
+  useEffect(() => {
+    if (sharedMatchingStatus === "finding-driver" && rideId) {
+      // Show "Passenger Found!" modal for 1 second
+      const timer = setTimeout(() => {
+        console.log("⏰ 1 second passed, showing driver offers modal");
+        setShowOffersModal(true);
+      }, 1000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [sharedMatchingStatus, rideId]);
+
   useEffect(() => {
     const timeout = setTimeout(() => {
       const fetchDistanceTime = async () => {
-        if (pickupCoord && dropoffCoord && selectedRideType !== "shared") {
+        if (pickupCoord && dropoffCoord && !isSharedMode) {
           try {
             setLoadingDistanceTime(true);
             const result = await getDistanceTime(
@@ -701,9 +753,9 @@ const newHome = () => {
           dropoffLocation: {
             coordinates: [dropoffCoord.longitude, dropoffCoord.latitude],
           },
-          rideMode: "solo", // or shared
+          rideMode: isSharedMode ? "shared" : "solo",
           fare: Number(fare),
-          rideType: selectedRideType,
+          rideType: selectedRideType, // This should always be a vehicle type (car, bike, auto)
         }),
       });
 
@@ -715,6 +767,17 @@ const newHome = () => {
       }
       const data = await response.json();
       console.log("Ride request created:", data);
+
+      // Handle shared ride flow differently
+      if (isSharedMode) {
+        setSharedMatchingStatus("searching");
+        const rideId = data.ride._id;
+        setRideId(rideId);
+        // Don't show offers modal yet - wait for matching
+        return;
+      }
+
+      // Solo ride flow
       const rideId = data.ride._id;
       console.log("Ride ID:", rideId);
 
@@ -732,6 +795,8 @@ const newHome = () => {
 
   const closeOffersModal = () => {
     setShowOffersModal(false);
+    // Also reset shared matching status to hide the "Passenger Found!" modal
+    setSharedMatchingStatus(null);
   };
 
   useEffect(() => {
@@ -1151,9 +1216,27 @@ const newHome = () => {
                   {rideTypes.map((ride) => (
                     <TouchableOpacity
                       key={ride.id}
-                      onPress={() => setSelectedRideType(ride.id)}
+                      onPress={() => {
+                        if (ride.id === "shared") {
+                          setIsSharedMode(true);
+                          // Keep the last selected vehicle type, default to car if none
+                          if (
+                            !selectedRideType ||
+                            selectedRideType === "shared"
+                          ) {
+                            setSelectedRideType("car");
+                          }
+                        } else {
+                          setIsSharedMode(false);
+                          setSelectedRideType(ride.id);
+                        }
+                      }}
                       className={`w-[24%] p-2 rounded-xl mb-2 border-2 items-center ${
-                        selectedRideType === ride.id
+                        (
+                          ride.id === "shared"
+                            ? isSharedMode
+                            : selectedRideType === ride.id
+                        )
                           ? "border-blue-500 bg-blue-50"
                           : "border-gray-200 bg-gray-50"
                       }`}
@@ -1161,7 +1244,11 @@ const newHome = () => {
                       <Text className="text-sm text-gray-50">{ride.icon}</Text>
                       <Text
                         className={`font-JakartaBold text-lg ${
-                          selectedRideType === ride.id
+                          (
+                            ride.id === "shared"
+                              ? isSharedMode
+                              : selectedRideType === ride.id
+                          )
                             ? "text-blue-600"
                             : "text-gray-800"
                         }`}
@@ -1273,24 +1360,27 @@ const newHome = () => {
                       handleDropoffSuggestionSelect
                     )}
                 </View>
-                {!loadingDistanceTime && rideDistance && rideDuration && selectedRideType !== "shared" && (
-                  <View className="flex-row items-center justify-center space-x-4 ">
-                    <MaterialCommunityIcons
-                      name="map-marker-distance"
-                      size={24}
-                      color="gray"
-                    />
-                    <Text className="text-gray-600 text-lg text-center font-JakartaMedium mr-16">
-                      {": "}
-                      {rideDistance}
-                    </Text>
-                    <Ionicons name="time-sharp" size={24} color="gray" />
-                    <Text className="text-gray-600 text-lg text-center font-JakartaMedium">
-                      {": "}
-                      {rideDuration}
-                    </Text>
-                  </View>
-                )}
+                {!loadingDistanceTime &&
+                  rideDistance &&
+                  rideDuration &&
+                  !isSharedMode && (
+                    <View className="flex-row items-center justify-center space-x-4 ">
+                      <MaterialCommunityIcons
+                        name="map-marker-distance"
+                        size={24}
+                        color="gray"
+                      />
+                      <Text className="text-gray-600 text-lg text-center font-JakartaMedium mr-16">
+                        {": "}
+                        {rideDistance}
+                      </Text>
+                      <Ionicons name="time-sharp" size={24} color="gray" />
+                      <Text className="text-gray-600 text-lg text-center font-JakartaMedium">
+                        {": "}
+                        {rideDuration}
+                      </Text>
+                    </View>
+                  )}
 
                 <InputField
                   placeholder="Enter Fare"
@@ -1334,6 +1424,57 @@ const newHome = () => {
           </>
         )}
       </KeyboardAvoidingView>
+
+      {/* Shared Ride Matching Modal */}
+      <Modal
+        visible={sharedMatchingStatus === "searching"}
+        transparent={true}
+        animationType="slide"
+      >
+        <View className="flex-1 justify-center items-center bg-black/50">
+          <View className="bg-white rounded-2xl p-8 mx-6 w-[85%] items-center">
+            <ActivityIndicator size="large" color="#0486FE" />
+            <Text className="text-2xl font-JakartaBold mt-6 text-center">
+              Finding a passenger to share your ride...
+            </Text>
+            <Text className="text-gray-600 mt-3 text-center">
+              We're matching you with someone going the same way
+            </Text>
+            <CustomButton
+              title="Cancel"
+              onPress={() => {
+                setSharedMatchingStatus(null);
+                // TODO: Cancel the ride request on backend
+              }}
+              className="mt-6 bg-red-500"
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {/* Shared Ride - Finding Driver Modal */}
+      <Modal
+        visible={sharedMatchingStatus === "finding-driver" && !showOffersModal}
+        transparent={true}
+        animationType="slide"
+      >
+        <View className="flex-1 justify-center items-center bg-black/50">
+          <View className="bg-white rounded-2xl p-8 mx-6 w-[85%] items-center">
+            <MaterialCommunityIcons
+              name="check-circle"
+              size={60}
+              color="#22C55E"
+            />
+            <Text className="text-2xl font-JakartaBold mt-6 text-center">
+              Passenger Found!
+            </Text>
+            <Text className="text-gray-600 mt-3 text-center">
+              Now finding a driver for your shared ride...
+            </Text>
+            <ActivityIndicator size="large" color="#0486FE" className="mt-4" />
+          </View>
+        </View>
+      </Modal>
 
       {/* Driver Offers Modal */}
       <DriverOffersModal

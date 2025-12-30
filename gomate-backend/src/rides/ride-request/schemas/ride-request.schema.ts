@@ -67,7 +67,14 @@ export class RideRequest extends Document {
   fare: number;
 
   @Prop({
-    enum: ['pending', 'matched', 'accepted', 'started', 'completed', 'cancelled'],
+    enum: [
+      'pending',
+      'matched',
+      'accepted',
+      'started',
+      'completed',
+      'cancelled',
+    ],
     default: 'pending',
   })
   status: string;

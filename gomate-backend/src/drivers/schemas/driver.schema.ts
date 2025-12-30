@@ -43,12 +43,25 @@ export class Driver {
   })
   password: string;
 
-
   @Prop({
     type: String,
     required: true,
   })
   phoneNumber: string;
+
+  @Prop({ type: String })
+  dateOfBirth?: string;
+
+  @Prop({
+    type: {
+      url: { type: String },
+      publicId: { type: String },
+    },
+  })
+  profilePhoto?: {
+    url: string;
+    publicId: string;
+  };
 
   @Prop({
     type: String,
@@ -107,6 +120,12 @@ export class Driver {
         type: String,
         required: false,
       },
+      images: [
+        {
+          url: { type: String },
+          publicId: { type: String },
+        },
+      ],
     },
   })
   vehicle: {
@@ -116,6 +135,10 @@ export class Driver {
     vehicleType: 'car' | 'motorcycle' | 'auto';
     company?: string;
     model?: string;
+    images?: Array<{
+      url: string;
+      publicId: string;
+    }>;
   };
 
   @Prop({ required: true, enum: Role, default: Role.Driver })
@@ -136,6 +159,71 @@ export class Driver {
     type: 'Point';
     coordinates: [number, number];
   };
+
+  @Prop({
+    type: {
+      cnic: {
+        front: {
+          url: { type: String },
+          publicId: { type: String },
+        },
+        back: {
+          url: { type: String },
+          publicId: { type: String },
+        },
+      },
+      selfieWithId: {
+        url: { type: String },
+        publicId: { type: String },
+      },
+      drivingLicense: {
+        front: {
+          url: { type: String },
+          publicId: { type: String },
+        },
+        back: {
+          url: { type: String },
+          publicId: { type: String },
+        },
+      },
+    },
+  })
+  documents?: {
+    cnic?: {
+      front?: {
+        url: string;
+        publicId: string;
+      };
+      back?: {
+        url: string;
+        publicId: string;
+      };
+    };
+    selfieWithId?: {
+      url: string;
+      publicId: string;
+    };
+    drivingLicense?: {
+      front?: {
+        url: string;
+        publicId: string;
+      };
+      back?: {
+        url: string;
+        publicId: string;
+      };
+    };
+  };
+
+  @Prop({
+    type: String,
+    enum: ['pending', 'approved', 'rejected'],
+    default: 'pending',
+  })
+  verificationStatus: 'pending' | 'approved' | 'rejected';
+
+  @Prop({ type: String })
+  rejectionReason?: string;
 }
 
 export const DriverSchema = SchemaFactory.createForClass(Driver);
