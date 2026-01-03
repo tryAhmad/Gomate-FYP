@@ -176,20 +176,37 @@ export class DriversService {
 
     // Update basic info if provided in body
     if (body) {
-      if (body.fullName) updateData['fullname.firstname'] = body.fullName;
+      console.log('=== VEHICLE UPDATE DEBUG ===');
+      console.log('Body received:', body);
+
+      // Don't update fullname - it was already set during signup
+      // Only update dateOfBirth and phone if they changed
       if (body.dateOfBirth) updateData.dateOfBirth = body.dateOfBirth;
       if (body.phone) updateData.phoneNumber = body.phone;
 
-      // Update vehicle info if provided - use dot notation for nested updates
-      if (body.vehicleCompany)
-        updateData['vehicle.company'] = body.vehicleCompany;
-      if (body.vehicleModel) updateData['vehicle.model'] = body.vehicleModel;
-      if (body.vehicleColor) updateData['vehicle.color'] = body.vehicleColor;
-      if (body.vehicleType)
-        updateData['vehicle.vehicleType'] = body.vehicleType;
-      if (body.vehiclePlate) updateData['vehicle.plate'] = body.vehiclePlate;
+      // Build complete vehicle object to replace existing one
+      const vehicleUpdate: any = {};
+      if (body.vehicleCompany) vehicleUpdate.company = body.vehicleCompany;
+      if (body.vehicleModel) vehicleUpdate.model = body.vehicleModel;
+      if (body.vehicleColor) vehicleUpdate.color = body.vehicleColor;
+      if (body.vehicleType) vehicleUpdate.vehicleType = body.vehicleType;
+      if (body.vehiclePlate) vehicleUpdate.plate = body.vehiclePlate;
       if (body.vehicleCapacity)
-        updateData['vehicle.capacity'] = parseInt(body.vehicleCapacity);
+        vehicleUpdate.capacity = parseInt(body.vehicleCapacity);
+
+      console.log('Vehicle update object:', vehicleUpdate);
+      console.log('Has vehicle fields:', Object.keys(vehicleUpdate).length);
+
+      // Only update vehicle if we have at least one vehicle field
+      if (Object.keys(vehicleUpdate).length > 0) {
+        // Preserve only images from existing vehicle, replace all other fields
+        const existingImages = driver.vehicle?.images || [];
+        updateData.vehicle = {
+          ...vehicleUpdate,
+          images: existingImages, // Will be updated below if new images uploaded
+        };
+        console.log('Final vehicle object for update:', updateData.vehicle);
+      }
     }
 
     // Upload Vehicle Images (1-6)
@@ -200,23 +217,40 @@ export class DriversService {
           `gomate/drivers/${driverId}/vehicle`,
         );
 
-      updateData['vehicle.images'] = vehicleImageResults.map((result) => ({
+      const vehicleImages = vehicleImageResults.map((result) => ({
         url: result.url,
         publicId: result.publicId,
       }));
+
+      // Merge images into vehicle object
+      if (updateData.vehicle) {
+        updateData.vehicle.images = vehicleImages;
+      } else {
+        // If vehicle wasn't updated above, update images using dot notation
+        updateData['vehicle.images'] = vehicleImages;
+      }
     }
 
     // Update driver with new documents and data
+    console.log('=== FINAL UPDATE DEBUG ===');
+    console.log(
+      'Update data being sent to MongoDB:',
+      JSON.stringify(updateData, null, 2),
+    );
+
     const updatedDriver = await this.driverModel.findByIdAndUpdate(
       driverId,
       {
-        ...updateData,
-        documents,
-        verificationStatus: 'pending',
+        $set: {
+          ...updateData,
+          documents,
+          verificationStatus: 'pending',
+        },
       },
-      { new: true },
+      { new: true, runValidators: false },
     );
 
+    console.log('Updated driver vehicle:', updatedDriver?.vehicle);
     return updatedDriver;
   }
 
@@ -224,7 +258,7 @@ export class DriversService {
    * Get drivers by verification status
    */
   async getDriversByVerificationStatus(
-    status: 'pending' | 'approved' | 'rejected',
+    status: 'incomplete' | 'pending' | 'approved' | 'rejected',
   ) {
     return this.driverModel.find({ verificationStatus: status }).exec();
   }

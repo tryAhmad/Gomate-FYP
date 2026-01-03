@@ -96,9 +96,17 @@ export class AuthService {
     const { password: _, ...result } =
       createdDriver.toObject?.() ?? createdDriver;
 
+    // Generate JWT token for auto-login
+    const token = this.jwtService.sign({
+      email: result.email,
+      userId: result._id,
+      role: result.role,
+    });
+
     return {
       message: 'Driver registered successfully, waiting for admin approval',
-      user: result,
+      driver: result,
+      token,
     };
   }
 }

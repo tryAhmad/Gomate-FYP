@@ -161,10 +161,12 @@ export class RideGateway implements OnGatewayConnection, OnGatewayDisconnect {
       firstname: driver.fullname?.firstname,
       lastname: driver.fullname?.lastname,
       phoneNumber: driver.phoneNumber,
-      location: {
-        lat: driver.location.coordinates[1],
-        lng: driver.location.coordinates[0],
-      },
+      location: driver.location
+        ? {
+            lat: driver.location.coordinates[1],
+            lng: driver.location.coordinates[0],
+          }
+        : null,
       vehicle: {
         color: driver.vehicle?.color,
         company: driver.vehicle?.company,

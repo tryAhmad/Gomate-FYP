@@ -38,15 +38,17 @@ export class PaymentsService {
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async updateWeeklyPaymentStatus() {
     console.log('Running weekly payment status update...');
-    
+
     const drivers = await this.driverModel.find({ accountStatus: 'active' });
     const weekStart = this.getWeekStart();
     const daysSinceWeekStart = this.getDaysSinceWeekStart();
 
     for (const driver of drivers) {
       // Check if it's a new week
-      const driverWeekStart = driver.weekStartDate ? new Date(driver.weekStartDate) : weekStart;
-      
+      const driverWeekStart = driver.weekStartDate
+        ? new Date(driver.weekStartDate)
+        : weekStart;
+
       if (weekStart > driverWeekStart) {
         // New week started
         if (driver.paymentStatus === 'paid') {
@@ -55,7 +57,9 @@ export class PaymentsService {
             paymentStatus: 'pending',
             weekStartDate: weekStart,
           });
-          console.log(`Reset payment status to pending for driver: ${driver.email}`);
+          console.log(
+            `Reset payment status to pending for driver: ${driver.email}`,
+          );
         } else {
           // Was not paid last week, keep as overdue
           await this.driverModel.findByIdAndUpdate(driver._id, {
@@ -70,7 +74,9 @@ export class PaymentsService {
           await this.driverModel.findByIdAndUpdate(driver._id, {
             paymentStatus: 'overdue',
           });
-          console.log(`Marked as overdue (3+ days) for driver: ${driver.email}`);
+          console.log(
+            `Marked as overdue (3+ days) for driver: ${driver.email}`,
+          );
         }
       }
     }
@@ -80,10 +86,7 @@ export class PaymentsService {
 
   // Get all drivers with payment information
   async getAllDriverPayments() {
-    const drivers = await this.driverModel
-      .find()
-      .select('-password')
-      .lean();
+    const drivers = await this.driverModel.find().select('-password').lean();
 
     // Get service fees
     const feesMap = await this.serviceFeesService.getFeesMap();
@@ -107,10 +110,12 @@ export class PaymentsService {
           },
         ]);
 
-        const totalEarnings = totalEarningsResult.length > 0 ? totalEarningsResult[0].total : 0;
-        
+        const totalEarnings =
+          totalEarningsResult.length > 0 ? totalEarningsResult[0].total : 0;
+
         // Get weekly fee based on vehicle type
-        const weeklyFee = feesMap[driver.vehicle?.vehicleType] || 0;
+        const vehicleType = driver.vehicle?.vehicleType || 'car';
+        const weeklyFee = feesMap[vehicleType] || 0;
 
         return {
           _id: driver._id,
@@ -144,7 +149,8 @@ export class PaymentsService {
 
     // Get service fees
     const feesMap = await this.serviceFeesService.getFeesMap();
-    const weeklyFee = feesMap[driver.vehicle?.vehicleType] || 0;
+    const vehicleType = driver.vehicle?.vehicleType || 'car';
+    const weeklyFee = feesMap[vehicleType] || 0;
 
     // Calculate total earnings
     const totalEarningsResult = await this.rideRequestModel.aggregate([
@@ -162,7 +168,8 @@ export class PaymentsService {
       },
     ]);
 
-    const totalEarnings = totalEarningsResult.length > 0 ? totalEarningsResult[0].total : 0;
+    const totalEarnings =
+      totalEarningsResult.length > 0 ? totalEarningsResult[0].total : 0;
 
     return {
       _id: driver._id,
@@ -185,7 +192,7 @@ export class PaymentsService {
 
     if (dto.paymentStatus) {
       updateData.paymentStatus = dto.paymentStatus;
-      
+
       // If marking as paid, update last payment date
       if (dto.paymentStatus === 'paid') {
         updateData.lastPaymentDate = new Date();
@@ -200,11 +207,13 @@ export class PaymentsService {
       updateData.lastPaymentDate = new Date(dto.lastPaymentDate);
     }
 
-    const updated = await this.driverModel.findByIdAndUpdate(
-      driverId,
-      { $set: updateData },
-      { new: true, runValidators: true },
-    ).select('-password');
+    const updated = await this.driverModel
+      .findByIdAndUpdate(
+        driverId,
+        { $set: updateData },
+        { new: true, runValidators: true },
+      )
+      .select('-password');
 
     if (!updated) {
       throw new NotFoundException('Driver not found');
@@ -244,10 +253,13 @@ export class PaymentsService {
 
     const stats = {
       totalDrivers: drivers.length,
-      paidThisWeek: drivers.filter(d => d.paymentStatus === 'paid').length,
-      pendingPayments: drivers.filter(d => d.paymentStatus === 'pending').length,
-      overduePayments: drivers.filter(d => d.paymentStatus === 'overdue').length,
-      suspendedAccounts: drivers.filter(d => d.accountStatus === 'suspended').length,
+      paidThisWeek: drivers.filter((d) => d.paymentStatus === 'paid').length,
+      pendingPayments: drivers.filter((d) => d.paymentStatus === 'pending')
+        .length,
+      overduePayments: drivers.filter((d) => d.paymentStatus === 'overdue')
+        .length,
+      suspendedAccounts: drivers.filter((d) => d.accountStatus === 'suspended')
+        .length,
       totalRevenue: drivers.reduce((sum, d) => sum + d.totalEarnings, 0),
       expectedWeeklyFees: drivers.reduce((sum, d) => sum + d.weeklyFee, 0),
     };

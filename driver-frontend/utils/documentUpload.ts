@@ -91,6 +91,14 @@ export const uploadDriverDocuments = async (data: DocumentUploadData) => {
     }
 
     // Append text fields
+    console.log("=== VEHICLE DATA TO SEND ===");
+    console.log("vehicleCompany:", data.vehicleCompany);
+    console.log("vehicleModel:", data.vehicleModel);
+    console.log("vehicleColor:", data.vehicleColor);
+    console.log("vehicleType:", data.vehicleType);
+    console.log("vehiclePlate:", data.vehiclePlate);
+    console.log("vehicleCapacity:", data.vehicleCapacity);
+
     if (data.fullName) formData.append("fullName", data.fullName);
     if (data.phone) formData.append("phone", data.phone);
     if (data.dateOfBirth) formData.append("dateOfBirth", data.dateOfBirth);

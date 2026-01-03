@@ -14,6 +14,8 @@ import {
 import { router } from "expo-router";
 import { Input } from "@/components/ui/Input";
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Location from "expo-location";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
 
@@ -22,6 +24,7 @@ export default function SignupScreen() {
     firstname: "",
     lastname: "",
     email: "",
+    phoneNumber: "",
     password: "",
     confirmPassword: "",
   });
@@ -30,6 +33,7 @@ export default function SignupScreen() {
     firstname: "",
     lastname: "",
     email: "",
+    phoneNumber: "",
     password: "",
     confirmPassword: "",
   });
@@ -49,6 +53,7 @@ export default function SignupScreen() {
       firstname: "",
       lastname: "",
       email: "",
+      phoneNumber: "",
       password: "",
       confirmPassword: "",
     };
@@ -82,6 +87,15 @@ export default function SignupScreen() {
       isValid = false;
     }
 
+    // Phone number validation
+    if (!form.phoneNumber.trim()) {
+      newErrors.phoneNumber = "Phone number is required";
+      isValid = false;
+    } else if (form.phoneNumber.trim().length < 10) {
+      newErrors.phoneNumber = "Please enter a valid phone number";
+      isValid = false;
+    }
+
     // Password validation
     if (!form.password) {
       newErrors.password = "Password is required";
@@ -112,23 +126,54 @@ export default function SignupScreen() {
     setLoading(true);
 
     try {
-      // Initial signup payload - ONLY for authentication
-      // Vehicle and location will be added during driver registration
-      const payload = {
+      // Request location permission
+      let coordinates = null;
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+
+        if (status === "granted") {
+          const location = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          });
+          coordinates = [location.coords.longitude, location.coords.latitude];
+          console.log("Got location coordinates:", coordinates);
+        } else {
+          console.log(
+            "Location permission denied, signup will continue without location"
+          );
+          Alert.alert(
+            "Location Permission",
+            "Location access was denied. You can add your location later in your profile.",
+            [{ text: "OK" }]
+          );
+        }
+      } catch (locationError) {
+        console.error("Error getting location:", locationError);
+        Alert.alert(
+          "Location Error",
+          "Could not get your location. You can add it later in your profile.",
+          [{ text: "OK" }]
+        );
+      }
+
+      // Initial signup payload (vehicle details will be added during document upload)
+      const payload: any = {
         fullname: {
           firstname: form.firstname.trim(),
           lastname: form.lastname.trim(),
         },
         email: form.email.trim().toLowerCase(),
+        phoneNumber: form.phoneNumber.trim(),
         password: form.password,
-        // Default vehicle (will be updated during registration)
-        vehicle: {
-          color: "N/A",
-          plate: "N/A",
-          capacity: 1,
-          vehicleType: "car",
-        },
       };
+
+      // Only add location if we have coordinates
+      if (coordinates) {
+        payload.location = {
+          type: "Point",
+          coordinates: coordinates,
+        };
+      }
 
       const response = await fetch(`${API_URL}/auth/driver/register`, {
         method: "POST",
@@ -141,16 +186,38 @@ export default function SignupScreen() {
       const data = await response.json();
 
       if (response.ok) {
-        Alert.alert(
-          "Success",
-          "Account created successfully! Please login to continue.",
-          [
-            {
-              text: "OK",
-              onPress: () => router.replace("/(auth)/login"),
-            },
-          ]
-        );
+        // Auto-login after successful signup
+        const { token, driver } = data;
+
+        if (token && driver) {
+          // Store auth data
+          await AsyncStorage.setItem("authToken", token);
+          await AsyncStorage.setItem("driverId", driver._id);
+          await AsyncStorage.setItem("driverData", JSON.stringify(driver));
+
+          Alert.alert(
+            "Success",
+            "Account created successfully! Please complete your driver registration.",
+            [
+              {
+                text: "Continue",
+                onPress: () => router.replace("/driver-registration"),
+              },
+            ]
+          );
+        } else {
+          // Fallback to login if no token returned
+          Alert.alert(
+            "Success",
+            "Account created successfully! Please login to continue.",
+            [
+              {
+                text: "OK",
+                onPress: () => router.replace("/(auth)/login"),
+              },
+            ]
+          );
+        }
       } else {
         // Handle message that might be a string or array
         let errorMessage = "Unable to create account. Please try again.";
@@ -228,6 +295,17 @@ export default function SignupScreen() {
               icon="mail-outline"
               keyboardType="email-address"
               autoCapitalize="none"
+              editable={!loading}
+            />
+
+            <Input
+              label="Phone Number"
+              placeholder="Enter your phone number"
+              value={form.phoneNumber}
+              onChangeText={(text) => setForm({ ...form, phoneNumber: text })}
+              error={errors.phoneNumber}
+              icon="call-outline"
+              keyboardType="phone-pad"
               editable={!loading}
             />
 

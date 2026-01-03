@@ -12,23 +12,59 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  ActivityIndicator,
 } from "react-native";
 import { useDocuments } from "@/utils/DocumentContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function DriverBasicInfo() {
   const router = useRouter();
   const { images, basicInfo, setImage, setBasicInfo } = useDocuments();
+  const { driver, driverId } = useAuth();
 
-  const [fullName, setFullName] = useState(basicInfo.fullName || "");
-  const [phone, setPhone] = useState(basicInfo.phone || "");
+  const [loading, setLoading] = useState(true);
+  const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
   const [dob, setDob] = useState(basicInfo.dateOfBirth || "");
 
   useEffect(() => {
-    // Sync with context when component loads
-    if (basicInfo.fullName) setFullName(basicInfo.fullName);
-    if (basicInfo.phone) setPhone(basicInfo.phone);
-    if (basicInfo.dateOfBirth) setDob(basicInfo.dateOfBirth);
-  }, []);
+    // Auto-fetch and pre-fill data from logged-in driver
+    const initializeData = async () => {
+      try {
+        if (driver) {
+          // Build full name from existing firstname and lastname
+          const existingFullName = driver.fullname?.lastname
+            ? `${driver.fullname.firstname} ${driver.fullname.lastname}`
+            : driver.fullname?.firstname || "";
+
+          const existingPhone = driver.phoneNumber || "";
+          const existingDob = driver.dateOfBirth || basicInfo.dateOfBirth || "";
+
+          setFullName(existingFullName);
+          setPhone(existingPhone);
+          setDob(existingDob);
+
+          // Update context with existing data
+          setBasicInfo({
+            fullName: existingFullName,
+            phone: existingPhone,
+            dateOfBirth: existingDob,
+          });
+        } else if (basicInfo.fullName || basicInfo.phone) {
+          // Fallback to context data if available
+          setFullName(basicInfo.fullName);
+          setPhone(basicInfo.phone);
+          setDob(basicInfo.dateOfBirth);
+        }
+      } catch (error) {
+        console.error("Error loading driver data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initializeData();
+  }, [driver]);
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -142,59 +178,75 @@ export default function DriverBasicInfo() {
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.heading}>Driver Information</Text>
 
-        <View style={styles.profileContainer}>
-          {images.profilePhoto ? (
-            <Image
-              source={{ uri: images.profilePhoto }}
-              style={styles.profileCircle}
-            />
-          ) : (
-            <View style={styles.profileCircle}>
-              <MaterialCommunityIcons name="account" size={64} color="#ccc" />
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#007AFF" />
+            <Text style={styles.loadingText}>Loading your information...</Text>
+          </View>
+        ) : (
+          <>
+            <View style={styles.profileContainer}>
+              {images.profilePhoto ? (
+                <Image
+                  source={{ uri: images.profilePhoto }}
+                  style={styles.profileCircle}
+                />
+              ) : (
+                <View style={styles.profileCircle}>
+                  <MaterialCommunityIcons
+                    name="account"
+                    size={64}
+                    color="#ccc"
+                  />
+                </View>
+              )}
+
+              <TouchableOpacity style={styles.uploadButton} onPress={pickImage}>
+                <Text style={styles.uploadText}>Upload Photo</Text>
+              </TouchableOpacity>
             </View>
-          )}
 
-          <TouchableOpacity style={styles.uploadButton} onPress={pickImage}>
-            <Text style={styles.uploadText}>Upload Photo</Text>
-          </TouchableOpacity>
-        </View>
+            <Text style={styles.label}>Full Name (from your account)</Text>
+            <TextInput
+              value={fullName}
+              onChangeText={setFullName}
+              placeholder="Enter your full name"
+              placeholderTextColor="#A9A9A9"
+              style={[styles.input, styles.readOnlyInput]}
+              editable={false}
+            />
 
-        <Text style={styles.label}>Full Name</Text>
-        <TextInput
-          value={fullName}
-          onChangeText={setFullName}
-          placeholder="Enter your full name"
-          placeholderTextColor="#A9A9A9"
-          style={styles.input}
-        />
+            <Text style={styles.label}>Phone Number (from your account)</Text>
+            <TextInput
+              value={phone}
+              onChangeText={handlePhoneChange}
+              placeholder="03xx-xxxxxxx"
+              placeholderTextColor="#A9A9A9"
+              keyboardType="phone-pad"
+              style={[styles.input, styles.readOnlyInput]}
+              editable={false}
+              maxLength={12}
+              style={styles.input}
+            />
 
-        <Text style={styles.label}>Phone Number</Text>
-        <TextInput
-          value={phone}
-          onChangeText={handlePhoneChange}
-          placeholder="03xx-xxxxxxx"
-          placeholderTextColor="#A9A9A9"
-          keyboardType="phone-pad"
-          maxLength={12}
-          style={styles.input}
-        />
+            <Text style={styles.label}>Date of Birth</Text>
+            <TextInput
+              value={dob}
+              onChangeText={handleDobChange}
+              placeholder="DD-MM-YYYY"
+              placeholderTextColor="#A9A9A9"
+              keyboardType="numeric"
+              maxLength={10}
+              style={styles.input}
+            />
 
-        <Text style={styles.label}>Date of Birth</Text>
-        <TextInput
-          value={dob}
-          onChangeText={handleDobChange}
-          placeholder="DD-MM-YYYY"
-          placeholderTextColor="#A9A9A9"
-          keyboardType="numeric"
-          maxLength={10}
-          style={styles.input}
-        />
-
-        <View style={styles.singleButtonWrapper}>
-          <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
-            <Text style={styles.nextText}>Next</Text>
-          </TouchableOpacity>
-        </View>
+            <View style={styles.singleButtonWrapper}>
+              <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
+                <Text style={styles.nextText}>Next</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -270,5 +322,20 @@ const styles = StyleSheet.create({
   nextText: {
     color: "#fff",
     fontWeight: "bold",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingTop: 50,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: "#666",
+  },
+  readOnlyInput: {
+    backgroundColor: "#f5f5f5",
+    color: "#666",
   },
 });

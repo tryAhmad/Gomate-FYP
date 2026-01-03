@@ -143,7 +143,7 @@ export default function DriverLicense() {
           {isUploading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.nextText}>Submit Documents</Text>
+            <Text style={styles.nextText}>Next</Text>
           )}
         </TouchableOpacity>
       </View>

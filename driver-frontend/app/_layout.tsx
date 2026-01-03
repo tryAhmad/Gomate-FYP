@@ -31,13 +31,16 @@ function RootLayoutNav() {
         const hasDocuments =
           driver.documents?.cnic || driver.documents?.drivingLicense;
 
-        if (!hasDocuments) {
+        // If verification is incomplete, send to registration
+        if (driver.verificationStatus === "incomplete" || !hasDocuments) {
           router.replace("/driver-registration");
         } else if (driver.verificationStatus === "pending") {
+          // Documents submitted, waiting for admin approval
           router.replace("/docs-pending");
         } else if (driver.verificationStatus === "approved") {
           router.replace("/");
-        } else {
+        } else if (driver.verificationStatus === "rejected") {
+          // Send back to registration to resubmit
           router.replace("/driver-registration");
         }
       } else {
@@ -81,11 +84,11 @@ function RootLayoutNav() {
           <Stack.Screen name="index" options={{ headerShown: false }} />
           <Stack.Screen
             name="driver-registration"
-            options={{ title: "Complete Registration" }}
+            options={{ headerShown: false }}
           />
           <Stack.Screen
             name="driver-basic-info"
-            options={{ title: "Basic Info" }}
+            options={{ headerShown: false }}
           />
           <Stack.Screen
             name="cnic-images"

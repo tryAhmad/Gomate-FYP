@@ -107,6 +107,13 @@ export class DriversController {
     },
     @Body() body: any,
   ) {
+    console.log('=== CONTROLLER RECEIVED ===');
+    console.log('Raw body keys:', Object.keys(body));
+    console.log('Full body:', body);
+    console.log('vehicleModel:', body.vehicleModel);
+    console.log('vehicleColor:', body.vehicleColor);
+    console.log('vehicleCompany:', body.vehicleCompany);
+
     const driver = await this.driversService.uploadDriverDocuments(
       id,
       files,

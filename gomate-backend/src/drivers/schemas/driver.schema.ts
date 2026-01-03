@@ -94,27 +94,24 @@ export class Driver {
     type: {
       color: {
         type: String,
-        required: true,
-        minlength: [3, 'Color must be at least 3 characters long'],
+        required: false,
       },
       plate: {
         type: String,
-        required: true,
-        minlength: [3, 'Plate must be at least 3 characters long'],
+        required: false,
       },
       capacity: {
         type: Number,
-        required: true,
-        min: [1, 'Capacity must be at least 1'],
+        required: false,
       },
       vehicleType: {
         type: String,
-        required: true,
+        required: false,
         enum: ['car', 'motorcycle', 'auto'],
       },
       company: {
         type: String,
-        required: false, // 👈 make optional if not always needed
+        required: false,
       },
       model: {
         type: String,
@@ -127,8 +124,9 @@ export class Driver {
         },
       ],
     },
+    required: false,
   })
-  vehicle: {
+  vehicle?: {
     color: string;
     plate: string;
     capacity: number;
@@ -152,10 +150,10 @@ export class Driver {
     },
     coordinates: {
       type: [Number],
-      required: true,
+      required: false,
     },
   })
-  location: {
+  location?: {
     type: 'Point';
     coordinates: [number, number];
   };
@@ -217,14 +215,15 @@ export class Driver {
 
   @Prop({
     type: String,
-    enum: ['pending', 'approved', 'rejected'],
-    default: 'pending',
+    enum: ['incomplete', 'pending', 'approved', 'rejected'],
+    default: 'incomplete',
   })
-  verificationStatus: 'pending' | 'approved' | 'rejected';
+  verificationStatus: 'incomplete' | 'pending' | 'approved' | 'rejected';
 
   @Prop({ type: String })
   rejectionReason?: string;
 }
 
 export const DriverSchema = SchemaFactory.createForClass(Driver);
-DriverSchema.index({ location: '2dsphere' });
+// Sparse index allows documents without location field
+DriverSchema.index({ location: '2dsphere' }, { sparse: true });

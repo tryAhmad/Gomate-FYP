@@ -15,6 +15,7 @@ import {
   View,
 } from "react-native";
 import { useDocuments } from "@/utils/DocumentContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 const vehicleTypes = [
   { label: "Car", value: "car", icon: "car" },
@@ -24,6 +25,7 @@ const vehicleTypes = [
 
 export default function VehicleInfo() {
   const router = useRouter();
+  const { driverId } = useAuth();
   const {
     images,
     vehicleInfo,
@@ -34,8 +36,12 @@ export default function VehicleInfo() {
     isUploading,
   } = useDocuments();
 
-  // TODO: Get from auth context when authentication is implemented
-  const driverId = "68908c87f5bd1d56dcc631b8";
+  // Ensure we have a driver ID
+  if (!driverId) {
+    Alert.alert("Error", "Driver ID not found. Please login again.");
+    router.replace("/(auth)/login");
+    return null;
+  }
 
   const [vehicleType, setVehicleType] = useState(vehicleInfo.type || "");
   const [vehicleCompany, setVehicleCompany] = useState(
@@ -75,7 +81,7 @@ export default function VehicleInfo() {
       return;
     }
 
-    // Save to context before upload so it's available
+    // Save to context before upload
     const vehicleData = {
       type: vehicleType,
       company: vehicleCompany,
@@ -85,27 +91,26 @@ export default function VehicleInfo() {
       capacity: vehicleCapacity,
     };
 
+    // Update context state
     setVehicleInfo(vehicleData);
 
-    // Wait a moment for state to update, then upload all documents
-    setTimeout(async () => {
-      const success = await uploadDocuments(driverId);
+    // Upload documents with vehicle data directly to avoid race condition
+    const success = await uploadDocuments(driverId, vehicleData);
 
-      if (success) {
-        Alert.alert(
-          "Submitted Successfully",
-          "Your info has been sent to admin. Kindly wait for verification.",
-          [
-            {
-              text: "OK",
-              onPress: () => {
-                router.replace("/docs-pending" as any);
-              },
+    if (success) {
+      Alert.alert(
+        "Submitted Successfully",
+        "Your info has been sent to admin. Kindly wait for verification.",
+        [
+          {
+            text: "OK",
+            onPress: () => {
+              router.replace("/docs-pending" as any);
             },
-          ]
-        );
-      }
-    }, 100);
+          },
+        ]
+      );
+    }
   };
 
   const handlePhotoChoice = () => {

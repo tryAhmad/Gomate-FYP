@@ -8,7 +8,7 @@ interface Driver {
     lastname?: string;
   };
   email: string;
-  verificationStatus: "pending" | "approved" | "rejected";
+  verificationStatus: "incomplete" | "pending" | "approved" | "rejected";
   documents?: any;
   vehicle?: any;
   profilePhoto?:
@@ -55,10 +55,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const driverData = await AsyncStorage.getItem("driverData");
 
       if (token && id && driverData) {
-        setAuthToken(token);
-        setDriverId(id);
-        setDriver(JSON.parse(driverData));
-        setIsAuthenticated(true);
+        // Verify driver still exists in database
+        try {
+          const API_BASE_URL =
+            process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
+          const response = await fetch(`${API_BASE_URL}/drivers/${id}`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+
+          if (response.ok) {
+            const { driver: serverDriver } = await response.json();
+
+            // Update local data with latest from server
+            if (serverDriver) {
+              await AsyncStorage.setItem(
+                "driverData",
+                JSON.stringify(serverDriver)
+              );
+              setAuthToken(token);
+              setDriverId(id);
+              setDriver(serverDriver);
+              setIsAuthenticated(true);
+            } else {
+              // Driver doesn't exist on server, clear local data
+              await logout();
+            }
+          } else if (response.status === 404) {
+            // Driver not found, clear cached auth data
+            console.log("Driver not found in database, clearing local cache");
+            await logout();
+          } else {
+            // Use cached data if server error
+            setAuthToken(token);
+            setDriverId(id);
+            setDriver(JSON.parse(driverData));
+            setIsAuthenticated(true);
+          }
+        } catch (fetchError) {
+          console.log("Unable to verify driver with server, using cached data");
+          // Network error, use cached data
+          setAuthToken(token);
+          setDriverId(id);
+          setDriver(JSON.parse(driverData));
+          setIsAuthenticated(true);
+        }
       } else {
         setIsAuthenticated(false);
       }

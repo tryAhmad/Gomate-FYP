@@ -45,11 +45,11 @@ export class UploadDriverDocumentsDto {
 
 export class UpdateVerificationStatusDto {
   @ApiProperty({
-    enum: ['pending', 'approved', 'rejected'],
+    enum: ['incomplete', 'pending', 'approved', 'rejected'],
     description: 'Verification status',
   })
-  @IsEnum(['pending', 'approved', 'rejected'])
-  verificationStatus: 'pending' | 'approved' | 'rejected';
+  @IsEnum(['incomplete', 'pending', 'approved', 'rejected'])
+  verificationStatus: 'incomplete' | 'pending' | 'approved' | 'rejected';
 
   @ApiProperty({
     description: 'Reason for rejection (optional)',

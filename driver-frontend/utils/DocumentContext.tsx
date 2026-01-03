@@ -36,7 +36,10 @@ interface DocumentContextType {
   removeVehicleImage: (index: number) => void;
   setBasicInfo: (info: Partial<BasicInfo>) => void;
   setVehicleInfo: (info: Partial<VehicleInfo>) => void;
-  uploadDocuments: (driverId: string) => Promise<boolean>;
+  uploadDocuments: (
+    driverId: string,
+    vehicleData?: VehicleInfo
+  ) => Promise<boolean>;
   clearAllImages: () => void;
   isUploading: boolean;
 }
@@ -129,9 +132,20 @@ export const DocumentProvider: React.FC<{ children: ReactNode }> = ({
     });
   };
 
-  const uploadDocuments = async (driverId: string): Promise<boolean> => {
+  const uploadDocuments = async (
+    driverId: string,
+    vehicleData?: VehicleInfo
+  ): Promise<boolean> => {
     setIsUploading(true);
     try {
+      // Use provided vehicleData or fall back to state
+      const dataToUpload = vehicleData || vehicleInfo;
+
+      console.log("=== DOCUMENT CONTEXT VEHICLE DATA ===");
+      console.log("vehicleInfo state:", vehicleInfo);
+      console.log("vehicleData param:", vehicleData);
+      console.log("dataToUpload:", dataToUpload);
+
       await uploadDriverDocuments({
         driverId,
         cnicFront: images.cnicFront || undefined,
@@ -145,12 +159,12 @@ export const DocumentProvider: React.FC<{ children: ReactNode }> = ({
         fullName: basicInfo.fullName,
         phone: basicInfo.phone,
         dateOfBirth: basicInfo.dateOfBirth,
-        vehicleCompany: vehicleInfo.company,
-        vehicleModel: vehicleInfo.model,
-        vehicleColor: vehicleInfo.color,
-        vehicleType: vehicleInfo.type,
-        vehiclePlate: vehicleInfo.plate,
-        vehicleCapacity: vehicleInfo.capacity,
+        vehicleCompany: dataToUpload.company,
+        vehicleModel: dataToUpload.model,
+        vehicleColor: dataToUpload.color,
+        vehicleType: dataToUpload.type,
+        vehiclePlate: dataToUpload.plate,
+        vehicleCapacity: dataToUpload.capacity,
       });
 
       Alert.alert(

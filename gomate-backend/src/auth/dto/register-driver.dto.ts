@@ -7,6 +7,7 @@ import {
   IsNumber,
   Min,
   ValidateNested,
+  IsArray,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -19,6 +20,15 @@ class FullnameDto {
   @IsString()
   @MinLength(3, { message: 'Lastname must be at least 3 characters long' })
   lastname?: string;
+}
+
+class LocationDto {
+  @IsString()
+  type: string;
+
+  @IsArray()
+  @IsNumber({}, { each: true })
+  coordinates: [number, number];
 }
 
 class VehicleDto {
@@ -50,8 +60,16 @@ export class RegisterDriverDto {
   email: string;
 
   @IsString()
+  phoneNumber: string;
+
+  @IsString()
   @MinLength(6, { message: 'Password must be at least 6 characters long' })
   password: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => LocationDto)
+  location?: LocationDto;
 
   @IsOptional()
   @IsIn(['active', 'inactive'], {
@@ -59,7 +77,8 @@ export class RegisterDriverDto {
   })
   status?: 'active' | 'inactive';
 
+  @IsOptional()
   @ValidateNested()
   @Type(() => VehicleDto)
-  vehicle: VehicleDto;
+  vehicle?: VehicleDto;
 }
