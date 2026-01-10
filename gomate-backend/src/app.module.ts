@@ -42,9 +42,7 @@ import { Connection } from 'mongoose';
   providers: [AppService],
 })
 export class AppModule implements OnModuleInit {
-  constructor(@InjectConnection() private readonly connection: Connection) {
-    console.log('Mongo URI:', process.env.MONGODB_URI);
-  }
+  constructor(@InjectConnection() private readonly connection: Connection) {}
 
   onModuleInit() {
     // ✅ Fires when Mongo is connected

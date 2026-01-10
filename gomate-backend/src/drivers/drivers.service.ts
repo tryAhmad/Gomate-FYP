@@ -191,9 +191,6 @@ export class DriversService {
 
     // Update basic info if provided in body
     if (body) {
-      console.log('=== VEHICLE UPDATE DEBUG ===');
-      console.log('Body received:', body);
-
       // Don't update fullname - it was already set during signup
       // Only update dateOfBirth and phone if they changed
       if (body.dateOfBirth) updateData.dateOfBirth = body.dateOfBirth;
@@ -209,9 +206,6 @@ export class DriversService {
       if (body.vehicleCapacity)
         vehicleUpdate.capacity = parseInt(body.vehicleCapacity);
 
-      console.log('Vehicle update object:', vehicleUpdate);
-      console.log('Has vehicle fields:', Object.keys(vehicleUpdate).length);
-
       // Only update vehicle if we have at least one vehicle field
       if (Object.keys(vehicleUpdate).length > 0) {
         // Preserve only images from existing vehicle, replace all other fields
@@ -220,7 +214,6 @@ export class DriversService {
           ...vehicleUpdate,
           images: existingImages, // Will be updated below if new images uploaded
         };
-        console.log('Final vehicle object for update:', updateData.vehicle);
       }
     }
 
@@ -247,12 +240,6 @@ export class DriversService {
     }
 
     // Update driver with new documents and data
-    console.log('=== FINAL UPDATE DEBUG ===');
-    console.log(
-      'Update data being sent to MongoDB:',
-      JSON.stringify(updateData, null, 2),
-    );
-
     // Only change verification status to 'pending' if actual verification documents are uploaded
     // Don't change status if only profile photo is updated
     const isVerificationDocumentUploaded =

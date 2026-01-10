@@ -2,15 +2,19 @@
 import Constants from "expo-constants";
 import { io, Socket } from "socket.io-client";
 
-const userip = Constants.expoConfig?.extra?.USER_IP?.trim();
-console.log("USER_IP:", userip);
+const backendUrl = Constants.expoConfig?.extra?.BACKEND_URL?.trim();
+console.log("📡 Backend URL:", backendUrl);
 
 let socket: Socket;
 
 export const getSocket = (): Socket => {
   if (!socket) {
-    socket = io(`http://${userip}:3000`, {
-      transports: ["websocket"],
+    const url = backendUrl || "http://localhost:3000";
+
+    console.log("🔌 Creating socket connection to:", url);
+
+    socket = io(url, {
+      transports: ["polling", "websocket"], // Try polling first for better compatibility
       autoConnect: true,
       reconnection: true,
       reconnectionAttempts: Infinity,

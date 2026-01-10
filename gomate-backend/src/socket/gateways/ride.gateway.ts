@@ -52,17 +52,14 @@ export class RideGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {}
 
   handleConnection(client: Socket) {
-    console.log(`Client connected: ${client.id}`);
+    // Client connected
   }
 
   handleDisconnect(client: Socket) {
-    console.log(`Client disconnected: ${client.id}`);
-
     // Remove driver if exists
     for (const [driverId, info] of this.connectedDrivers.entries()) {
       if (info.socketId === client.id) {
         this.connectedDrivers.delete(driverId);
-        console.log(`Driver ${driverId} disconnected`);
         return;
       }
     }
@@ -71,7 +68,6 @@ export class RideGateway implements OnGatewayConnection, OnGatewayDisconnect {
     for (const [passengerId, socketId] of this.connectedPassengers.entries()) {
       if (socketId === client.id) {
         this.connectedPassengers.delete(passengerId);
-        console.log(`Passenger ${passengerId} disconnected`);
         return;
       }
     }
@@ -93,9 +89,6 @@ export class RideGateway implements OnGatewayConnection, OnGatewayDisconnect {
     await this.driversService.updateDriverLocation(
       data.driverId,
       data.location,
-    );
-    console.log(
-      `Driver ${data.driverId} registered for real-time with location [${data.location}]`,
     );
   }
 

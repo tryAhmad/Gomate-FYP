@@ -52,6 +52,9 @@ export default {
     },
     extra: {
       MAPS_API_KEY: process.env.MAPS_API_KEY,
+      BACKEND_URL:
+        process.env.EXPO_PUBLIC_BACKEND_URL ||
+        `http://${process.env.USER_IP}:3000`,
       USER_IP: process.env.USER_IP,
       USER_TOKEN: process.env.USER_TOKEN,
       router: {},
