@@ -8,6 +8,7 @@ import {
   Image,
   ActivityIndicator,
   Alert,
+  Dimensions,
   ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -169,6 +170,14 @@ export default function DriverRideDetailModal({
 
   const loadSoloRideData = async () => {
     try {
+      // Skip route loading for shared rides - they have multiple destinations
+      if (ride.type === "shared") {
+        console.log(
+          "Skipping route loading for shared ride - multiple destinations"
+        );
+        return;
+      }
+
       let pickupCoords: { latitude: number; longitude: number } | null = null;
       let destinationCoords: { latitude: number; longitude: number } | null =
         null;
@@ -306,6 +315,23 @@ export default function DriverRideDetailModal({
       <Text style={styles.fare}>
         Fare Earned: <Text style={styles.fareHighlight}>Rs {ride.fare}</Text>
       </Text>
+
+      {ride.rating && (
+        <View style={styles.ratingContainer}>
+          <Text style={styles.ratingLabel}>Passenger Rating:</Text>
+          <View style={styles.starsContainer}>
+            {[1, 2, 3, 4, 5].map((star) => (
+              <Ionicons
+                key={star}
+                name={star <= ride.rating ? "star" : "star-outline"}
+                size={20}
+                color={star <= ride.rating ? "#FFB800" : "#D1D5DB"}
+              />
+            ))}
+            <Text style={styles.ratingValue}>({ride.rating}/5)</Text>
+          </View>
+        </View>
+      )}
     </>
   );
 
@@ -357,6 +383,23 @@ export default function DriverRideDetailModal({
         <Text style={styles.totalFareLabel}>Total Fare Earned:</Text>
         <Text style={styles.totalFare}>Rs {ride.fare}</Text>
       </View>
+
+      {ride.rating && (
+        <View style={styles.ratingContainer}>
+          <Text style={styles.ratingLabel}>Passenger Rating:</Text>
+          <View style={styles.starsContainer}>
+            {[1, 2, 3, 4, 5].map((star) => (
+              <Ionicons
+                key={star}
+                name={star <= ride.rating ? "star" : "star-outline"}
+                size={20}
+                color={star <= ride.rating ? "#FFB800" : "#D1D5DB"}
+              />
+            ))}
+            <Text style={styles.ratingValue}>({ride.rating}/5)</Text>
+          </View>
+        </View>
+      )}
     </ScrollView>
   );
 
@@ -397,39 +440,23 @@ export default function DriverRideDetailModal({
           )}
         </View>
 
-        {/* Map Container */}
-        <View style={styles.mapContainer}>
-          <MapView
-            ref={mapRef}
-            style={styles.map}
-            provider={PROVIDER_GOOGLE}
-            initialRegion={DEFAULT_REGION}
-            showsUserLocation={false}
-            showsMyLocationButton={false}
-            mapType="standard"
-          >
-            {ride.type === "shared" ? (
-              // Shared ride markers
-              optimizedStopsWithCoords.map((stop, index) => (
-                <Marker
-                  key={index}
-                  coordinate={stop.coordinate}
-                  title={`${stop.passengerName} - ${
-                    stop.type === "pickup" ? "Pickup" : "Drop-off"
-                  }`}
-                  description={stop.address}
-                  anchor={{ x: 0.5, y: 1 }}
-                >
-                  <Ionicons
-                    name={getPinIcon(stop.stopNumber, stop.type)}
-                    size={30}
-                    color={getPinColor(stop.stopNumber, stop.type)}
-                  />
-                </Marker>
-              ))
-            ) : (
-              // Solo ride markers
-              <>
+        {/* Map Container - Only show for solo rides */}
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingBottom: 20 }}
+          showsVerticalScrollIndicator={true}
+        >
+          {ride.type !== "shared" && (
+            <View style={styles.mapContainer}>
+              <MapView
+                ref={mapRef}
+                style={styles.map}
+                provider={PROVIDER_GOOGLE}
+                initialRegion={DEFAULT_REGION}
+                showsUserLocation={false}
+                showsMyLocationButton={false}
+                mapType="standard"
+              >
                 {pickupCoord && (
                   <Marker
                     coordinate={pickupCoord}
@@ -451,40 +478,43 @@ export default function DriverRideDetailModal({
                     <Ionicons name="location" size={30} color="#22c55e" />
                   </Marker>
                 )}
-              </>
-            )}
 
-            {routeCoords.length > 0 && (
-              <Polyline
-                coordinates={routeCoords}
-                strokeWidth={4}
-                strokeColor="#007AFF"
-              />
-            )}
-          </MapView>
+                {routeCoords.length > 0 && (
+                  <Polyline
+                    coordinates={routeCoords}
+                    strokeWidth={4}
+                    strokeColor="#007AFF"
+                  />
+                )}
+              </MapView>
 
-          {isLoading && (
-            <View style={styles.loadingOverlay}>
-              <ActivityIndicator size="large" color="#007AFF" />
-              <Text style={styles.loadingText}>Loading route...</Text>
+              {isLoading && (
+                <View style={styles.loadingOverlay}>
+                  <ActivityIndicator size="large" color="#007AFF" />
+                  <Text style={styles.loadingText}>Loading route...</Text>
+                </View>
+              )}
             </View>
           )}
-        </View>
 
-        {/* Ride Details */}
-        {ride.type === "shared"
-          ? renderSharedRideDetails()
-          : renderSoloRideDetails()}
+          {/* Ride Details */}
+          {ride.type === "shared"
+            ? renderSharedRideDetails()
+            : renderSoloRideDetails()}
 
-        {/* Status */}
-        <View style={styles.statusContainer}>
-          <Text style={styles.statusLabel}>Status:</Text>
-          <Text
-            style={[styles.status, styles[ride.status as keyof typeof styles]]}
-          >
-            {ride.status}
-          </Text>
-        </View>
+          {/* Status */}
+          <View style={styles.statusContainer}>
+            <Text style={styles.statusLabel}>Status:</Text>
+            <Text
+              style={[
+                styles.status,
+                styles[ride.status as keyof typeof styles],
+              ]}
+            >
+              {ride.status}
+            </Text>
+          </View>
+        </ScrollView>
       </View>
     </Modal>
   );
@@ -537,7 +567,8 @@ const styles = StyleSheet.create({
   },
   mapContainer: {
     width: "90%",
-    height: 250,
+    maxWidth: 600,
+    height: Math.min(Dimensions.get("window").height * 0.35, 350),
     alignSelf: "center",
     marginTop: 10,
     marginBottom: 20,
@@ -624,6 +655,31 @@ const styles = StyleSheet.create({
   fareHighlight: {
     color: "#0286FF",
   },
+  ratingContainer: {
+    marginTop: 15,
+    padding: 12,
+    backgroundColor: "#F9FAFB",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  ratingLabel: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#374151",
+    marginBottom: 8,
+  },
+  starsContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  ratingValue: {
+    marginLeft: 8,
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#6B7280",
+  },
   statusContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -654,6 +710,9 @@ const styles = StyleSheet.create({
   sharedDetailsContainer: {
     flex: 1,
     marginBottom: 10,
+    maxWidth: 600,
+    alignSelf: "center",
+    width: "100%",
   },
   passengerDetailSection: {
     marginBottom: 5,

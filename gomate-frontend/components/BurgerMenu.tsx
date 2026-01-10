@@ -23,6 +23,7 @@ interface BurgerMenuProps {
   style?: string;
   onLogout?: () => void;
   currentScreen?: string;
+  hasActiveRide?: boolean;
 }
 
 export default function BurgerMenu({
@@ -31,6 +32,7 @@ export default function BurgerMenu({
   onLogout,
   style,
   currentScreen,
+  hasActiveRide,
 }: BurgerMenuProps) {
   const [visible, setVisible] = useState(false);
   const slideAnim = useRef(new Animated.Value(-width)).current;
@@ -100,8 +102,9 @@ export default function BurgerMenu({
             <Animated.View
               style={{
                 transform: [{ translateX: slideAnim }],
+                height: "100%",
               }}
-              className="absolute h-full w-[70%] bg-white pt-16 px-4 border-r border-gray-300 flex-col justify-between"
+              className="absolute w-[70%] bg-white pt-16 px-4 pb-4 border-r border-gray-300 flex-col justify-between"
             >
               <View>
                 {/* Profile Section */}
@@ -151,19 +154,31 @@ export default function BurgerMenu({
                 />
               </View>
 
-              <CustomButton
-                title="Logout"
-                onPress={() => {
-                  onLogout?.();
-                  closeMenu();
-                }}
-                bgVariant="danger"
-                textVariant="default"
-                IconLeft={() => (
-                  <Ionicons name="log-out" size={22} color="white" />
+              <View className={hasActiveRide ? "mb-2" : "mb-4"}>
+                {hasActiveRide && (
+                  <Text className="text-xs text-gray-500 text-center mb-1 px-4">
+                    Cannot log out while in a ride
+                  </Text>
                 )}
-                className="mb-10"
-              />
+                <CustomButton
+                  title="Logout"
+                  onPress={() => {
+                    if (hasActiveRide) return;
+                    closeMenu();
+                    // Delay logout until after menu closes to avoid state update conflicts
+                    setTimeout(() => {
+                      onLogout?.();
+                    }, 300);
+                  }}
+                  bgVariant="danger"
+                  textVariant="default"
+                  IconLeft={() => (
+                    <Ionicons name="log-out" size={22} color="white" />
+                  )}
+                  disabled={hasActiveRide}
+                  className={hasActiveRide ? "opacity-50" : ""}
+                />
+              </View>
             </Animated.View>
           </View>
         </Modal>

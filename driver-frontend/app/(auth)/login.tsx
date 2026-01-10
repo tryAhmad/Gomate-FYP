@@ -2,18 +2,13 @@ import React, { useState } from "react";
 import {
   View,
   Text,
-  StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
-  KeyboardAvoidingView,
-  Platform,
   ScrollView,
   ActivityIndicator,
   Alert,
+  TextInput,
 } from "react-native";
 import { router } from "expo-router";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Input } from "@/components/ui/Input";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -40,11 +35,7 @@ export default function LoginScreen() {
   };
 
   const validateForm = (): boolean => {
-    const newErrors = {
-      email: "",
-      password: "",
-    };
-
+    const newErrors = { email: "", password: "" };
     let isValid = true;
 
     if (!form.email.trim()) {
@@ -65,18 +56,14 @@ export default function LoginScreen() {
   };
 
   const handleLogin = async () => {
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
 
     setLoading(true);
 
     try {
       const response = await fetch(`${API_URL}/auth/driver/login`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: form.email.trim().toLowerCase(),
           password: form.password,
@@ -86,7 +73,6 @@ export default function LoginScreen() {
       const data = await response.json();
 
       if (response.ok) {
-        // Fetch driver data to get status
         await checkDriverStatus(data.access_token);
       } else {
         Alert.alert(
@@ -96,10 +82,7 @@ export default function LoginScreen() {
       }
     } catch (error) {
       console.error("Login error:", error);
-      Alert.alert(
-        "Error",
-        "Network error. Please check your connection and try again."
-      );
+      Alert.alert("Error", "Network error. Please check your connection.");
     } finally {
       setLoading(false);
     }
@@ -107,47 +90,33 @@ export default function LoginScreen() {
 
   const checkDriverStatus = async (token: string) => {
     try {
-      // Decode JWT to get driver ID
       const payload = JSON.parse(atob(token.split(".")[1]));
       const driverId = payload.sub;
 
-      // Fetch driver data
       const response = await fetch(`${API_URL}/drivers/${driverId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       const data = await response.json();
 
       if (response.ok && data.driver) {
         const driver = data.driver;
-
-        // Update AuthContext with login data
         await login(token, driverId, driver);
 
-        // Route based on verification status
         const status = driver.verificationStatus || "pending";
-
-        // Check if driver has completed registration (has documents)
         const hasDocuments =
           driver.documents?.cnic || driver.documents?.drivingLicense;
 
         if (!hasDocuments) {
-          // No documents uploaded - go to driver registration
           router.replace("/driver-registration");
         } else if (status === "pending") {
-          // Documents uploaded, waiting for admin approval
           router.replace("/docs-pending");
         } else if (status === "approved") {
-          // Approved - go to driver home
           router.replace("/");
         } else if (status === "rejected") {
-          // Rejected - show rejection screen with reason
           Alert.alert(
             "Application Rejected",
-            driver.rejectionReason ||
-              "Your application was not approved. Please contact support.",
+            driver.rejectionReason || "Your application was not approved.",
             [
               {
                 text: "Re-submit Documents",
@@ -156,7 +125,6 @@ export default function LoginScreen() {
             ]
           );
         } else {
-          // Default to registration
           router.replace("/driver-registration");
         }
       } else {
@@ -169,169 +137,210 @@ export default function LoginScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.keyboardView}
+    <View style={{ flex: 1, backgroundColor: "white" }}>
+      {/* Header Image */}
+      <View
+        style={{
+          position: "relative",
+          width: "100%",
+          height: "35%",
+          backgroundColor: "#0286ff",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
       >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
+        <Ionicons name="car-sport" size={100} color="white" />
+        <Text
+          style={{
+            position: "absolute",
+            bottom: 20,
+            left: 20,
+            fontSize: 28,
+            color: "white",
+            fontWeight: "600",
+          }}
         >
-          {/* Header */}
-          <View style={styles.header}>
-            <Ionicons name="car-sport" size={80} color="#10B981" />
-            <Text style={styles.title}>Welcome Back</Text>
-            <Text style={styles.subtitle}>
-              Login to your GoMate driver account
-            </Text>
-          </View>
+          Driver Login
+        </Text>
+      </View>
 
-          {/* Form */}
-          <View style={styles.form}>
-            <Input
-              label="Email"
+      <ScrollView style={{ padding: 28 }} keyboardShouldPersistTaps="handled">
+        <View style={{ marginBottom: 20 }}>
+          <Text style={{ fontSize: 18, fontWeight: "600", marginBottom: 12 }}>
+            Email
+          </Text>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              backgroundColor: "#F5F5F5",
+              borderRadius: 25,
+              borderWidth: 1,
+              borderColor: errors.email ? "#EF4444" : "#F5F5F5",
+            }}
+          >
+            <Ionicons
+              name="mail-outline"
+              size={24}
+              color="#666"
+              style={{ marginLeft: 16 }}
+            />
+            <TextInput
               placeholder="Enter your email"
+              placeholderTextColor="grey"
               value={form.email}
               onChangeText={(text) => setForm({ ...form, email: text })}
-              error={errors.email}
-              icon="mail-outline"
-              keyboardType="email-address"
-              autoCapitalize="none"
               editable={!loading}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              style={{ flex: 1, padding: 16, fontSize: 15, fontWeight: "600" }}
             />
+          </View>
+          {errors.email && (
+            <Text
+              style={{
+                color: "#EF4444",
+                fontSize: 14,
+                marginTop: 4,
+                marginLeft: 16,
+              }}
+            >
+              {errors.email}
+            </Text>
+          )}
+        </View>
 
-            <Input
-              label="Password"
+        <View style={{ marginBottom: 20 }}>
+          <Text style={{ fontSize: 18, fontWeight: "600", marginBottom: 12 }}>
+            Password
+          </Text>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              backgroundColor: "#F5F5F5",
+              borderRadius: 25,
+              borderWidth: 1,
+              borderColor: errors.password ? "#EF4444" : "#F5F5F5",
+            }}
+          >
+            <Ionicons
+              name="lock-closed-outline"
+              size={24}
+              color="#666"
+              style={{ marginLeft: 16 }}
+            />
+            <TextInput
               placeholder="Enter your password"
+              placeholderTextColor="grey"
               value={form.password}
               onChangeText={(text) => setForm({ ...form, password: text })}
-              error={errors.password}
-              icon="lock-closed-outline"
-              secureTextEntry={!showPassword}
-              rightIcon={showPassword ? "eye-off-outline" : "eye-outline"}
-              onRightIconPress={() => setShowPassword(!showPassword)}
               editable={!loading}
+              secureTextEntry={!showPassword}
+              style={{ flex: 1, padding: 16, fontSize: 15, fontWeight: "600" }}
             />
-
-            {/* Forgot Password Link */}
             <TouchableOpacity
-              style={styles.forgotPassword}
-              onPress={() =>
-                Alert.alert(
-                  "Info",
-                  "Please contact support to reset your password."
-                )
-              }
-              disabled={loading}
+              onPress={() => setShowPassword(!showPassword)}
+              style={{ marginRight: 16 }}
             >
-              <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+              <Ionicons
+                name={showPassword ? "eye-off-outline" : "eye-outline"}
+                size={24}
+                color="#666"
+              />
             </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.loginButton, loading && styles.buttonDisabled]}
-              onPress={handleLogin}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text style={styles.loginButtonText}>Login</Text>
-              )}
-            </TouchableOpacity>
-
-            {/* Signup Link */}
-            <View style={styles.signupContainer}>
-              <Text style={styles.signupText}>Don't have an account? </Text>
-              <TouchableOpacity
-                onPress={() => router.push("/(auth)/signup")}
-                disabled={loading}
-              >
-                <Text style={styles.signupLink}>Sign Up</Text>
-              </TouchableOpacity>
-            </View>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+          {errors.password && (
+            <Text
+              style={{
+                color: "#EF4444",
+                fontSize: 14,
+                marginTop: 4,
+                marginLeft: 16,
+              }}
+            >
+              {errors.password}
+            </Text>
+          )}
+        </View>
+
+        <TouchableOpacity
+          onPress={() =>
+            Alert.alert(
+              "Info",
+              "Please contact support to reset your password."
+            )
+          }
+          style={{ width: "100%", alignItems: "flex-end", padding: 12 }}
+          disabled={loading}
+        >
+          <Text
+            style={{
+              color: "#0286ff",
+              fontSize: 16,
+              fontWeight: "bold",
+              textDecorationLine: "underline",
+            }}
+          >
+            Forgot Password?
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={handleLogin}
+          disabled={loading}
+          style={{
+            backgroundColor: "#0286ff",
+            borderRadius: 25,
+            padding: 16,
+            marginTop: 32,
+            opacity: loading ? 0.6 : 1,
+            shadowColor: "#0286ff",
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.3,
+            shadowRadius: 8,
+            elevation: 4,
+          }}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text
+              style={{
+                color: "white",
+                textAlign: "center",
+                fontSize: 18,
+                fontWeight: "bold",
+              }}
+            >
+              Sign In
+            </Text>
+          )}
+        </TouchableOpacity>
+
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "center",
+            marginTop: 40,
+            marginBottom: 20,
+          }}
+        >
+          <Text style={{ fontSize: 16, color: "#666" }}>
+            Don't have an account?{" "}
+          </Text>
+          <TouchableOpacity
+            onPress={() => router.push("/(auth)/signup")}
+            disabled={loading}
+          >
+            <Text
+              style={{ fontSize: 16, color: "#0286ff", fontWeight: "bold" }}
+            >
+              Sign Up
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingTop: 60,
-    paddingBottom: 24,
-  },
-  header: {
-    alignItems: "center",
-    marginBottom: 48,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: "bold",
-    color: "#111827",
-    marginTop: 24,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: "#6B7280",
-    marginTop: 8,
-    textAlign: "center",
-  },
-  form: {
-    flex: 1,
-  },
-  forgotPassword: {
-    alignSelf: "flex-end",
-    marginBottom: 24,
-  },
-  forgotPasswordText: {
-    fontSize: 14,
-    color: "#10B981",
-    fontWeight: "600",
-  },
-  loginButton: {
-    backgroundColor: "#10B981",
-    borderRadius: 12,
-    height: 50,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#10B981",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  loginButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  signupContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    marginTop: 24,
-  },
-  signupText: {
-    fontSize: 14,
-    color: "#6B7280",
-  },
-  signupLink: {
-    fontSize: 14,
-    color: "#10B981",
-    fontWeight: "600",
-  },
-});

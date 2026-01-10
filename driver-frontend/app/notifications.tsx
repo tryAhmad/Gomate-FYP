@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -10,79 +10,66 @@ import {
   StyleSheet,
   Animated,
   Platform,
+  RefreshControl,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import BurgerMenu from "@/components/BurgerMenu";
+import { useAuth } from "@/contexts/AuthContext";
 
 const { width, height } = Dimensions.get("window");
 
 interface Notification {
-  id: string;
-  type: "Promotion" | "System" | "Ride";
+  _id: string;
+  type: "Promotion" | "System" | "Ride" | "Payment";
   title: string;
   message: string;
   read: boolean;
+  createdAt: string;
+  metadata?: any;
 }
 
-const sampleNotifications: Notification[] = [
-  {
-    id: "1",
-    type: "Promotion",
-    title: "Promotion",
-    message: "Complete 10 rides this week - Get bonus 15% earnings!",
-    read: false,
-  },
-  {
-    id: "2",
-    type: "System",
-    title: "System",
-    message: "Your driver profile has been successfully verified.",
-    read: true,
-  },
-  {
-    id: "3",
-    type: "Promotion",
-    title: "Promotion",
-    message: "Peak hours bonus - Earn 20% more from 5-9 PM!",
-    read: false,
-  },
-  {
-    id: "4",
-    type: "Ride",
-    title: "New Ride Request",
-    message: "New ride request from downtown area - 2.3km away",
-    read: false,
-  },
-  {
-    id: "5",
-    type: "System",
-    title: "System",
-    message: "Your weekly earnings summary is available to view.",
-    read: true,
-  },
-  {
-    id: "6",
-    type: "Ride",
-    title: "Ride Completed",
-    message: "Ride #DRV-789 completed successfully. Payment received.",
-    read: true,
-  },
-  {
-    id: "7",
-    type: "Promotion",
-    title: "Promotion",
-    message: "Refer another driver - Get Rs. 500 bonus!",
-    read: false,
-  },
-];
-
 export default function DriverNotificationsScreen() {
-  const [notifications, setNotifications] = useState(sampleNotifications);
-  const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
-  
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [selectedNotification, setSelectedNotification] =
+    useState<Notification | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const { driver } = useAuth();
+
   // Burger menu states - Using same animation as ride history page
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const slideAnim = useRef(new Animated.Value(-width * 0.7)).current;
+
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
+
+  const fetchNotifications = async () => {
+    if (!driver?._id) return;
+
+    try {
+      setLoading(true);
+      const response = await fetch(
+        `http://192.168.100.5:3000/notifications/driver/${driver._id}`
+      );
+      const data = await response.json();
+
+      if (response.ok) {
+        setNotifications(data.notifications || []);
+      }
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchNotifications();
+    setRefreshing(false);
+  };
 
   const openSidebar = () => {
     setSidebarVisible(true);
@@ -103,12 +90,27 @@ export default function DriverNotificationsScreen() {
     });
   };
 
-  const openNotification = (notification: Notification) => {
+  const openNotification = async (notification: Notification) => {
     setSelectedNotification(notification);
-    // Mark as read but don't change icon colors
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === notification.id ? { ...n, read: true } : n))
-    );
+
+    // Mark as read if unread
+    if (!notification.read) {
+      try {
+        await fetch(
+          `http://192.168.100.5:3000/notifications/${notification._id}/read`,
+          { method: "PATCH" }
+        );
+
+        // Update local state
+        setNotifications((prev) =>
+          prev.map((n) =>
+            n._id === notification._id ? { ...n, read: true } : n
+          )
+        );
+      } catch (error) {
+        console.error("Error marking notification as read:", error);
+      }
+    }
   };
 
   const getNotificationIcon = (type: string) => {
@@ -137,51 +139,31 @@ export default function DriverNotificationsScreen() {
             color="#f59e0b" // Orange for promotion
           />
         );
-      default:
+      case "Payment":
         return (
           <Ionicons
-            name="notifications"
+            name="wallet"
             size={28}
-            color="#0286FF"
+            color="#ef4444" // Red for payment
           />
         );
+      default:
+        return <Ionicons name="notifications" size={28} color="#0286FF" />;
     }
   };
 
   const getModalIcon = (type: string) => {
     switch (type) {
       case "System":
-        return (
-          <Ionicons
-            name="checkmark-circle"
-            size={64}
-            color="#10b981"
-          />
-        );
+        return <Ionicons name="checkmark-circle" size={64} color="#10b981" />;
       case "Ride":
-        return (
-          <Ionicons
-            name="car"
-            size={64}
-            color="#1e40af"
-          />
-        );
+        return <Ionicons name="car" size={64} color="#1e40af" />;
       case "Promotion":
-        return (
-          <Ionicons
-            name="ticket"
-            size={64}
-            color="#f59e0b"
-          />
-        );
+        return <Ionicons name="ticket" size={64} color="#f59e0b" />;
+      case "Payment":
+        return <Ionicons name="wallet" size={64} color="#ef4444" />;
       default:
-        return (
-          <Ionicons
-            name="notifications"
-            size={64}
-            color="#0286FF"
-          />
-        );
+        return <Ionicons name="notifications" size={64} color="#0286FF" />;
     }
   };
 
@@ -189,30 +171,34 @@ export default function DriverNotificationsScreen() {
     <TouchableOpacity
       style={[
         styles.notificationItem,
-        !item.read ? styles.unreadNotification : styles.readNotification
+        !item.read ? styles.unreadNotification : styles.readNotification,
       ]}
       onPress={() => openNotification(item)}
     >
       {/* Icon */}
-      <View style={[
-        styles.notificationIcon,
-        !item.read && styles.unreadNotificationIcon
-      ]}>
+      <View
+        style={[
+          styles.notificationIcon,
+          !item.read && styles.unreadNotificationIcon,
+        ]}
+      >
         {getNotificationIcon(item.type)}
       </View>
 
       {/* Text Content */}
       <View style={styles.notificationContent}>
-        <Text style={[
-          styles.notificationTitle,
-          !item.read && styles.unreadTitle
-        ]}>
+        <Text
+          style={[styles.notificationTitle, !item.read && styles.unreadTitle]}
+        >
           {item.title}
         </Text>
-        <Text style={[
-          styles.notificationMessage,
-          !item.read && styles.unreadMessage
-        ]} numberOfLines={2}>
+        <Text
+          style={[
+            styles.notificationMessage,
+            !item.read && styles.unreadMessage,
+          ]}
+          numberOfLines={2}
+        >
           {item.message}
         </Text>
       </View>
@@ -236,28 +222,41 @@ export default function DriverNotificationsScreen() {
       </View>
 
       {/* Notification List */}
-      <FlatList
-        data={notifications}
-        keyExtractor={(item) => item.id}
-        renderItem={renderNotificationItem}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.listContent}
-      />
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#0286FF" />
+          <Text style={styles.loadingText}>Loading notifications...</Text>
+        </View>
+      ) : notifications.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="notifications-off" size={64} color="#ccc" />
+          <Text style={styles.emptyText}>No notifications yet</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={notifications}
+          keyExtractor={(item) => item._id}
+          renderItem={renderNotificationItem}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={["#0286FF"]}
+            />
+          }
+        />
+      )}
 
       {/* Notification Detail Modal */}
-      <Modal 
-        visible={!!selectedNotification} 
-        transparent 
-        animationType="fade"
-      >
+      <Modal visible={!!selectedNotification} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalIcon}>
               {selectedNotification && getModalIcon(selectedNotification.type)}
             </View>
-            <Text style={styles.modalTitle}>
-              {selectedNotification?.title}
-            </Text>
+            <Text style={styles.modalTitle}>{selectedNotification?.title}</Text>
             <Text style={styles.modalMessage}>
               {selectedNotification?.message}
             </Text>
@@ -274,10 +273,10 @@ export default function DriverNotificationsScreen() {
       </Modal>
 
       {/* Burger Menu - Same as ride history page */}
-      <BurgerMenu 
-        isVisible={sidebarVisible} 
-        onClose={closeSidebar} 
-        slideAnim={slideAnim} 
+      <BurgerMenu
+        isVisible={sidebarVisible}
+        onClose={closeSidebar}
+        slideAnim={slideAnim}
       />
     </View>
   );
@@ -292,7 +291,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingTop: Platform.OS === 'ios' ? 60 : (StatusBar.currentHeight ? StatusBar.currentHeight + 10 : 40),
+    paddingTop:
+      Platform.OS === "ios"
+        ? 60
+        : StatusBar.currentHeight
+        ? StatusBar.currentHeight + 10
+        : 40,
     paddingBottom: 12,
     paddingHorizontal: 16,
     backgroundColor: "#fff",
@@ -372,6 +376,26 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     backgroundColor: "#0286FF",
     marginLeft: 8,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: "#666",
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  emptyText: {
+    marginTop: 16,
+    fontSize: 18,
+    color: "#999",
   },
   modalOverlay: {
     flex: 1,

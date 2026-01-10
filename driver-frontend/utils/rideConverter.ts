@@ -8,6 +8,7 @@ interface BackendRide {
     username: string;
     _id: string;
     phone?: string;
+    profilePicture?: string;
   };
   rideType: "car" | "motorcycle" | "auto";
   rideMode: "solo" | "shared";
@@ -31,6 +32,8 @@ interface BackendPassenger {
   username: string;
   _id: string;
   phone?: string;
+  phoneNumber?: string; // Backend uses phoneNumber
+  profilePicture?: string;
 }
 
 interface NewRideRequestData {
@@ -50,6 +53,16 @@ export const convertBackendRideToFrontend = (
 ): RideRequest => {
   const { ride, passenger } = data;
 
+  console.log(
+    "🔍 [CONVERTER] Full passenger object:",
+    JSON.stringify(passenger, null, 2)
+  );
+  console.log("🔍 [CONVERTER] passenger.phoneNumber:", passenger.phoneNumber);
+  console.log("🔍 [CONVERTER] passenger.phone:", passenger.phone);
+
+  const extractedPhone = passenger.phoneNumber || passenger.phone || "N/A";
+  console.log("🔍 [CONVERTER] Extracted phone:", extractedPhone);
+
   return {
     id: ride._id,
     pickup: pickupAddress,
@@ -58,8 +71,9 @@ export const convertBackendRideToFrontend = (
     distance,
     timeAway,
     passengerName: passenger.username,
-    passengerPhone: passenger.phone || "N/A",
+    passengerPhone: extractedPhone,
     passengerId: passenger._id, // Added for socket communication
+    profilePhoto: passenger.profilePicture || ride.passengerID.profilePicture,
     isCalculating: true, // Will be updated after distance calculation
     type: ride.rideMode, // "solo" or "shared"
   };

@@ -27,6 +27,7 @@ interface Passenger {
   fare: string;
   pickup?: string;
   destination?: string;
+  profilePicture?: string;
 }
 
 interface OptimizedStop {
@@ -117,6 +118,75 @@ export default function DriverRideHistoryScreen() {
       // Map backend rides to frontend format and reverse geocode coordinates
       const mappedRides: Ride[] = await Promise.all(
         data.rides.map(async (ride: any) => {
+          // Shared ride: build per-passenger legs
+          if (ride.rideMode === "shared" && Array.isArray(ride.passengers)) {
+            const mappedPassengers: Passenger[] = await Promise.all(
+              ride.passengers.map(async (p: any) => {
+                let pickupAddress = "Pickup Location";
+                let dropoffAddress = "Dropoff Location";
+
+                try {
+                  if (p.pickupLocation?.coordinates?.length === 2) {
+                    const [lng, lat] = p.pickupLocation.coordinates;
+                    pickupAddress = await reverseGeocode(lat, lng);
+                  }
+                } catch (error) {
+                  console.error(
+                    "Error reverse geocoding shared pickup:",
+                    error
+                  );
+                }
+
+                try {
+                  if (p.dropoffLocation?.coordinates?.length === 2) {
+                    const [lng, lat] = p.dropoffLocation.coordinates;
+                    dropoffAddress = await reverseGeocode(lat, lng);
+                  }
+                } catch (error) {
+                  console.error(
+                    "Error reverse geocoding shared dropoff:",
+                    error
+                  );
+                }
+
+                return {
+                  name: p.passengerID?.username || "Unknown Passenger",
+                  fare: p.fare?.toString() || "0",
+                  pickup: pickupAddress,
+                  destination: dropoffAddress,
+                  profilePicture: p.passengerID?.profilePicture,
+                } as Passenger;
+              })
+            );
+
+            // Use first passenger's pickup for the overall pickup location
+            const firstPassenger = ride.passengers[0];
+            const firstPickupCoords =
+              firstPassenger?.pickupLocation?.coordinates;
+
+            return {
+              _id: ride._id,
+              pickupLocation: {
+                address: mappedPassengers[0]?.pickup || "Shared Ride Start",
+                coordinates: firstPickupCoords || null,
+              },
+              dropoffLocation: {
+                address: "Multiple Destinations",
+                coordinates: null,
+              },
+              fare: ride.fare,
+              passengerName: "Shared Ride",
+              profilePhoto: undefined,
+              createdAt: ride.createdAt,
+              status: ride.status,
+              type: "shared",
+              passengerCount: mappedPassengers.length,
+              passengers: mappedPassengers,
+              optimizedStops: ride.optimizedStops,
+            } as Ride;
+          }
+
+          // Solo ride fallback
           let pickupAddress = "Pickup Location";
           let dropoffAddress = "Dropoff Location";
 
@@ -157,9 +227,10 @@ export default function DriverRideHistoryScreen() {
             },
             fare: ride.fare,
             passengerName: ride.passengerID?.username || "Unknown Passenger",
-            profilePhoto: ride.passengerID?.profilePhoto,
+            profilePhoto: ride.passengerID?.profilePicture,
             createdAt: ride.createdAt,
             status: ride.status,
+            rating: ride.rating,
             type: ride.rideMode === "shared" ? "shared" : "solo",
             passengerCount: ride.passengerCount,
             passengers: ride.passengers,
@@ -286,11 +357,18 @@ export default function DriverRideHistoryScreen() {
           <View style={styles.rowBetween}>
             {/* Passenger Section */}
             <View style={styles.passengerSection}>
-              <View style={styles.smallAvatarPlaceholder}>
-                <Text style={styles.smallAvatarInitial}>
-                  {passenger.name?.charAt(0).toUpperCase() || "P"}
-                </Text>
-              </View>
+              {passenger.profilePicture ? (
+                <Image
+                  source={{ uri: passenger.profilePicture }}
+                  style={styles.smallAvatar}
+                />
+              ) : (
+                <View style={styles.smallAvatarPlaceholder}>
+                  <Text style={styles.smallAvatarInitial}>
+                    {passenger.name?.charAt(0).toUpperCase() || "P"}
+                  </Text>
+                </View>
+              )}
               <Text style={styles.passengerName}>{passenger.name}</Text>
             </View>
 
@@ -519,6 +597,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#E0E0E0",
     justifyContent: "center",
     alignItems: "center",
+    marginRight: 10,
+  },
+  smallAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     marginRight: 10,
   },
   avatarInitial: {

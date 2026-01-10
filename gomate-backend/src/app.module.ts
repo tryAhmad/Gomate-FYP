@@ -13,6 +13,7 @@ import { FareSettingsModule } from './fare-settings/fare-settings.module';
 import { ServiceFeesModule } from './service-fees/service-fees.module';
 import { PaymentsModule } from './payments/payments.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { Connection } from 'mongoose';
 
 @Module({
@@ -27,6 +28,7 @@ import { Connection } from 'mongoose';
     ServiceFeesModule,
     PaymentsModule,
     CloudinaryModule,
+    NotificationsModule,
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',

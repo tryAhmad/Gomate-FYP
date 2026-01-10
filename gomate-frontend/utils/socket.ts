@@ -24,3 +24,10 @@ export const getSocket = (): Socket => {
   }
   return socket;
 };
+
+export const disconnectSocket = (): void => {
+  if (socket && socket.connected) {
+    console.log("🔌 Disconnecting socket...");
+    socket.disconnect();
+  }
+};

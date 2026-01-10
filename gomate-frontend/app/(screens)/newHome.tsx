@@ -22,6 +22,7 @@ import {
   Vibration,
   Linking,
   Modal,
+  Switch,
 } from "react-native";
 import MapView, {
   PROVIDER_GOOGLE,
@@ -48,9 +49,9 @@ import Animated, {
 } from "react-native-reanimated";
 import BurgerMenu from "@/components/BurgerMenu";
 import AlertModal from "@/components/AlertModal";
+import { useAuth } from "@/contexts/AuthContext";
 
 const userip = Constants.expoConfig?.extra?.USER_IP?.trim();
-const usertoken = Constants.expoConfig?.extra?.USER_TOKEN?.trim();
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -91,11 +92,13 @@ const rideTypes = [
 ];
 
 const newHome = () => {
+  const { user, token: usertoken, logout } = useAuth();
   const mapsApiKey = Constants.expoConfig?.extra?.MAPS_API_KEY;
   const [selectedRideType, setSelectedRideType] = useState<string | null>(
     "car"
   );
   const [isSharedMode, setIsSharedMode] = useState(false);
+  const [genderBasedMatching, setGenderBasedMatching] = useState(false);
   const [sharedMatchingStatus, setSharedMatchingStatus] = useState<
     "searching" | "matched" | "finding-driver" | null
   >(null);
@@ -130,6 +133,16 @@ const newHome = () => {
 
   const mapRef = React.useRef<MapView | null>(null);
 
+  // Refs to store ride data for socket handlers (avoid closure issues)
+  const rideDataRef = React.useRef({
+    acceptedDriver: null as any,
+    pickup: "",
+    dropoff: "",
+    fare: "",
+    selectedRideType: "car",
+    rideId: null as string | null,
+  });
+
   const [pickupCoord, setPickupCoord] = useState<{
     latitude: number;
     longitude: number;
@@ -149,6 +162,10 @@ const newHome = () => {
   const [rideDuration, setRideDuration] = useState<string>("");
   const [loadingDistanceTime, setLoadingDistanceTime] = useState(false);
 
+  // Add state for driver ETA
+  const [driverETA, setDriverETA] = useState<string>("");
+  const [driverDistance, setDriverDistance] = useState<string>("");
+
   const [showFareModal, setShowFareModal] = useState(false);
 
   const [showAlertModal, setShowAlertModal] = useState(false);
@@ -161,19 +178,97 @@ const newHome = () => {
     longitudeDelta: 0.05,
   };
 
-  const passengerId = "688c69f20653ec0f43df6e2c";
+  const passengerId = user?._id || "";
   const socket = getSocket();
+
+  // Debug logging for user data
+  useEffect(() => {
+    console.log(
+      "newHome - Current user object:",
+      JSON.stringify(user, null, 2)
+    );
+    console.log("newHome - Profile picture from user:", user?.profilePicture);
+  }, [user]);
+
+  // Register passenger when component mounts
+  useEffect(() => {
+    console.log(
+      "🔍 newHome useEffect - passengerId:",
+      passengerId,
+      "socket:",
+      socket ? "exists" : "null",
+      "user:",
+      user
+    );
+
+    if (passengerId && socket) {
+      console.log(
+        "📡 Connecting socket and registering passenger:",
+        passengerId
+      );
+
+      const handleConnect = () => {
+        console.log("✅ Socket connected:", socket.id);
+        socket.emit("registerPassenger", { passengerId });
+        console.log("📝 Passenger registered:", passengerId);
+      };
+
+      const handleDisconnect = (reason: string) => {
+        console.log("⚠️ Socket disconnected:", reason);
+      };
+
+      // If already connected, register immediately
+      if (socket.connected) {
+        console.log("Socket already connected, registering immediately");
+        handleConnect();
+      } else {
+        console.log("Socket not connected, calling connect()");
+      }
+
+      // Listen for connection events
+      socket.on("connect", handleConnect);
+      socket.on("disconnect", handleDisconnect);
+
+      // Ensure socket is connected
+      if (!socket.connected) {
+        socket.connect();
+      }
+
+      return () => {
+        socket.off("connect", handleConnect);
+        socket.off("disconnect", handleDisconnect);
+      };
+    } else {
+      console.log(
+        "⚠️ Cannot register passenger - missing passengerId or socket"
+      );
+    }
+  }, [passengerId, user, socket]);
+
+  // Keep rideDataRef in sync with state to avoid closure issues in socket handlers
+  useEffect(() => {
+    rideDataRef.current = {
+      acceptedDriver,
+      pickup,
+      dropoff,
+      fare,
+      selectedRideType: selectedRideType || "car",
+      rideId,
+    };
+  }, [acceptedDriver, pickup, dropoff, fare, selectedRideType, rideId]);
 
   useEffect(() => {
     const handleCounterOffer = (data: any) => {
       console.log("Counter fare received:", data);
-      setDriverOffers((prev) => [...prev, data]);
+      setDriverOffers((prev) => [...prev, { ...data, timestamp: Date.now() }]);
     };
 
     const handleDriverArrived = (data: any) => {
       console.log("Driver arrived:", data.message);
       setDriverArrived(true);
       setRideStatus("driver_arrived");
+      setDriverETA(""); // Clear ETA when driver arrives
+      setDriverDistance("");
       Notifications.scheduleNotificationAsync({
         content: {
           title: "Driver Arrived 🚗",
@@ -190,6 +285,7 @@ const newHome = () => {
 
     const handleRideCompleted = (data: any) => {
       console.log("Ride completed:", data.message);
+      console.log("🔍 Current rideId state:", rideId);
       setRideStatus("completed");
 
       Notifications.scheduleNotificationAsync({
@@ -200,15 +296,110 @@ const newHome = () => {
         trigger: null,
       });
 
+      // Get current ride data from ref (avoids closure issues)
+      const currentRideData = rideDataRef.current;
+
+      console.log("🔍 Current ride data from ref:", currentRideData);
+      console.log(
+        "🔍 Accepted driver from ref:",
+        currentRideData.acceptedDriver
+      );
+      console.log(
+        "🔍 Profile picture from driver:",
+        currentRideData.acceptedDriver?.profilePicture
+      );
+      console.log("🔍 rideId from ref:", currentRideData.rideId);
+
       const rideData = {
-        driverName: `${acceptedDriver?.firstname ?? ""} ${
-          acceptedDriver?.lastname ?? ""
+        rideId: currentRideData.rideId || "",
+        driverName: `${currentRideData.acceptedDriver?.firstname ?? ""} ${
+          currentRideData.acceptedDriver?.lastname ?? ""
         }`.trim(),
-        driverCarCompany: acceptedDriver?.car?.company ?? "",
-        driverCarModel: acceptedDriver?.car?.model ?? "",
-        pickup: pickup ?? "",
-        dropoff: dropoff ?? "",
-        fare: fare?.toString() ?? "0",
+        driverProfilePic: currentRideData.acceptedDriver?.profilePicture ?? "",
+        driverCarColor: currentRideData.acceptedDriver?.vehicle?.color ?? "",
+        driverCarCompany:
+          currentRideData.acceptedDriver?.vehicle?.company ?? "",
+        driverCarModel: currentRideData.acceptedDriver?.vehicle?.model ?? "",
+        driverCarPlate: currentRideData.acceptedDriver?.vehicle?.plate ?? "",
+        driverPhone: currentRideData.acceptedDriver?.phoneNumber ?? "",
+        pickup: currentRideData.pickup ?? "",
+        dropoff: currentRideData.dropoff ?? "",
+        fare: currentRideData.fare?.toString() ?? "0",
+        rideType: currentRideData.selectedRideType ?? "",
+      };
+
+      console.log("🎯 Sending ride data to rating screen:", rideData);
+      console.log("🎯 Accepted driver object:", currentRideData.acceptedDriver);
+
+      router.push({
+        pathname: "/(screens)/ratingScreen",
+        params: rideData,
+      });
+    };
+
+    // Shared ride passenger-specific notification handlers
+    const handleDriverArrivedAtYourPickup = (data: any) => {
+      console.log("🚗 [SHARED RIDE] Driver arrived at your pickup:", data);
+      setDriverArrived(true);
+      setRideStatus("driver_arrived");
+
+      Notifications.scheduleNotificationAsync({
+        content: {
+          title: "Driver Arrived! 🚗",
+          body: "Your driver has arrived at your pickup location.",
+        },
+        trigger: null,
+      });
+
+      Alert.alert(
+        "Driver Arrived",
+        "Your driver is here! Please head to your pickup location.",
+        [{ text: "OK" }]
+      );
+    };
+
+    const handleYourRideLegStarted = (data: any) => {
+      console.log("🚀 [SHARED RIDE] Your ride leg started:", data);
+      setRideStatus("started");
+
+      Notifications.scheduleNotificationAsync({
+        content: {
+          title: "Ride Started! 🚀",
+          body: "Your journey has begun. Enjoy your ride!",
+        },
+        trigger: null,
+      });
+    };
+
+    const handleYourRideLegCompleted = (data: any) => {
+      console.log("✅ [SHARED RIDE] Your ride leg completed:", data);
+      setRideStatus("completed");
+
+      Notifications.scheduleNotificationAsync({
+        content: {
+          title: "You've Arrived! ✅",
+          body: "Thank you for riding with us!",
+        },
+        trigger: null,
+      });
+
+      const currentRideData = rideDataRef.current;
+
+      const rideData = {
+        driverName: `${currentRideData.acceptedDriver?.firstname ?? ""} ${
+          currentRideData.acceptedDriver?.lastname ?? ""
+        }`.trim(),
+        driverProfilePic: currentRideData.acceptedDriver?.profilePicture ?? "",
+        driverCarColor: currentRideData.acceptedDriver?.vehicle?.color ?? "",
+        driverCarCompany:
+          currentRideData.acceptedDriver?.vehicle?.company ?? "",
+        driverCarModel: currentRideData.acceptedDriver?.vehicle?.model ?? "",
+        driverCarPlate: currentRideData.acceptedDriver?.vehicle?.plate ?? "",
+        driverPhone: currentRideData.acceptedDriver?.phoneNumber ?? "",
+        pickup: currentRideData.pickup ?? "",
+        dropoff: currentRideData.dropoff ?? "",
+        fare: data.fare || (currentRideData.fare?.toString() ?? "0"),
+        rideType: currentRideData.selectedRideType ?? "",
       };
 
       router.push({
@@ -233,6 +424,106 @@ const newHome = () => {
       // The ride is now matched with another passenger, transition to finding driver
     };
 
+    const handleDriverAssigned = (data: any) => {
+      console.log("🚗 [HANDLER] Driver assigned to shared ride:", data);
+
+      if (data.driver) {
+        // Set accepted driver with the assigned driver's data
+        // Match the structure expected by the app (same as counter offer driver)
+        const driverData = {
+          id: data.driver._id,
+          firstname: data.driver.username || "Driver",
+          lastname: "",
+          phone: data.driver.phone || "",
+          profilePicture: data.driver.profilePicture || "",
+          fare: rideDataRef.current?.fare || 0,
+          location: data.driver.location
+            ? {
+                lat: data.driver.location.latitude,
+                lng: data.driver.location.longitude,
+              }
+            : {
+                lat: 0,
+                lng: 0,
+              },
+          vehicle: {
+            color: data.driver.vehicleInfo?.vehicleColor || "Unknown",
+            company: data.driver.vehicleInfo?.vehicleCompany || "",
+            model: data.driver.vehicleInfo?.vehicleModel || "Unknown",
+            plate: data.driver.vehicleInfo?.vehicleNumber || "N/A",
+          },
+        };
+
+        setAcceptedDriver(driverData);
+        setSharedMatchingStatus(null); // Clear matching status
+        setShowOffersModal(false);
+
+        console.log("✅ Driver assigned to shared ride:", driverData);
+        console.log("📍 Driver location:", driverData.location);
+      }
+    };
+
+    const handleDriverLocationUpdate = (data: any) => {
+      console.log("📍 [HANDLER] Driver location update received:", data);
+      // Use functional update to avoid dependency on acceptedDriver
+      setAcceptedDriver((prevDriver: any) => {
+        if (prevDriver && data.driverId === prevDriver.id) {
+          console.log("✅ Updated accepted driver location:", data.location);
+
+          // Calculate ETA to pickup location
+          if (pickupCoord && !driverArrived) {
+            getDistanceTime(
+              { lat: data.location.lat, lng: data.location.lng },
+              { lat: pickupCoord.latitude, lng: pickupCoord.longitude }
+            )
+              .then((result) => {
+                const minutes = Math.ceil(result.duration.value / 60);
+                const distanceKm = (result.distance.value / 1000).toFixed(1);
+                setDriverETA(`${minutes} min`);
+                setDriverDistance(`${distanceKm} km away`);
+              })
+              .catch((error) => {
+                console.error("Error calculating driver ETA:", error);
+              });
+          }
+
+          return {
+            ...prevDriver,
+            location: data.location,
+          };
+        }
+        return prevDriver;
+      });
+    };
+
+    const handleRideCancelled = (data: any) => {
+      console.log("🚫 Ride cancelled event received:", data);
+
+      // Reset all ride-related state
+      setRideStatus("cancelled");
+      setAcceptedDriver(null);
+      setDriverOffers([]);
+      setRideId(null);
+      setDriverArrived(false);
+      setShowOffersModal(false);
+      setSharedMatchingStatus(null);
+
+      // Show alert to passenger
+      Alert.alert(
+        "Ride Cancelled",
+        `This ride has been cancelled by the ${data.cancelledBy}.\n${data.reason || ""}`,
+        [
+          {
+            text: "OK",
+            onPress: () => {
+              // Reset to initial state
+              setRideStatus("idle");
+            },
+          },
+        ]
+      );
+    };
+
     // 🔄 Remove old listeners first
     socket.off("receiveCounterOffer");
     socket.off("driverArrived");
@@ -240,6 +531,12 @@ const newHome = () => {
     socket.off("rideCompleted");
     socket.off("sharedRideSearching");
     socket.off("sharedRideMatched");
+    socket.off("driverAssigned");
+    socket.off("driverLocationUpdate");
+    socket.off("rideCancelled");
+    socket.off("driverArrivedAtYourPickup");
+    socket.off("yourRideLegStarted");
+    socket.off("yourRideLegCompleted");
 
     // ✅ Add fresh listeners
     console.log("📡 Registering socket listeners for passenger:", passengerId);
@@ -256,6 +553,12 @@ const newHome = () => {
     socket.on("rideCompleted", handleRideCompleted);
     socket.on("sharedRideSearching", handleSharedRideSearching);
     socket.on("sharedRideMatched", handleSharedRideMatched);
+    socket.on("driverAssigned", handleDriverAssigned);
+    socket.on("driverLocationUpdate", handleDriverLocationUpdate);
+    socket.on("rideCancelled", handleRideCancelled);
+    socket.on("driverArrivedAtYourPickup", handleDriverArrivedAtYourPickup);
+    socket.on("yourRideLegStarted", handleYourRideLegStarted);
+    socket.on("yourRideLegCompleted", handleYourRideLegCompleted);
 
     console.log("✅ Socket listeners registered successfully");
 
@@ -266,8 +569,14 @@ const newHome = () => {
       socket.off("rideCompleted", handleRideCompleted);
       socket.off("sharedRideSearching", handleSharedRideSearching);
       socket.off("sharedRideMatched", handleSharedRideMatched);
+      socket.off("driverAssigned", handleDriverAssigned);
+      socket.off("driverLocationUpdate", handleDriverLocationUpdate);
+      socket.off("rideCancelled", handleRideCancelled);
+      socket.off("driverArrivedAtYourPickup", handleDriverArrivedAtYourPickup);
+      socket.off("yourRideLegStarted", handleYourRideLegStarted);
+      socket.off("yourRideLegCompleted", handleYourRideLegCompleted);
     };
-  }, []);
+  }, []); // Empty dependency - handlers use state updater functions
 
   // 🔹 DriverBanner for pulsing animation
   const DriverBanner = ({
@@ -392,7 +701,7 @@ const newHome = () => {
   useEffect(() => {
     const timeout = setTimeout(() => {
       const fetchDistanceTime = async () => {
-        if (pickupCoord && dropoffCoord && !isSharedMode) {
+        if (pickupCoord && dropoffCoord) {
           try {
             setLoadingDistanceTime(true);
             const result = await getDistanceTime(
@@ -418,6 +727,7 @@ const newHome = () => {
                       distance: result.distance.value, // in meters
                       duration: result.duration.value, // in seconds
                       rideType: selectedRideType,
+                      rideMode: isSharedMode ? "shared" : "solo",
                     }),
                   }
                 );
@@ -461,7 +771,7 @@ const newHome = () => {
     }, 1000); // debounce delay
 
     return () => clearTimeout(timeout);
-  }, [pickupCoord, dropoffCoord, selectedRideType]);
+  }, [pickupCoord, dropoffCoord, selectedRideType, isSharedMode]);
 
   // Handle pickup text change with autocomplete
   const handlePickupChange = async (text: string) => {
@@ -756,6 +1066,7 @@ const newHome = () => {
           rideMode: isSharedMode ? "shared" : "solo",
           fare: Number(fare),
           rideType: selectedRideType, // This should always be a vehicle type (car, bike, auto)
+          genderBasedMatching: isSharedMode ? genderBasedMatching : false,
         }),
       });
 
@@ -808,8 +1119,36 @@ const newHome = () => {
 
     let origin, destination;
 
-    if (acceptedDriver && acceptedDriver.location && pickupCoord) {
-      // Driver accepted → route from driver to pickup
+    if (
+      acceptedDriver &&
+      acceptedDriver.location &&
+      dropoffCoord &&
+      rideStatus === "started"
+    ) {
+      // Ride started → route from driver location (passenger in car) to destination
+      origin = {
+        latitude: acceptedDriver.location.lat,
+        longitude: acceptedDriver.location.lng,
+      };
+      destination = dropoffCoord;
+
+      // Animate map to driver/passenger location
+      const region: Region = {
+        latitude: acceptedDriver.location.lat - 0.002,
+        longitude: acceptedDriver.location.lng,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      };
+      setTimeout(() => {
+        mapRef.current?.animateToRegion(region, 1000);
+      }, 100);
+    } else if (
+      acceptedDriver &&
+      acceptedDriver.location &&
+      pickupCoord &&
+      rideStatus !== "started"
+    ) {
+      // Driver accepted but ride not started → route from driver to pickup
       origin = {
         latitude: acceptedDriver.location.lat,
         longitude: acceptedDriver.location.lng,
@@ -847,7 +1186,7 @@ const newHome = () => {
         })
         .catch((err) => console.error("Error fetching route:", err));
     }
-  }, [pickupCoord, dropoffCoord, selectedRideType, acceptedDriver]);
+  }, [pickupCoord, dropoffCoord, selectedRideType, acceptedDriver, rideStatus]);
 
   // Prepare ride details to pass to modal
   const rideDetails = {
@@ -862,6 +1201,7 @@ const newHome = () => {
   // Called when user accepts a driver from the modal
   const handleDriverAccepted = (offer: any) => {
     console.log("Driver accepted:", offer.driver);
+    console.log("Driver profile picture:", offer.driver.profilePicture);
 
     socket.emit("acceptDriverOffer", {
       rideId: offer.rideId,
@@ -874,6 +1214,30 @@ const newHome = () => {
     setAcceptedDriver(offer.driver);
     setFare(offer.counterFare?.toString() || "");
     setShowOffersModal(false);
+
+    // Calculate initial ETA from driver to pickup
+    if (offer.driver.location && pickupCoord) {
+      getDistanceTime(
+        { lat: offer.driver.location.lat, lng: offer.driver.location.lng },
+        { lat: pickupCoord.latitude, lng: pickupCoord.longitude }
+      )
+        .then((result) => {
+          const minutes = Math.ceil(result.duration.value / 60);
+          const distanceKm = (result.distance.value / 1000).toFixed(1);
+          setDriverETA(`${minutes} min`);
+          setDriverDistance(`${distanceKm} km away`);
+        })
+        .catch((error) => {
+          console.error("Error calculating initial driver ETA:", error);
+        });
+    }
+  };
+
+  const handleOfferExpired = (driverId: string) => {
+    console.log(`⏱️ Offer from driver ${driverId} expired`);
+    setDriverOffers((prev) =>
+      prev.filter((offer) => offer.driver.id !== driverId)
+    );
   };
 
   const toggleCollapse = () => {
@@ -928,22 +1292,22 @@ const newHome = () => {
   };
 
   const handleCancelRide = () => {
-    if (!rideId || !passengerId || !acceptedDriver?.id) {
+    if (!rideId || !passengerId) {
       if (!rideId) console.log("❌ Missing rideId");
       if (!passengerId) console.log("❌ Missing passengerId");
-      if (!acceptedDriver?.id)
-        console.log("❌ Missing driverId (acceptedDriver.id)");
-
       return; // stop execution if something is missing
     }
 
-    socket.emit("cancelRide", {
+    const cancelData = {
       rideId,
       cancelledBy: "passenger",
       passengerId,
-      driverId: acceptedDriver.id,
+      driverId: acceptedDriver?.id || null, // Can be null if no driver accepted yet
       reason: "Passenger cancelled the ride",
-    });
+    };
+
+    console.log("🚫 Emitting cancelRide with data:", cancelData);
+    socket.emit("cancelRide", cancelData);
 
     setRideStatus("cancelled");
     setFare("");
@@ -974,7 +1338,7 @@ const newHome = () => {
   return (
     <SafeAreaView className="flex-1 bg-white">
       <StatusBar
-        barStyle="light-content"
+        barStyle="dark-content"
         translucent
         backgroundColor="transparent"
       />
@@ -1003,8 +1367,8 @@ const newHome = () => {
         mapPadding={{ top: 50, right: 0, bottom: 0, left: 0 }} // 👈 push buttons down
         mapType="standard"
       >
-        {/* Always show pickup marker when coordinates exist */}
-        {pickupCoord && (
+        {/* Always show pickup marker when coordinates exist and ride hasn't started */}
+        {pickupCoord && rideStatus !== "started" && (
           <Marker
             coordinate={pickupCoord}
             title="Pickup Location"
@@ -1016,8 +1380,8 @@ const newHome = () => {
           />
         )}
 
-        {/* Show either driver marker if accepted OR dropoff marker otherwise */}
-        {acceptedDriver && acceptedDriver.location ? (
+        {/* Show driver marker if accepted */}
+        {acceptedDriver && acceptedDriver.location && (
           <Marker
             coordinate={{
               latitude: acceptedDriver.location.lat,
@@ -1027,19 +1391,18 @@ const newHome = () => {
             //description={`${acceptedDriver.firstname} ${acceptedDriver.lastname}`}
             image={icons.marker}
           />
-        ) : (
-          dropoffCoord && (
-            <Marker
-              coordinate={dropoffCoord}
-              title="Drop-off Location"
-              description={dropoff}
-              pinColor="green"
-              draggable={true}
-              onDragEnd={(e) =>
-                handleDropoffMarkerDrag(e.nativeEvent.coordinate)
-              }
-            />
-          )
+        )}
+
+        {/* Show dropoff marker when ride hasn't started (and no driver) OR when ride has started */}
+        {dropoffCoord && (!acceptedDriver || rideStatus === "started") && (
+          <Marker
+            coordinate={dropoffCoord}
+            title="Drop-off Location"
+            description={dropoff}
+            pinColor="green"
+            draggable={rideStatus !== "started"}
+            onDragEnd={(e) => handleDropoffMarkerDrag(e.nativeEvent.coordinate)}
+          />
         )}
 
         {/* Route polyline */}
@@ -1068,11 +1431,16 @@ const newHome = () => {
       </TouchableOpacity>
 
       <BurgerMenu
-        passengerName="Ahmad"
-        profilePic="https://i.pravatar.cc/150?img=3"
+        passengerName={user?.username || "Passenger"}
+        profilePic={user?.profilePicture || "https://i.pravatar.cc/150?img=3"}
         style="top-16 left-5"
-        onLogout={() => console.log("Logged out")}
+        onLogout={logout}
         currentScreen="newHome"
+        hasActiveRide={
+          rideStatus === "driver_arrived" ||
+          rideStatus === "started" ||
+          acceptedDriver !== null
+        }
       />
       {/* Loading */}
       {isLoadingLocation && (
@@ -1092,38 +1460,61 @@ const newHome = () => {
         {acceptedDriver ? (
           <>
             <View className="p-5">
-              {rideStatus !== "started" && (
-                <View className="flex-row justify-between items-center p-1 mb-2">
-                  <DriverBanner driverArrived={driverArrived}>
-                    <Text className="text-3xl font-JakartaExtraBold p-2">
-                      {driverArrived
-                        ? "Driver has arrived!"
-                        : "Driver is on the way"}
-                    </Text>
-                  </DriverBanner>
-                  <View className="flex-row">
-                    <TouchableOpacity
-                      onPress={handleCall}
-                      className="p-2 rounded-full bg-blue-500 shadow-sm border-[1px] border-white"
-                    >
-                      <MaterialCommunityIcons
-                        name={"phone"}
-                        size={44}
-                        color="white"
-                      />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      onPress={handleWhatsApp}
-                      className="p-2 ml-6 rounded-full bg-green-500 shadow-sm border-[1px] border-white"
-                    >
-                      <MaterialCommunityIcons
-                        name={"whatsapp"}
-                        size={44}
-                        color="white"
-                      />
-                    </TouchableOpacity>
+              {rideStatus !== "started" && rideStatus !== "completed" && (
+                <>
+                  <View className="flex-row justify-between items-center p-1 mb-2">
+                    <DriverBanner driverArrived={driverArrived}>
+                      <Text className="text-3xl font-JakartaExtraBold p-2">
+                        {driverArrived
+                          ? "Driver has arrived!"
+                          : "Driver is on the way"}
+                      </Text>
+                    </DriverBanner>
+                    <View className="flex-row">
+                      <TouchableOpacity
+                        onPress={handleCall}
+                        className="p-2 rounded-full bg-blue-500 shadow-sm border-[1px] border-white"
+                      >
+                        <MaterialCommunityIcons
+                          name={"phone"}
+                          size={44}
+                          color="white"
+                        />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={handleWhatsApp}
+                        className="p-2 ml-6 rounded-full bg-green-500 shadow-sm border-[1px] border-white"
+                      >
+                        <MaterialCommunityIcons
+                          name={"whatsapp"}
+                          size={44}
+                          color="white"
+                        />
+                      </TouchableOpacity>
+                    </View>
                   </View>
-                </View>
+
+                  {/* Driver ETA Display */}
+                  {!driverArrived && driverETA && (
+                    <View className="flex-row items-center bg-white/80 p-3 rounded-2xl mb-3">
+                      <MaterialCommunityIcons
+                        name="clock-outline"
+                        size={24}
+                        color="#0286ff"
+                      />
+                      <View className="ml-3">
+                        <Text className="text-lg font-JakartaBold text-gray-800">
+                          Arriving in {driverETA}
+                        </Text>
+                        {driverDistance && (
+                          <Text className="text-sm font-JakartaMedium text-gray-600">
+                            {driverDistance}
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+                  )}
+                </>
               )}
 
               {rideStatus === "started" && (
@@ -1138,7 +1529,9 @@ const newHome = () => {
               <View className="flex-row items-center space-x-4 mb-4">
                 <Image
                   source={{
-                    uri: "https://ucarecdn.com/dae59f69-2c1f-48c3-a883-017bcf0f9950/-/preview/1000x666/",
+                    uri:
+                      acceptedDriver.profilePicture ||
+                      "https://ucarecdn.com/dae59f69-2c1f-48c3-a883-017bcf0f9950/-/preview/1000x666/",
                   }}
                   className="w-16 h-16 rounded-full"
                 />
@@ -1213,51 +1606,100 @@ const newHome = () => {
             {!isCollapsed && (
               <View className="px-5 pb-5 ">
                 <View className="flex-row justify-around mb-2">
-                  {rideTypes.map((ride) => (
-                    <TouchableOpacity
-                      key={ride.id}
-                      onPress={() => {
-                        if (ride.id === "shared") {
-                          setIsSharedMode(true);
-                          // Keep the last selected vehicle type, default to car if none
+                  {rideTypes.map((ride) => {
+                    // Shared ride only available for car
+                    const isSharedDisabled =
+                      ride.id === "shared" && selectedRideType !== "car";
+
+                    return (
+                      <TouchableOpacity
+                        key={ride.id}
+                        onPress={() => {
+                          // Don't allow selecting shared if car is not selected
                           if (
-                            !selectedRideType ||
-                            selectedRideType === "shared"
+                            ride.id === "shared" &&
+                            selectedRideType !== "car"
                           ) {
-                            setSelectedRideType("car");
+                            return;
                           }
-                        } else {
-                          setIsSharedMode(false);
-                          setSelectedRideType(ride.id);
-                        }
-                      }}
-                      className={`w-[24%] p-2 rounded-xl mb-2 border-2 items-center ${
-                        (
-                          ride.id === "shared"
-                            ? isSharedMode
-                            : selectedRideType === ride.id
-                        )
-                          ? "border-blue-500 bg-blue-50"
-                          : "border-gray-200 bg-gray-50"
-                      }`}
-                    >
-                      <Text className="text-sm text-gray-50">{ride.icon}</Text>
-                      <Text
-                        className={`font-JakartaBold text-lg ${
-                          (
-                            ride.id === "shared"
-                              ? isSharedMode
-                              : selectedRideType === ride.id
-                          )
-                            ? "text-blue-600"
-                            : "text-gray-800"
+
+                          if (ride.id === "shared") {
+                            // Toggle shared mode on/off
+                            setIsSharedMode(!isSharedMode);
+                            // Keep the last selected vehicle type, default to car if none
+                            if (
+                              !selectedRideType ||
+                              selectedRideType === "shared"
+                            ) {
+                              setSelectedRideType("car");
+                            }
+                          } else {
+                            // Deselect shared mode when selecting a vehicle type other than car
+                            if (ride.id !== "car") {
+                              setIsSharedMode(false);
+                            }
+                            setSelectedRideType(ride.id);
+                          }
+                        }}
+                        disabled={isSharedDisabled}
+                        className={`w-[24%] p-2 rounded-xl mb-2 border-2 items-center ${
+                          isSharedDisabled
+                            ? "border-gray-300 bg-gray-100 opacity-50"
+                            : (
+                                  ride.id === "shared"
+                                    ? isSharedMode
+                                    : selectedRideType === ride.id
+                                )
+                              ? "border-blue-500 bg-blue-50"
+                              : "border-gray-200 bg-gray-50"
                         }`}
                       >
-                        {ride.name}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                        <Text className="text-sm text-gray-50">
+                          {ride.icon}
+                        </Text>
+                        <Text
+                          className={`font-JakartaBold text-lg ${
+                            isSharedDisabled
+                              ? "text-gray-400"
+                              : (
+                                    ride.id === "shared"
+                                      ? isSharedMode
+                                      : selectedRideType === ride.id
+                                  )
+                                ? "text-blue-600"
+                                : "text-gray-800"
+                          }`}
+                        >
+                          {ride.name}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
+
+                {/* Gender-Based Matching Toggle - Only visible when shared ride is selected */}
+                {isSharedMode && (
+                  <View className="mt-3 mb-2 px-2 py-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <View className="flex-row items-center justify-between">
+                      <View className="flex-1 mr-3">
+                        <Text className="text-base font-JakartaBold text-gray-800 mb-1">
+                          Gender-Based Matching
+                        </Text>
+                        <Text className="text-sm font-JakartaMedium text-gray-600">
+                          {genderBasedMatching
+                            ? "You'll only be paired with passengers of the same gender"
+                            : "You can be paired with any passenger"}
+                        </Text>
+                      </View>
+                      <Switch
+                        value={genderBasedMatching}
+                        onValueChange={setGenderBasedMatching}
+                        trackColor={{ false: "#d1d5db", true: "#60a5fa" }}
+                        thumbColor={genderBasedMatching ? "#2563eb" : "#f3f4f6"}
+                      />
+                    </View>
+                  </View>
+                )}
 
                 {/* Pickup Location Input with Autocomplete */}
                 <View>
@@ -1360,27 +1802,24 @@ const newHome = () => {
                       handleDropoffSuggestionSelect
                     )}
                 </View>
-                {!loadingDistanceTime &&
-                  rideDistance &&
-                  rideDuration &&
-                  !isSharedMode && (
-                    <View className="flex-row items-center justify-center space-x-4 ">
-                      <MaterialCommunityIcons
-                        name="map-marker-distance"
-                        size={24}
-                        color="gray"
-                      />
-                      <Text className="text-gray-600 text-lg text-center font-JakartaMedium mr-16">
-                        {": "}
-                        {rideDistance}
-                      </Text>
-                      <Ionicons name="time-sharp" size={24} color="gray" />
-                      <Text className="text-gray-600 text-lg text-center font-JakartaMedium">
-                        {": "}
-                        {rideDuration}
-                      </Text>
-                    </View>
-                  )}
+                {!loadingDistanceTime && rideDistance && rideDuration && (
+                  <View className="flex-row items-center justify-center space-x-4 ">
+                    <MaterialCommunityIcons
+                      name="map-marker-distance"
+                      size={24}
+                      color="gray"
+                    />
+                    <Text className="text-gray-600 text-lg text-center font-JakartaMedium mr-16">
+                      {": "}
+                      {rideDistance}
+                    </Text>
+                    <Ionicons name="time-sharp" size={24} color="gray" />
+                    <Text className="text-gray-600 text-lg text-center font-JakartaMedium">
+                      {": "}
+                      {rideDuration}
+                    </Text>
+                  </View>
+                )}
 
                 <InputField
                   placeholder="Enter Fare"
@@ -1412,6 +1851,29 @@ const newHome = () => {
                   <Text className="text-gray-600 text-lg text-center font-JakartaMedium">
                     Suggested Fare: PKR {calculatedFare}
                   </Text>
+                )}
+
+                {/* Shared Ride Information */}
+                {isSharedMode && (
+                  <View className="bg-blue-50 border-2 border-blue-300 rounded-lg p-3 mt-3">
+                    <View className="flex-row items-center mb-2">
+                      <Ionicons
+                        name="information-circle"
+                        size={24}
+                        color="#2563eb"
+                      />
+                      <Text className="text-blue-700 text-lg font-JakartaBold ml-2">
+                        Shared Ride Mode Active
+                      </Text>
+                    </View>
+                    <Text className="text-blue-600 text-base font-JakartaMedium">
+                      • Shared rides are only between two passengers
+                    </Text>
+                    <Text className="text-blue-600 text-base font-JakartaMedium mt-1">
+                      • If you have more than 2 people, please consider a solo
+                      ride
+                    </Text>
+                  </View>
                 )}
 
                 <CustomButton
@@ -1481,6 +1943,8 @@ const newHome = () => {
         visible={showOffersModal}
         onClose={closeOffersModal}
         onDriverAccepted={handleDriverAccepted}
+        onCancelRide={handleCancelRide}
+        onOfferExpired={handleOfferExpired}
         rideDetails={rideDetails}
         offers={driverOffers}
       />

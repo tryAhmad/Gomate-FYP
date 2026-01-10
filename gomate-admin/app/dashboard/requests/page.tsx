@@ -189,19 +189,35 @@ export default function RequestsPage() {
   const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null);
 
   useEffect(() => {
-    fetchPendingDrivers();
+    fetchAllDrivers();
   }, []);
 
-  const fetchPendingDrivers = async () => {
+  const fetchAllDrivers = async () => {
     try {
       setLoading(true);
-      const response = await fetch(
-        `${API_BASE_URL}/drivers/verification/pending`
-      );
-      const data = await response.json();
-      setDrivers(data.drivers || []);
+      // Fetch drivers with all verification statuses
+      const [pendingRes, approvedRes, rejectedRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/drivers/verification/status?status=pending`),
+        fetch(`${API_BASE_URL}/drivers/verification/status?status=approved`),
+        fetch(`${API_BASE_URL}/drivers/verification/status?status=rejected`),
+      ]);
+
+      const [pendingData, approvedData, rejectedData] = await Promise.all([
+        pendingRes.json(),
+        approvedRes.json(),
+        rejectedRes.json(),
+      ]);
+
+      // Combine all drivers
+      const allDrivers = [
+        ...(pendingData.drivers || []),
+        ...(approvedData.drivers || []),
+        ...(rejectedData.drivers || []),
+      ];
+
+      setDrivers(allDrivers);
     } catch (error) {
-      console.error("Failed to fetch pending drivers:", error);
+      console.error("Failed to fetch drivers:", error);
     } finally {
       setLoading(false);
     }
@@ -381,18 +397,6 @@ export default function RequestsPage() {
               {stats.rejected}
             </div>
             <p className="text-xs text-muted-foreground">Not approved</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Approved</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {stats.approved}
-            </div>
-            <p className="text-xs text-muted-foreground">Completed</p>
           </CardContent>
         </Card>
       </div>

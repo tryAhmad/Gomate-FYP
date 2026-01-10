@@ -49,33 +49,79 @@ export class RideRequestService {
 
     const rideWithPassenger = await this.rideRequestModel
       .findById(ride._id)
-      .populate('passengerID', 'username') // 👈 only fetch fields you need
+      .populate('passengerID', 'username profilePicture phoneNumber') // 👈 Added phoneNumber
       .lean();
 
     if (!rideWithPassenger) {
       throw new NotFoundException('Ride request not found after creation');
     }
 
-    // 2. Find nearby drivers
+    // 2. Find nearby drivers using real-time location
     const passengerLocation = dto.pickupLocation.coordinates;
-    const radius = 2000;
-    const result = await this.driversService.findNearbyDrivers(
+    const radius = 5000; // 5km radius
+
+    // First, try to find nearby connected drivers with real-time location
+    const nearbyConnectedDriverIds = this.rideGateway.getNearbyConnectedDrivers(
       passengerLocation,
       dto.rideType,
       radius,
     );
-    const nearbyDrivers = result.drivers;
+
+    console.log(
+      `Found ${nearbyConnectedDriverIds.length} nearby connected drivers with real-time location`,
+    );
+
+    // Get driver details from database for connected drivers
+    const connectedDriversPromises = nearbyConnectedDriverIds.map((id) =>
+      this.driversService.findOne(id),
+    );
+    const connectedDrivers = (
+      await Promise.all(connectedDriversPromises)
+    ).filter((d) => d !== null);
+
+    // If not enough connected drivers, fall back to database location search
+    let allNearbyDrivers = connectedDrivers;
+    if (connectedDrivers.length < 5) {
+      console.log(
+        `Only ${connectedDrivers.length} connected drivers found, searching database for more...`,
+      );
+      const result = await this.driversService.findNearbyDrivers(
+        passengerLocation,
+        dto.rideType,
+        radius,
+      );
+
+      // Merge and deduplicate drivers
+      const connectedDriverIds = new Set(nearbyConnectedDriverIds);
+      const dbDrivers = result.drivers.filter(
+        (d) => !connectedDriverIds.has(d._id.toString()),
+      );
+
+      allNearbyDrivers = [...connectedDrivers, ...dbDrivers];
+      console.log(
+        `Total nearby drivers: ${allNearbyDrivers.length} (${connectedDrivers.length} connected + ${dbDrivers.length} from DB)`,
+      );
+    }
 
     // 3. Emit to connected drivers
-    nearbyDrivers.forEach((driver) => {
+    allNearbyDrivers.forEach((driver) => {
       const driverId = (driver._id as Types.ObjectId).toString();
       const connected = this.rideGateway.connectedDrivers.get(driverId);
 
       if (connected?.socketId) {
-        this.rideGateway.server.to(connected.socketId).emit('newRideRequest', {
+        const populatedPassenger = rideWithPassenger.passengerID as any;
+        const emitData = {
           ride: rideWithPassenger,
-          passenger: rideWithPassenger.passengerID, // 👈 extracted passenger info
+          passenger: populatedPassenger, // 👈 extracted passenger info
+        };
+        console.log('📤 Emitting ride with passenger data:', {
+          passengerUsername: populatedPassenger?.username,
+          passengerProfilePic: populatedPassenger?.profilePicture,
+          passengerID: populatedPassenger?._id,
         });
+        this.rideGateway.server
+          .to(connected.socketId)
+          .emit('newRideRequest', emitData);
         console.log(
           `Emitted ride request to driver socket: ${connected.socketId}`,
         );
@@ -196,15 +242,106 @@ export class RideRequestService {
   }
 
   async getDriverRideHistory(driverId: string) {
+    // Query for both ObjectId and string driverID to support old and new data
     const rides = await this.rideRequestModel
-      .find({ driverID: driverId })
-      .populate('passengerID', 'username phoneNumber email')
+      .find({
+        $or: [
+          { driverID: new Types.ObjectId(driverId) },
+          { driverID: driverId },
+        ],
+      })
+      .populate('passengerID', 'username phoneNumber email profilePicture')
+      .populate({
+        path: 'matchedWith',
+        select:
+          'passengerID pickupLocation dropoffLocation fare rideType rideMode status createdAt updatedAt matchedWith rating',
+        populate: {
+          path: 'passengerID',
+          select: 'username phoneNumber email profilePicture',
+        },
+      })
       .sort({ createdAt: -1 }) // newest first
       .lean();
 
+    // Group shared rides together
+    const processedRides: any[] = [];
+    const processedIds = new Set<string>();
+
+    console.log(`[DEBUG] Processing ${rides.length} total rides`);
+    let soloCount = 0;
+    let sharedCount = 0;
+
+    for (const ride of rides) {
+      const rideId = ride._id.toString();
+
+      // Skip if already processed (as part of a shared ride pair)
+      if (processedIds.has(rideId)) {
+        continue;
+      }
+
+      if (ride.matchedWith && ride.rideMode === 'shared') {
+        // This is a shared ride - find its pair
+        const matchedRideId =
+          (ride.matchedWith as any)._id?.toString() ||
+          ride.matchedWith.toString();
+        const matchedRide = rides.find(
+          (r) => r._id.toString() === matchedRideId,
+        );
+
+        if (matchedRide) {
+          sharedCount++;
+          // Mark both as processed
+          processedIds.add(rideId);
+          processedIds.add(matchedRideId);
+
+          // Create a combined shared ride entry
+          const timestamps = ride as any;
+          const sharedRideEntry = {
+            _id: rideId, // Use primary ride ID
+            rideMode: 'shared',
+            rideType: ride.rideType,
+            driverID: ride.driverID,
+            status: ride.status,
+            rating: ride.rating, // Include rating from main ride
+            createdAt:
+              timestamps.createdAt || timestamps.updatedAt || new Date(),
+            fare: ride.fare + (matchedRide.fare || 0), // Combined fare
+            passengers: [
+              {
+                passengerID: ride.passengerID,
+                pickupLocation: ride.pickupLocation,
+                dropoffLocation: ride.dropoffLocation,
+                fare: ride.fare,
+              },
+              {
+                passengerID: matchedRide.passengerID,
+                pickupLocation: matchedRide.pickupLocation,
+                dropoffLocation: matchedRide.dropoffLocation,
+                fare: matchedRide.fare,
+              },
+            ],
+          };
+          processedRides.push(sharedRideEntry);
+        } else {
+          // Matched ride not found in results, add as solo
+          processedIds.add(rideId);
+          processedRides.push(ride);
+        }
+      } else {
+        // Solo ride
+        soloCount++;
+        processedIds.add(rideId);
+        processedRides.push(ride);
+      }
+    }
+
+    console.log(
+      `[DEBUG] Processed rides: ${processedRides.length} total (${soloCount} solo, ${sharedCount} shared)`,
+    );
+
     return {
       message: 'Driver ride history retrieved successfully',
-      rides,
+      rides: processedRides,
     };
   }
 
@@ -243,6 +380,7 @@ export class RideRequestService {
     distanceMeters: number,
     durationSeconds: number,
     rideType?: 'auto' | 'car' | 'bike',
+    rideMode?: 'solo' | 'shared',
   ) {
     if (distanceMeters == null || durationSeconds == null) {
       throw new BadRequestException(
@@ -255,11 +393,18 @@ export class RideRequestService {
 
     const calc = (type: 'auto' | 'car' | 'bike') => {
       const fareConfig = faresMap[type];
-      return Math.round(
+      const soloFare = Math.round(
         fareConfig.baseFare +
           (distanceMeters / 1000) * fareConfig.perKmRate +
           (durationSeconds / 60) * fareConfig.perMinuteRate,
       );
+
+      // Apply 75% (0.75) discount for shared rides
+      if (rideMode === 'shared') {
+        return Math.round(soloFare * 0.75);
+      }
+
+      return soloFare;
     };
 
     const fares = {
@@ -272,13 +417,108 @@ export class RideRequestService {
       return {
         message: 'Fare calculated successfully',
         rideType,
+        rideMode: rideMode || 'solo',
         fare: fares[rideType],
       };
     }
 
     return {
       message: 'Fare calculated successfully',
+      rideMode: rideMode || 'solo',
       fares,
+    };
+  }
+
+  async rateRide(rideId: string, passengerId: string, rating: number) {
+    console.log(
+      `[RATING] Attempting to rate ride ${rideId} by passenger ${passengerId} with rating ${rating}`,
+    );
+
+    if (!rating || rating < 1 || rating > 5) {
+      throw new BadRequestException('Rating must be between 1 and 5');
+    }
+
+    const ride = await this.rideRequestModel
+      .findById(rideId)
+      .populate('matchedWith');
+
+    if (!ride) {
+      console.log(`[RATING ERROR] Ride ${rideId} not found`);
+      throw new NotFoundException('Ride not found');
+    }
+
+    console.log(
+      `[RATING] Found ride: ${rideId}, status: ${ride.status}, passengerID: ${ride.passengerID}`,
+    );
+
+    // Check if this passenger is part of this ride (solo or shared)
+    const isMainPassenger = ride.passengerID.toString() === passengerId;
+    const matchedRide = ride.matchedWith as any;
+    const isMatchedPassenger =
+      matchedRide && matchedRide.passengerID?.toString() === passengerId;
+
+    console.log(
+      `[RATING] isMainPassenger: ${isMainPassenger}, isMatchedPassenger: ${isMatchedPassenger}`,
+    );
+
+    if (!isMainPassenger && !isMatchedPassenger) {
+      throw new BadRequestException('You can only rate your own rides');
+    }
+
+    if (ride.status !== 'completed') {
+      console.log(
+        `[RATING ERROR] Ride ${rideId} status is ${ride.status}, not completed`,
+      );
+      throw new BadRequestException('You can only rate completed rides');
+    }
+
+    // Check if this passenger has already rated
+    if (ride.rating) {
+      console.log(
+        `[WARNING] Passenger ${passengerId} is updating their rating for ride ${rideId} from ${ride.rating} to ${rating}`,
+      );
+    }
+
+    // For shared rides: Note that both passengers will update the same rating field
+    // This is a known limitation - a proper fix would require a passengers array with individual ratings
+    console.log(`[RATING] Setting rating to ${rating} for ride ${rideId}`);
+    ride.rating = rating;
+    const savedRide = await ride.save();
+
+    console.log(
+      `[RATING SUCCESS] Saved rating ${savedRide.rating} for ride ${rideId}`,
+    );
+
+    return {
+      message: 'Rating submitted successfully',
+      rating: savedRide.rating,
+    };
+  }
+
+  async getDriverAverageRating(driverId: string) {
+    const rides = await this.rideRequestModel.find({
+      $or: [{ driverID: new Types.ObjectId(driverId) }, { driverID: driverId }],
+      rating: { $exists: true, $ne: null },
+      status: 'completed',
+    });
+
+    if (rides.length === 0) {
+      return {
+        averageRating: 0,
+        totalRatings: 0,
+        message: 'No ratings yet',
+      };
+    }
+
+    const totalRating = rides.reduce(
+      (sum, ride) => sum + (ride.rating || 0),
+      0,
+    );
+    const averageRating = totalRating / rides.length;
+
+    return {
+      averageRating: Math.round(averageRating * 10) / 10, // Round to 1 decimal
+      totalRatings: rides.length,
     };
   }
 }

@@ -12,6 +12,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Keyboard,
+  ScrollView,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import MapView from "react-native-maps";
@@ -32,6 +33,7 @@ import {
 import Constants from "expo-constants";
 import polyline from "@mapbox/polyline";
 import { getDriverSocket } from "@/utils/socket";
+import { useAuth } from "@/contexts/AuthContext";
 
 const { width, height } = Dimensions.get("window");
 const GOOGLE_MAPS_API_KEY = Constants.expoConfig?.extra?.googleMapsApiKey;
@@ -65,6 +67,7 @@ interface SharedRideStop {
   stopNumber: number;
   isFirstInSequence?: boolean;
   coordinate: Coordinate;
+  passengerId?: string;
 }
 
 export default function RideRequestPage() {
@@ -72,6 +75,7 @@ export default function RideRequestPage() {
   const params = useLocalSearchParams() as RideParams;
   const mapRef = useRef<MapView>(null);
   const inputRef = useRef<TextInput>(null);
+  const { driverId } = useAuth();
 
   const [isAcceptButtonDisabled, setIsAcceptButtonDisabled] = useState(false);
   const [counterFare, setCounterFare] = useState("");
@@ -100,6 +104,10 @@ export default function RideRequestPage() {
       : [params.passengerName];
   const fares =
     isSharedRide && params.fare ? JSON.parse(params.fare) : [params.fare];
+  const passengerIds =
+    isSharedRide && params.passengerId
+      ? JSON.parse(params.passengerId)
+      : [params.passengerId];
 
   const totalFare = fares.reduce(
     (sum: number, fare: string) => sum + (Number(fare) || 0),
@@ -170,7 +178,7 @@ export default function RideRequestPage() {
               onPress: () => {
                 console.log("🚗 User clicked Start Navigation");
 
-                // Navigate directly here instead of calling handleAcceptRide
+                // Start with base params
                 const pickupParams: any = {
                   ...params,
                   rideType: isSharedRide ? "shared" : "solo",
@@ -179,18 +187,28 @@ export default function RideRequestPage() {
                 // Override fare with accepted counter fare if available
                 if (data.counterFare) {
                   console.log(
-                    "💰 Updating fare to counter offer:",
+                    "💰 Updating fare from",
+                    params.fare,
+                    "to counter offer:",
                     data.counterFare
                   );
                   if (isSharedRide) {
                     // For shared rides, update the fare array
-                    const updatedFares = [...fares];
-                    updatedFares[0] = data.counterFare.toString();
+                    const currentFares = Array.isArray(fares)
+                      ? fares
+                      : [fares[0]];
+                    const updatedFares = currentFares.map(() =>
+                      (data.counterFare ?? 0).toString()
+                    );
                     pickupParams.fare = JSON.stringify(updatedFares);
                   } else {
                     // For solo rides, just update the single fare
-                    pickupParams.fare = data.counterFare.toString();
+                    pickupParams.fare = (data.counterFare ?? 0).toString();
                   }
+                  console.log(
+                    "💰 Updated pickupParams.fare to:",
+                    pickupParams.fare
+                  );
                 }
 
                 if (isSharedRide && optimizedStops.length > 0) {
@@ -221,8 +239,148 @@ export default function RideRequestPage() {
       }
     };
 
+    const handleRideCancelled = (data: {
+      rideId: string;
+      cancelledBy: string;
+      reason?: string;
+    }) => {
+      console.log("🚫 Ride cancelled event received:", data);
+
+      // Check if this is the current ride
+      if (data.rideId === params.rideId) {
+        console.log("🚫 This ride was cancelled, navigating back to home");
+
+        Alert.alert(
+          "Ride Cancelled",
+          `This ride has been cancelled by the ${data.cancelledBy}.\n${
+            data.reason || ""
+          }`,
+          [
+            {
+              text: "OK",
+              onPress: () => {
+                router.replace("/" as any);
+              },
+            },
+          ],
+          { cancelable: false }
+        );
+      }
+    };
+
+    const handleOfferRejected = (data: { rideId: string }) => {
+      console.log("❌ Offer rejected event received:", data);
+
+      // Check if this is the current ride
+      if (data.rideId === params.rideId) {
+        console.log(
+          "❌ Your offer was rejected, passenger chose another driver"
+        );
+
+        Alert.alert(
+          "Offer Not Selected",
+          "The passenger has chosen another driver for this ride.",
+          [
+            {
+              text: "OK",
+              onPress: () => {
+                router.replace("/" as any);
+              },
+            },
+          ],
+          { cancelable: false }
+        );
+      }
+    };
+
+    const handleSharedRideAccepted = (data: any) => {
+      console.log("✅ Shared ride accepted successfully:", data);
+
+      // Navigate to pickup screen with both rides' data
+      const pickupParams: any = {
+        ...params,
+        rideType: "shared",
+      };
+
+      // Pass optimized stops if available
+      if (optimizedStops.length > 0) {
+        pickupParams.optimizedStops = JSON.stringify(optimizedStops);
+      }
+
+      Alert.alert(
+        "Shared Ride Accepted!",
+        "You have been assigned to this shared ride. Navigate to pickup locations.",
+        [
+          {
+            text: "OK",
+            onPress: () => {
+              router.push({
+                pathname: "/pickup",
+                params: pickupParams,
+              });
+            },
+          },
+        ],
+        { cancelable: false }
+      );
+    };
+
+    const handleSharedRideAcceptanceFailed = (data: any) => {
+      console.log("❌ Shared ride acceptance failed:", data);
+
+      setIsAcceptButtonDisabled(false);
+
+      Alert.alert(
+        "Ride Already Taken",
+        "Another driver has already accepted this shared ride.",
+        [
+          {
+            text: "OK",
+            onPress: () => {
+              router.replace("/" as any);
+            },
+          },
+        ],
+        { cancelable: false }
+      );
+    };
+
+    const handleSharedRideNoLongerAvailable = (data: any) => {
+      console.log("🚫 Shared ride no longer available:", data);
+
+      // Only show alert if user is still viewing this ride
+      if (data.rideId === params.rideId) {
+        Alert.alert(
+          "Ride Unavailable",
+          "This shared ride has been accepted by another driver.",
+          [
+            {
+              text: "OK",
+              onPress: () => {
+                router.replace("/" as any);
+              },
+            },
+          ],
+          { cancelable: false }
+        );
+      }
+    };
+
     // Add listener
     socket.on("offerAccepted", handleOfferAccepted);
+    socket.on("rideCancelled", handleRideCancelled);
+    socket.on("offerRejected", handleOfferRejected);
+
+    // Add shared ride listeners
+    if (isSharedRide) {
+      socket.on("sharedRideAccepted", handleSharedRideAccepted);
+      socket.on("sharedRideAcceptanceFailed", handleSharedRideAcceptanceFailed);
+      socket.on(
+        "sharedRideNoLongerAvailable",
+        handleSharedRideNoLongerAvailable
+      );
+      console.log("👂 Added shared ride event listeners");
+    }
 
     console.log("👂 ========================================");
     console.log("👂 LISTENER ATTACHED FOR offerAccepted");
@@ -234,9 +392,25 @@ export default function RideRequestPage() {
     // Cleanup on unmount
     return () => {
       socket.off("offerAccepted", handleOfferAccepted);
+      socket.off("rideCancelled", handleRideCancelled);
+      socket.off("offerRejected", handleOfferRejected);
+
+      if (isSharedRide) {
+        socket.off("sharedRideAccepted", handleSharedRideAccepted);
+        socket.off(
+          "sharedRideAcceptanceFailed",
+          handleSharedRideAcceptanceFailed
+        );
+        socket.off(
+          "sharedRideNoLongerAvailable",
+          handleSharedRideNoLongerAvailable
+        );
+        console.log("🔇 Removed shared ride listeners");
+      }
+
       console.log("🔇 Removed offerAccepted listener for ride:", params.rideId);
     };
-  }, [params.rideId, isSharedRide, optimizedStops, router]);
+  }, [params.rideId, isSharedRide, optimizedStops, router, fares, params]);
 
   const loadRouteData = async () => {
     try {
@@ -354,7 +528,8 @@ export default function RideRequestPage() {
         pickupCoords,
         destinationCoords,
         passengerNames,
-        fares
+        fares,
+        passengerIds
       );
       setOptimizedStops(optimizedOrder);
 
@@ -456,7 +631,8 @@ export default function RideRequestPage() {
     pickupCoords: Coordinate[],
     destinationCoords: Coordinate[],
     passengerNames: string[],
-    fares: string[]
+    fares: string[],
+    passengerIds: string[]
   ): Promise<SharedRideStop[]> => {
     try {
       // 1. Find pickup closest to driver (this becomes stop 1)
@@ -546,6 +722,7 @@ export default function RideRequestPage() {
           stopNumber: 1,
           isFirstInSequence: true,
           coordinate: firstPickup.coord,
+          passengerId: passengerIds[firstPickup.index],
         },
         {
           type: "pickup",
@@ -555,6 +732,7 @@ export default function RideRequestPage() {
           stopNumber: 2,
           isFirstInSequence: false,
           coordinate: secondPickup.coord,
+          passengerId: passengerIds[secondPickup.index],
         },
         {
           type: "destination",
@@ -564,6 +742,7 @@ export default function RideRequestPage() {
           stopNumber: 3,
           isFirstInSequence: true,
           coordinate: firstDestination.coord,
+          passengerId: passengerIds[firstDestination.index],
         },
         {
           type: "destination",
@@ -573,6 +752,7 @@ export default function RideRequestPage() {
           stopNumber: 4,
           isFirstInSequence: false,
           coordinate: secondDestination.coord,
+          passengerId: passengerIds[secondDestination.index],
         },
       ];
     } catch (error) {
@@ -591,6 +771,7 @@ export default function RideRequestPage() {
         stopNumber: 1,
         isFirstInSequence: true,
         coordinate: pickupCoords[0] || { latitude: 0, longitude: 0 },
+        passengerId: passengerIds[0],
       },
       {
         type: "pickup",
@@ -600,6 +781,7 @@ export default function RideRequestPage() {
         stopNumber: 2,
         isFirstInSequence: false,
         coordinate: pickupCoords[1] || { latitude: 0, longitude: 0 },
+        passengerId: passengerIds[1],
       },
       {
         type: "destination",
@@ -609,6 +791,7 @@ export default function RideRequestPage() {
         stopNumber: 3,
         isFirstInSequence: true,
         coordinate: destinationCoords[0] || { latitude: 0, longitude: 0 },
+        passengerId: passengerIds[0],
       },
       {
         type: "destination",
@@ -618,6 +801,7 @@ export default function RideRequestPage() {
         stopNumber: 4,
         isFirstInSequence: false,
         coordinate: destinationCoords[1] || { latitude: 0, longitude: 0 },
+        passengerId: passengerIds[1],
       },
     ];
   };
@@ -680,7 +864,7 @@ export default function RideRequestPage() {
 
       // Prepare counter offer data with original fare
       const counterOfferData = {
-        driverId: "68908c87f5bd1d56dcc631b8",
+        driverId: driverId,
         passengerId: params.passengerId,
         rideId: params.rideId,
         counterFare: offeredFare, // Send original fare as counter offer
@@ -709,28 +893,43 @@ export default function RideRequestPage() {
         ]);
       }
     } else {
-      // For shared rides, use the old flow (direct navigation)
-      const pickupParams: any = {
-        ...params,
-        rideType: "shared",
-      };
+      // For shared rides, emit acceptSharedRide event (no counter offers)
+      const socket = getDriverSocket();
 
-      // For shared rides, pass the optimized stops
-      if (optimizedStops.length > 0) {
-        pickupParams.optimizedStops = JSON.stringify(optimizedStops);
+      if (!socket.connected) {
+        Alert.alert(
+          "Connection Error",
+          "Not connected to server. Please try again."
+        );
+        return;
       }
 
-      router.push({
-        pathname: "/pickup",
-        params: pickupParams,
-      });
+      const acceptData = {
+        rideId: params.rideId,
+        driverId: driverId,
+      };
 
-      Alert.alert(
-        "Ride Accepted",
-        "Navigate to pickup locations",
-        [{ text: "OK" }],
-        { cancelable: false }
-      );
+      console.log("📤 Sending shared ride acceptance:", acceptData);
+
+      try {
+        // Disable button to prevent double-clicking
+        setIsAcceptButtonDisabled(true);
+
+        // Emit acceptSharedRide event
+        socket.emit("acceptSharedRide", acceptData);
+
+        console.log("✅ Shared ride acceptance sent to backend");
+
+        Alert.alert("Processing...", "Accepting shared ride. Please wait...", [
+          { text: "OK" },
+        ]);
+      } catch (error: any) {
+        console.error("❌ Error accepting shared ride:", error);
+        setIsAcceptButtonDisabled(false);
+        Alert.alert("Error", `Failed to accept ride: ${error.message}`, [
+          { text: "OK" },
+        ]);
+      }
     }
   };
 
@@ -765,7 +964,7 @@ export default function RideRequestPage() {
 
       // Prepare counter offer data
       const counterOfferData = {
-        driverId: "68908c87f5bd1d56dcc631b8", // Same driver ID as in index.tsx
+        driverId: driverId,
         passengerId: params.passengerId,
         rideId: params.rideId,
         counterFare: fareValue, // Send as number, not string
@@ -874,81 +1073,90 @@ export default function RideRequestPage() {
             isKeyboardVisible && styles.cardKeyboard,
           ]}
         >
-          {/* Shared Ride Header */}
-          {isSharedRide && (
-            <View style={styles.sharedRideHeader}>
-              <View style={styles.sharedRideInfo}>
-                <Text style={styles.sharedRideDistance}>
-                  Distance: {sharedRideDistance}
-                </Text>
-                <Text style={styles.sharedRideTimeAway}>{timeToPickup}</Text>
-              </View>
-              <Text style={styles.totalFareAmount}>Rs {totalFare}</Text>
-            </View>
-          )}
-
-          {/* Content based on ride type */}
-          {isSharedRide ? (
-            <View style={styles.sharedRideContent}>
-              {renderSharedRideStops()}
-            </View>
-          ) : (
-            // Solo Ride Content
-            <>
-              {passengerNames.map((name: string, index: number) => (
-                <View
-                  key={`passenger-${index}`}
-                  style={styles.passengerSection}
-                >
-                  <PassengerInfo
-                    name={name}
-                    profilePhoto={params.profilePhoto}
-                    timeAway={params.timeAway}
-                    fare={fares[index]}
-                    showFare={false}
-                    size="medium"
-                  />
-                  <LocationDetails
-                    pickup={pickups[0]}
-                    destination={destinations[0]}
-                    distance={params.distance}
-                  />
+          <ScrollView
+            style={styles.scrollContent}
+            contentContainerStyle={styles.scrollContentContainer}
+            showsVerticalScrollIndicator={true}
+            bounces={false}
+          >
+            {/* Shared Ride Header */}
+            {isSharedRide && (
+              <View style={styles.sharedRideHeader}>
+                <View style={styles.sharedRideInfo}>
+                  <Text style={styles.sharedRideDistance}>
+                    Distance: {sharedRideDistance}
+                  </Text>
+                  <Text style={styles.sharedRideTimeAway}>{timeToPickup}</Text>
                 </View>
-              ))}
+                <Text style={styles.totalFareAmount}>Rs {totalFare}</Text>
+              </View>
+            )}
 
-              {/* Fare Counter Offer (Solo Rides Only) */}
+            {/* Content based on ride type */}
+            {isSharedRide ? (
+              <View style={styles.sharedRideContent}>
+                {renderSharedRideStops()}
+              </View>
+            ) : (
+              // Solo Ride Content
               <>
-                <Text style={styles.offerText}>Offer your Fare</Text>
-                <View style={styles.fareInputContainer}>
-                  <View style={styles.counterRow}>
-                    <Text style={styles.currencyText}>Rs</Text>
-                    <TextInput
-                      ref={inputRef}
-                      style={styles.input}
-                      value={counterFare}
-                      onChangeText={setCounterFare}
-                      onFocus={focusOnInput}
-                      keyboardType="numeric"
-                      placeholder="Enter amount"
-                      placeholderTextColor="#999"
-                      returnKeyType="done"
-                      onSubmitEditing={() => {
-                        if (counterFare) handleOfferFare();
-                      }}
+                {passengerNames.map((name: string, index: number) => (
+                  <View
+                    key={`passenger-${index}`}
+                    style={styles.passengerSection}
+                  >
+                    <PassengerInfo
+                      name={name}
+                      profilePhoto={params.profilePhoto}
+                      timeAway={params.timeAway}
+                      fare={fares[index]}
+                      showFare={false}
+                      size="medium"
+                    />
+                    <LocationDetails
+                      pickup={pickups[0]}
+                      destination={destinations[0]}
+                      distance={params.distance}
                     />
                   </View>
-                  <TouchableOpacity
-                    style={styles.sendButton}
-                    onPress={handleOfferFare}
-                  >
-                    <Text style={styles.sendText}>Send</Text>
-                  </TouchableOpacity>
-                </View>
-              </>
-            </>
-          )}
+                ))}
 
-          {/* Accept Button */}
+                {/* Fare Counter Offer (Solo Rides Only) */}
+                {!isSharedRide && (
+                  <>
+                    <Text style={styles.offerText}>Offer your Fare</Text>
+                    <View style={styles.fareInputContainer}>
+                      <View style={styles.counterRow}>
+                        <Text style={styles.currencyText}>Rs</Text>
+                        <TextInput
+                          ref={inputRef}
+                          style={styles.input}
+                          value={counterFare}
+                          onChangeText={setCounterFare}
+                          onFocus={focusOnInput}
+                          keyboardType="numeric"
+                          placeholder="Enter amount"
+                          placeholderTextColor="#999"
+                          returnKeyType="done"
+                          onSubmitEditing={() => {
+                            if (counterFare) handleOfferFare();
+                          }}
+                        />
+                      </View>
+                      <TouchableOpacity
+                        style={styles.sendButton}
+                        onPress={handleOfferFare}
+                      >
+                        <Text style={styles.sendText}>Send</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </>
+                )}
+              </>
+            )}
+          </ScrollView>
+
+          {/* Accept Button - Fixed at bottom */}
           <TouchableOpacity
             style={[
               styles.acceptButton,
@@ -991,7 +1199,7 @@ const styles = StyleSheet.create({
   keyboardAvoidingView: {
     flex: 0,
   },
-  // Card styles - non scrollable
+  // Card styles - scrollable with fixed button
   card: {
     backgroundColor: "#E3F2FD",
     padding: 20,
@@ -1005,17 +1213,20 @@ const styles = StyleSheet.create({
   },
   cardSolo: {
     maxHeight: height * 0.5,
-    minHeight: height * 0.4,
   },
   cardShared: {
     maxHeight: height * 0.65,
-    minHeight: height * 0.58,
   },
   cardKeyboard: {
     maxHeight: height * 0.5,
   },
+  scrollContent: {
+    flexGrow: 0,
+  },
+  scrollContentContainer: {
+    paddingBottom: 10,
+  },
   sharedRideContent: {
-    flex: 1,
     marginBottom: 8,
   },
   stopContainer: {

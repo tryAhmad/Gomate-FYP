@@ -23,7 +23,7 @@ type RideCompleteParams = {
   passengerName?: string;
   profilePhoto?: string;
   rideType?: "solo" | "shared";
-  optimizedStops?: string; 
+  optimizedStops?: string;
 };
 
 interface Passenger {
@@ -68,17 +68,27 @@ const RideCompleteScreen: React.FC = () => {
 
       if (rideType === "shared") {
         try {
-          const pickups = params.pickup ? safeJsonParse(params.pickup as string, []) : [];
-          const destinations = params.destination ? safeJsonParse(params.destination as string, []) : [];
-          const fares = params.fare ? safeJsonParse(params.fare as string, []) : [];
-          const passengerNames = params.passengerName ? safeJsonParse(params.passengerName as string, []) : [];
+          const pickups = params.pickup
+            ? safeJsonParse(params.pickup as string, [])
+            : [];
+          const destinations = params.destination
+            ? safeJsonParse(params.destination as string, [])
+            : [];
+          const fares = params.fare
+            ? safeJsonParse(params.fare as string, [])
+            : [];
+          const passengerNames = params.passengerName
+            ? safeJsonParse(params.passengerName as string, [])
+            : [];
 
-          const passengers: Passenger[] = passengerNames.map((name: string, index: number) => ({
-            name: name || `Passenger ${index + 1}`,
-            fare: fares[index]?.toString() || "0",
-            pickup: pickups[index],
-            destination: destinations[index],
-          }));
+          const passengers: Passenger[] = passengerNames.map(
+            (name: string, index: number) => ({
+              name: name || `Passenger ${index + 1}`,
+              fare: fares[index]?.toString() || "0",
+              pickup: pickups[index],
+              destination: destinations[index],
+            })
+          );
 
           const totalFare = fares
             .reduce((sum: number, fare: any) => {
@@ -89,7 +99,8 @@ const RideCompleteScreen: React.FC = () => {
 
           return {
             pickup: pickups[0] || "Unknown Pickup",
-            destination: destinations[destinations.length - 1] || "Unknown Destination",
+            destination:
+              destinations[destinations.length - 1] || "Unknown Destination",
             fare: "0",
             passengerName: passengerNames[0] || "Passenger",
             profilePhoto: params.profilePhoto?.toString() || "",
@@ -98,7 +109,10 @@ const RideCompleteScreen: React.FC = () => {
             totalFare,
           };
         } catch (error) {
-          console.error("[RIDE_COMPLETE] Error parsing shared ride data:", error);
+          console.error(
+            "[RIDE_COMPLETE] Error parsing shared ride data:",
+            error
+          );
           return {
             pickup: "Unknown Pickup",
             destination: "Unknown Destination",
@@ -132,25 +146,34 @@ const RideCompleteScreen: React.FC = () => {
   useEffect(() => {
     const saveRide = async () => {
       try {
-        const storageKey = rideDetails.rideType === "shared" 
-          ? "driverSharedRideHistory" 
-          : "driverRideHistory";
-        
+        const storageKey =
+          rideDetails.rideType === "shared"
+            ? "driverSharedRideHistory"
+            : "driverRideHistory";
+
         const cached = await AsyncStorage.getItem(storageKey);
         let rides = cached ? JSON.parse(cached) : [];
 
         // Parse optimizedStops from params if available
-        const optimizedStops = params.optimizedStops 
+        const optimizedStops = params.optimizedStops
           ? safeJsonParse(params.optimizedStops as string, [])
           : [];
 
-        console.log("[RIDE_COMPLETE] Saving optimizedStops to history:", optimizedStops);
+        console.log(
+          "[RIDE_COMPLETE] Saving optimizedStops to history:",
+          optimizedStops
+        );
 
         const newRide = {
           _id: Date.now().toString(),
           pickupLocation: { address: rideDetails.pickup },
           dropoffLocation: { address: rideDetails.destination },
-          fare: parseFloat(rideDetails.rideType === "shared" ? rideDetails.totalFare : rideDetails.fare) || 0,
+          fare:
+            parseFloat(
+              rideDetails.rideType === "shared"
+                ? rideDetails.totalFare
+                : rideDetails.fare
+            ) || 0,
           passengerName: rideDetails.passengerName,
           profilePhoto: rideDetails.profilePhoto,
           createdAt: new Date().toISOString(),
@@ -159,14 +182,16 @@ const RideCompleteScreen: React.FC = () => {
           ...(rideDetails.rideType === "shared" && {
             passengers: rideDetails.passengers,
             passengerCount: rideDetails.passengers.length,
-            optimizedStops: optimizedStops, 
+            optimizedStops: optimizedStops,
           }),
         };
 
         rides = [newRide, ...rides];
         await AsyncStorage.setItem(storageKey, JSON.stringify(rides));
 
-        console.log(`[RIDE_COMPLETE] Saved ${rideDetails.rideType} ride to history with optimizedStops`);
+        console.log(
+          `[RIDE_COMPLETE] Saved ${rideDetails.rideType} ride to history with optimizedStops`
+        );
       } catch (err) {
         console.error("Error saving ride history:", err);
       }
@@ -189,7 +214,7 @@ const RideCompleteScreen: React.FC = () => {
     if (fare === undefined || fare === null) {
       return "0";
     }
-    
+
     const fareString = fare.toString();
     const numericFare = fareString.replace(/[^\d.]/g, "");
     return numericFare || "0";
@@ -199,11 +224,22 @@ const RideCompleteScreen: React.FC = () => {
     <>
       {/* Passenger Info */}
       <View style={styles.passengerSection}>
-        <View style={styles.avatarPlaceholder}>
-          <Text style={styles.avatarInitial}>
-            {getInitial(rideDetails.passengerName)}
-          </Text>
-        </View>
+        {rideDetails.profilePhoto && rideDetails.profilePhoto.trim() !== "" ? (
+          <Image
+            source={{ uri: rideDetails.profilePhoto }}
+            style={styles.avatarPlaceholder}
+            onError={() => {
+              console.log("Error loading profile photo, using fallback");
+            }}
+            defaultSource={require("@/assets/images/react-logo.png")}
+          />
+        ) : (
+          <View style={styles.avatarPlaceholder}>
+            <Text style={styles.avatarInitial}>
+              {getInitial(rideDetails.passengerName)}
+            </Text>
+          </View>
+        )}
         <View style={styles.passengerInfo}>
           <Text style={styles.passengerName}>{rideDetails.passengerName}</Text>
         </View>
@@ -245,16 +281,32 @@ const RideCompleteScreen: React.FC = () => {
           <View style={styles.sharedPassengerSection}>
             <View style={styles.passengerHeader}>
               <View style={styles.passengerInfoLeft}>
-                <View style={styles.smallAvatarPlaceholder}>
-                  <Text style={styles.smallAvatarInitial}>
-                    {getInitial(passenger.name)}
-                  </Text>
-                </View>
+                {passenger.profilePhoto &&
+                passenger.profilePhoto.trim() !== "" ? (
+                  <Image
+                    source={{ uri: passenger.profilePhoto }}
+                    style={styles.smallAvatarPlaceholder}
+                    onError={() => {
+                      console.log(
+                        `Error loading profile photo for ${passenger.name}`
+                      );
+                    }}
+                    defaultSource={require("@/assets/images/react-logo.png")}
+                  />
+                ) : (
+                  <View style={styles.smallAvatarPlaceholder}>
+                    <Text style={styles.smallAvatarInitial}>
+                      {getInitial(passenger.name)}
+                    </Text>
+                  </View>
+                )}
                 <View style={styles.passengerDetails}>
                   <Text style={styles.passengerName}>{passenger.name}</Text>
                 </View>
               </View>
-              <Text style={styles.individualFare}>Rs {formatFare(passenger.fare)}</Text>
+              <Text style={styles.individualFare}>
+                Rs {formatFare(passenger.fare)}
+              </Text>
             </View>
 
             {/* Locations */}
@@ -291,8 +343,8 @@ const RideCompleteScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar backgroundColor="#0286FF" barStyle="light-content" />
-      
-      <ScrollView 
+
+      <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -300,20 +352,30 @@ const RideCompleteScreen: React.FC = () => {
         {/* Original Size Success Header */}
         <View style={styles.headerSection}>
           <View style={styles.successIconContainer}>
-            <MaterialCommunityIcons name="check-circle" size={80} color="#0286FF" />
+            <MaterialCommunityIcons
+              name="check-circle"
+              size={80}
+              color="#0286FF"
+            />
           </View>
           <Text style={styles.headerTitle}>
-            {rideDetails.rideType === "shared" ? "Shared Ride Completed" : "Ride Completed"}
+            {rideDetails.rideType === "shared"
+              ? "Shared Ride Completed"
+              : "Ride Completed"}
           </Text>
           <Text style={styles.headerSubtitle}>Thank you for your service!</Text>
         </View>
 
         {/* Ride Details Card - Auto sizing */}
-        <View style={[
-          styles.detailsCard,
-          rideDetails.rideType === "shared" && styles.sharedDetailsCard
-        ]}>
-          {rideDetails.rideType === "solo" ? renderSoloRide() : renderSharedRide()}
+        <View
+          style={[
+            styles.detailsCard,
+            rideDetails.rideType === "shared" && styles.sharedDetailsCard,
+          ]}
+        >
+          {rideDetails.rideType === "solo"
+            ? renderSoloRide()
+            : renderSharedRide()}
         </View>
 
         {/* Original Size Fare Section */}
@@ -321,14 +383,20 @@ const RideCompleteScreen: React.FC = () => {
           <View style={styles.fareContainer}>
             <View style={styles.fareHeader}>
               <Text style={styles.fareLabel}>
-                {rideDetails.rideType === "shared" ? "Total Fare Earned" : "Fare Earned"}
+                {rideDetails.rideType === "shared"
+                  ? "Total Fare Earned"
+                  : "Fare Earned"}
               </Text>
               <MaterialCommunityIcons name="cash" size={24} color="#0286FF" />
             </View>
             <View style={styles.fareAmountContainer}>
               <Text style={styles.currencySymbol}>Rs</Text>
               <Text style={styles.fareAmount}>
-                {formatFare(rideDetails.rideType === "shared" ? rideDetails.totalFare : rideDetails.fare)}
+                {formatFare(
+                  rideDetails.rideType === "shared"
+                    ? rideDetails.totalFare
+                    : rideDetails.fare
+                )}
               </Text>
             </View>
           </View>
@@ -336,7 +404,10 @@ const RideCompleteScreen: React.FC = () => {
 
         {/* Action Buttons */}
         <View style={styles.actionButtonsContainer}>
-          <TouchableOpacity style={styles.bookAnotherButton} onPress={handleBookAnotherRide}>
+          <TouchableOpacity
+            style={styles.bookAnotherButton}
+            onPress={handleBookAnotherRide}
+          >
             <MaterialCommunityIcons name="plus-circle" size={24} color="#fff" />
             <Text style={styles.bookAnotherButtonText}>Book Another Ride</Text>
           </TouchableOpacity>
@@ -392,12 +463,12 @@ const styles = StyleSheet.create({
     // Auto height - will expand based on content
   },
   sharedDetailsCard: {
-    minHeight: 200, 
+    minHeight: 200,
   },
   // Solo Ride Styles
   passengerSection: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     marginBottom: 24,
     paddingBottom: 20,
     borderBottomWidth: 1,
@@ -411,6 +482,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#E0E0E0",
     justifyContent: "center",
     alignItems: "center",
+    overflow: "hidden",
   },
   avatarInitial: {
     color: "#0286FF",
@@ -492,6 +564,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
+    overflow: "hidden",
   },
   smallAvatarInitial: {
     color: "#0286FF",
@@ -544,7 +617,7 @@ const styles = StyleSheet.create({
     marginTop: 0,
     lineHeight: 18,
   },
-  // Fare Section 
+  // Fare Section
   fareSection: {
     marginHorizontal: 16,
     marginBottom: 16,

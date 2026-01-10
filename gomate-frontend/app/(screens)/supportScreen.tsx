@@ -55,6 +55,26 @@ const SupportScreen = () => {
     }
   };
 
+  // Emergency - Police
+  const handlePolice = async () => {
+    const url = "tel:15";
+    try {
+      await Linking.openURL(url);
+    } catch (error) {
+      Alert.alert("Error", "Unable to make emergency call.");
+    }
+  };
+
+  // Emergency - Ambulance
+  const handleAmbulance = async () => {
+    const url = "tel:1122";
+    try {
+      await Linking.openURL(url);
+    } catch (error) {
+      Alert.alert("Error", "Unable to make emergency call.");
+    }
+  };
+
   return (
     <View className="flex-1 bg-gray-100">
       <StatusBar
@@ -144,6 +164,53 @@ const SupportScreen = () => {
             />
             <Text className="text-gray-500 text-base font-JakartaBold ml-2">
               Quick replies (9am – 9pm)
+            </Text>
+          </View>
+        </View>
+
+        {/* Emergency Section */}
+        <Text className="text-center text-red-600 text-2xl font-JakartaExtraBold mt-6 mb-4">
+          🚨 Emergency Services
+        </Text>
+
+        {/* Police Card */}
+        <View className="bg-white shadow-md rounded-2xl p-5 mb-5 border-2 border-red-500">
+          <TouchableOpacity
+            onPress={handlePolice}
+            className="flex-row items-center justify-center bg-red-600 p-4 rounded-2xl"
+          >
+            <MaterialCommunityIcons
+              name="police-badge"
+              size={26}
+              color="white"
+            />
+            <Text className="text-white text-xl font-JakartaSemiBold ml-2">
+              Call Police
+            </Text>
+          </TouchableOpacity>
+          <View className="flex-row items-center justify-center mt-3">
+            <Ionicons name="call" size={18} color="#dc2626" />
+            <Text className="text-red-600 text-base font-JakartaBold ml-2">
+              Emergency Hotline: 15
+            </Text>
+          </View>
+        </View>
+
+        {/* Ambulance Card */}
+        <View className="bg-white shadow-md rounded-2xl p-5 mb-5 border-2 border-red-500">
+          <TouchableOpacity
+            onPress={handleAmbulance}
+            className="flex-row items-center justify-center bg-red-600 p-4 rounded-2xl"
+          >
+            <MaterialCommunityIcons name="ambulance" size={26} color="white" />
+            <Text className="text-white text-xl font-JakartaSemiBold ml-2">
+              Call Ambulance
+            </Text>
+          </TouchableOpacity>
+          <View className="flex-row items-center justify-center mt-3">
+            <Ionicons name="call" size={18} color="#dc2626" />
+            <Text className="text-red-600 text-base font-JakartaBold ml-2">
+              Emergency Hotline: 1122
             </Text>
           </View>
         </View>

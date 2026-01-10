@@ -4,12 +4,14 @@ import { UpdatePassengerDto } from './dto/update-passenger.dto';
 import { Model } from 'mongoose';
 import { InjectModel } from '@nestjs/mongoose';
 import { Passenger, PassengerDocument } from './schemas/passenger.schema';
+import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 
 @Injectable()
 export class PassengersService {
   constructor(
     @InjectModel(Passenger.name)
     private passengerModel: Model<PassengerDocument>,
+    private cloudinaryService: CloudinaryService,
   ) {}
 
   async createPassenger(createPassengerDto: CreatePassengerDto) {
@@ -45,5 +47,23 @@ export class PassengersService {
 
   remove(id: string) {
     return this.passengerModel.findByIdAndDelete(id).exec();
+  }
+
+  async uploadProfilePicture(id: string, file: Express.Multer.File) {
+    try {
+      const result = await this.cloudinaryService.uploadImage(
+        file,
+        `passengers/${id}/profile`,
+      );
+
+      const updatedPassenger = await this.passengerModel
+        .findByIdAndUpdate(id, { profilePicture: result.url }, { new: true })
+        .select('-password')
+        .exec();
+
+      return updatedPassenger;
+    } catch (error) {
+      throw new Error(`Failed to upload profile picture: ${error.message}`);
+    }
   }
 }

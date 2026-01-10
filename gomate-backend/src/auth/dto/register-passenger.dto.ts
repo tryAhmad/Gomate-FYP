@@ -1,5 +1,6 @@
 import {
   IsEmail,
+  IsEnum,
   IsNotEmpty,
   IsString,
   IsStrongPassword,
@@ -24,4 +25,10 @@ export class RegisterPassengerDto {
     message: 'Phone number must be a 11-digit number',
   })
   phoneNumber: string;
+
+  @IsNotEmpty()
+  @IsEnum(['male', 'female', 'other'], {
+    message: 'Gender must be male, female, or other',
+  })
+  gender: string;
 }

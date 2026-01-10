@@ -3,9 +3,11 @@ import {
   ArrayMaxSize,
   ArrayMinSize,
   IsArray,
+  IsBoolean,
   IsEnum,
   IsNotEmpty,
   IsNumber,
+  IsOptional,
   ValidateNested,
 } from 'class-validator';
 import { RideMode } from 'src/common/enums/ride-mode.enum';
@@ -39,4 +41,8 @@ export class CreateRideRequestDto {
   @IsEnum(RideMode)
   @IsNotEmpty()
   rideMode: RideMode;
+
+  @IsOptional()
+  @IsBoolean()
+  genderBasedMatching?: boolean;
 }

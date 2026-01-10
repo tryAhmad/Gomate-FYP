@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Image } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 export interface RideRequest {
@@ -12,6 +12,7 @@ export interface RideRequest {
   passengerName: string | string[];
   passengerPhone: string | string[];
   passengerId: string | string[]; // Added for socket communication
+  profilePhoto?: string | string[];
   isCalculating?: boolean;
   type: "solo" | "shared";
 }
@@ -23,15 +24,25 @@ interface RideCardProps {
 
 const RideCard: React.FC<RideCardProps> = ({ ride, onViewRide }) => {
   const renderSoloRide = () => {
+    const profilePhoto =
+      typeof ride.profilePhoto === "string" ? ride.profilePhoto : undefined;
+
     return (
       <>
         <View style={styles.rideHeader}>
           <View style={styles.passengerInfo}>
-            <View style={styles.passengerAvatar}>
-              <Text style={styles.passengerInitial}>
-                {String(ride.passengerName).charAt(0)}
-              </Text>
-            </View>
+            {profilePhoto ? (
+              <Image
+                source={{ uri: profilePhoto }}
+                style={styles.passengerAvatar}
+              />
+            ) : (
+              <View style={styles.passengerAvatar}>
+                <Text style={styles.passengerInitial}>
+                  {String(ride.passengerName).charAt(0)}
+                </Text>
+              </View>
+            )}
             <View style={styles.passengerDetails}>
               <Text style={styles.passengerName}>{ride.passengerName}</Text>
               <Text style={styles.rideDistance}>{ride.distance}</Text>
@@ -71,6 +82,9 @@ const RideCard: React.FC<RideCardProps> = ({ ride, onViewRide }) => {
     const fares = ride.fare as number[];
     const pickups = ride.pickup as string[];
     const destinations = ride.destination as string[];
+    const profilePhotos = Array.isArray(ride.profilePhoto)
+      ? ride.profilePhoto
+      : [];
 
     return (
       <>
@@ -89,11 +103,18 @@ const RideCard: React.FC<RideCardProps> = ({ ride, onViewRide }) => {
         <View style={styles.sharedPassengerSection}>
           <View style={styles.passengerHeader}>
             <View style={styles.passengerInfo}>
-              <View style={styles.passengerAvatar}>
-                <Text style={styles.passengerInitial}>
-                  {passengers[0]?.charAt(0)}
-                </Text>
-              </View>
+              {profilePhotos[0] ? (
+                <Image
+                  source={{ uri: profilePhotos[0] }}
+                  style={styles.passengerAvatar}
+                />
+              ) : (
+                <View style={styles.passengerAvatar}>
+                  <Text style={styles.passengerInitial}>
+                    {passengers[0]?.charAt(0)}
+                  </Text>
+                </View>
+              )}
               <View style={styles.passengerDetails}>
                 <Text style={styles.passengerName}>{passengers[0]}</Text>
               </View>
@@ -129,11 +150,18 @@ const RideCard: React.FC<RideCardProps> = ({ ride, onViewRide }) => {
         <View style={styles.sharedPassengerSection}>
           <View style={styles.passengerHeader}>
             <View style={styles.passengerInfo}>
-              <View style={styles.passengerAvatar}>
-                <Text style={styles.passengerInitial}>
-                  {passengers[1]?.charAt(0)}
-                </Text>
-              </View>
+              {profilePhotos[1] ? (
+                <Image
+                  source={{ uri: profilePhotos[1] }}
+                  style={styles.passengerAvatar}
+                />
+              ) : (
+                <View style={styles.passengerAvatar}>
+                  <Text style={styles.passengerInitial}>
+                    {passengers[1]?.charAt(0)}
+                  </Text>
+                </View>
+              )}
               <View style={styles.passengerDetails}>
                 <Text style={styles.passengerName}>{passengers[1]}</Text>
               </View>

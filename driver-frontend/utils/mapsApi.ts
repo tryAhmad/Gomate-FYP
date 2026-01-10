@@ -79,7 +79,7 @@ export const getAutoCompleteSuggestions = async (input: string) => {
 export const reverseGeocode = async (latitude: number, longitude: number) => {
   if (!mapsApiKey) {
     console.error("Maps API key not configured");
-    throw new Error("Maps API key not configured");
+    return `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
   }
 
   const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${mapsApiKey}`;
@@ -99,15 +99,14 @@ export const reverseGeocode = async (latitude: number, longitude: number) => {
         : response.data.results[0].formatted_address;
     }
 
-    throw new Error(`Geocoding failed: ${response.data.status}`);
+    // Return coordinates as fallback instead of throwing
+    console.warn(
+      `Geocoding returned ${response.data.status} for ${latitude}, ${longitude}`
+    );
+    return `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
   } catch (error: any) {
-    if (error.response) {
-      throw new Error(
-        `Google Maps API error: ${
-          error.response.data.error_message || error.response.status
-        }`
-      );
-    }
-    throw error;
+    console.error("Geocoding error:", error.message);
+    // Return coordinates as fallback
+    return `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
   }
 };

@@ -161,4 +161,25 @@ export class DriversController {
     );
     return { message: 'Verification status updated successfully', driver };
   }
+
+  @Patch(':id/suspend')
+  //@UseGuards(JwtAuthGuard, RolesGuard)
+  //@Roles(Role.Admin)
+  @ApiOperation({ summary: 'Suspend driver account' })
+  async suspendAccount(@Param('id') id: string) {
+    const driver = await this.driversService.updateAccountStatus(
+      id,
+      'suspended',
+    );
+    return { message: 'Driver account suspended successfully', driver };
+  }
+
+  @Patch(':id/activate')
+  //@UseGuards(JwtAuthGuard, RolesGuard)
+  //@Roles(Role.Admin)
+  @ApiOperation({ summary: 'Activate driver account' })
+  async activateAccount(@Param('id') id: string) {
+    const driver = await this.driversService.updateAccountStatus(id, 'active');
+    return { message: 'Driver account activated successfully', driver };
+  }
 }

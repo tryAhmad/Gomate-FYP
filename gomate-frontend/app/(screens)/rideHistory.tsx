@@ -15,9 +15,9 @@ import BurgerMenu from "@/components/BurgerMenu";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import RideDetailModal from "@/components/RideDetailModal";
 import Constants from "expo-constants";
+import { useAuth } from "@/contexts/AuthContext";
 
 const userip = Constants.expoConfig?.extra?.USER_IP?.trim();
-const usertoken = Constants.expoConfig?.extra?.USER_TOKEN?.trim();
 
 interface Location {
   coordinates: [number, number];
@@ -102,6 +102,9 @@ const RideItem = React.memo(
 );
 
 export default function RideHistoryScreen() {
+  const { user, token: usertoken, logout } = useAuth();
+  const passengerId = user?._id || "";
+
   const [rides, setRides] = useState<Ride[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -235,10 +238,10 @@ export default function RideHistoryScreen() {
       />
       <View className="flex-row items-center justify-center mb-6 mt-[10%]">
         <BurgerMenu
-          passengerName="Ahmad"
+          passengerName={user?.username || "Passenger"}
           profilePic="https://i.pravatar.cc/150?img=3"
           style="left-2"
-          onLogout={() => console.log("Logged out")}
+          onLogout={logout}
           currentScreen="rideHistory"
         />
         <Text className="text-black text-3xl font-JakartaBold">My rides</Text>
@@ -264,6 +267,7 @@ export default function RideHistoryScreen() {
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
         ride={selectedRide}
+        usertoken={usertoken}
       />
     </View>
   );

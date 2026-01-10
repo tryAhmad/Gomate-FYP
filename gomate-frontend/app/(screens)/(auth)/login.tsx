@@ -2,26 +2,35 @@ import CustomButton from "@/components/CustomButton";
 import InputField from "@/components/InputField";
 import OAuth from "@/components/OAuth";
 import { icons, images } from "@/constants";
-import { Link, Redirect, router } from "expo-router";
+import { Link, router } from "expo-router";
 import React, { useState } from "react";
-import { Image, Text, TouchableOpacity, View } from "react-native";
+import {
+  Image,
+  Text,
+  TouchableOpacity,
+  View,
+  ActivityIndicator,
+} from "react-native";
 import * as Notifications from "expo-notifications";
 import { ScrollView } from "react-native-gesture-handler";
+import { useAuth } from "@/contexts/AuthContext";
 
- Notifications.setNotificationHandler({
-   handleNotification: async () => ({
-     shouldShowBanner: true,
-     shouldShowList: true,
-     shouldPlaySound: true,
-     shouldSetBadge: true,
-   }),
- });
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
 
 const Login = () => {
+  const { login } = useAuth();
   const [form, setform] = useState({
     email: "",
     password: "",
   });
+  const [isLoading, setIsLoading] = useState(false);
 
   React.useEffect(() => {
     const requestPermissions = async () => {
@@ -34,55 +43,56 @@ const Login = () => {
     requestPermissions();
   }, []);
 
- 
-
   const onSignInPress = async () => {
-    const reqBody = {
-      email: form.email,
-      password: form.password,
-    };
+    if (!form.email || !form.password) {
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: "Missing Information ⚠️",
+          body: "Please enter both email and password.",
+        },
+        trigger: null,
+      });
+      return;
+    }
+
+    setIsLoading(true);
 
     try {
-      const response = await fetch(
-        "http://192.168.0.104:3000/auth/passenger/login",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(reqBody),
-        }
-      );
+      const result = await login(form.email, form.password);
 
-      const data = await response.json();
-
-      if (response.ok) {
-        // Handle successful login
-        console.log("Login successful:", data);
-        // ✅ Show notification on success
+      if (result.success) {
+        // Show success notification
         await Notifications.scheduleNotificationAsync({
           content: {
             title: "Login Successful 🚀",
-            body: `Welcome back, ${form.email}!`,
+            body: `Welcome back!`,
           },
           trigger: null,
         });
-        // Navigate to home or dashboard screen
+        // Navigation will be handled by the index screen based on auth state
         router.replace("/(screens)/newHome");
       } else {
-        // Handle login error
-        console.error("Login failed:", data);
-        // ✅ Show notification on success
+        // Show error notification
         await Notifications.scheduleNotificationAsync({
           content: {
             title: "Login Failed ❌",
-            body: `Please check your credentials and try again.`,
+            body:
+              result.message || "Please check your credentials and try again.",
           },
           trigger: null,
         });
       }
     } catch (error) {
       console.error("Error logging in:", error);
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: "Error ❌",
+          body: "An unexpected error occurred. Please try again.",
+        },
+        trigger: null,
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -114,22 +124,16 @@ const Login = () => {
           onChangeText={(text) => setform({ ...form, password: text })}
         />
 
-        <TouchableOpacity
-          onPress={() => router.push("/(screens)/(auth)/forget-password")}
-          className="w-full flex justify-end items-end p-3 "
-        >
-          <Text
-            className="text-blue-600 text-xl font-JakartaBold"
-            style={{ textDecorationLine: "underline" }}
-          >
-            Forgot Password ?
-          </Text>
-        </TouchableOpacity>
-
         <CustomButton
-          title="Sign In"
+          title={isLoading ? "Signing In..." : "Sign In"}
           className="mt-8 font-JakartaBold"
           onPress={onSignInPress}
+          disabled={isLoading}
+          IconLeft={() =>
+            isLoading ? (
+              <ActivityIndicator color="#fff" className="mr-2" />
+            ) : null
+          }
         />
 
         {/* <OAuth /> */}

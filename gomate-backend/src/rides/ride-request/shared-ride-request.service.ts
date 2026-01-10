@@ -64,6 +64,12 @@ export class SharedRideRequestService {
   async createSharedAndMatch(passengerID: string, dto: CreateRideRequestDto) {
     const { ride } = await this.createSharedRideRequest(passengerID, dto);
 
+    // Populate passengerID with full passenger data
+    await ride.populate(
+      'passengerID',
+      'username phoneNumber email profilePicture gender',
+    );
+
     const match = await this.findCompatibleMatch(ride);
     if (!match) {
       try {
@@ -71,12 +77,10 @@ export class SharedRideRequestService {
           passengerID.toString(),
         );
         if (socketId) {
-          this.rideGateway.server
-            .to(socketId)
-            .emit('sharedRideSearching', {
-              message: 'No compatible shared match found (yet)',
-              ride,
-            });
+          this.rideGateway.server.to(socketId).emit('sharedRideSearching', {
+            message: 'No compatible shared match found (yet)',
+            ride,
+          });
         }
       } catch (e) {
         console.warn('WebSocket emit failed (sharedRideSearching):', e.message);
@@ -89,36 +93,73 @@ export class SharedRideRequestService {
       };
     }
 
+    // Populate match passengerID with full passenger data
+    await match.populate(
+      'passengerID',
+      'username phoneNumber email profilePicture gender',
+    );
+
     // Pair both rides atomically
     const paired = await this.pairPassengers(ride, match);
 
     // Notify both passengers
     try {
-      const primaryPassengerId = ride.passengerID.toString();
-      const secondaryPassengerId = match.passengerID.toString();
+      // Extract passenger IDs (handle both populated object and direct ObjectId)
+      const primaryPassengerId = (ride.passengerID as any)?._id
+        ? (ride.passengerID as any)._id.toString()
+        : ride.passengerID.toString();
+      const secondaryPassengerId = (match.passengerID as any)?._id
+        ? (match.passengerID as any)._id.toString()
+        : match.passengerID.toString();
 
-      console.log(
-        `🔔 Emitting sharedRideMatched to primary passenger: ${primaryPassengerId}`,
-      );
-      console.log(
-        `🔔 Emitting sharedRideMatched to secondary passenger: ${secondaryPassengerId}`,
-      );
+      console.log(`🔔 Attempting to emit sharedRideMatched to passengers`);
+      console.log(`   Primary passenger ID: ${primaryPassengerId}`);
+      console.log(`   Secondary passenger ID: ${secondaryPassengerId}`);
       console.log(
         `📊 Connected passengers:`,
-        Array.from(this.rideGateway.connectedPassengers.keys()),
+        Array.from(this.rideGateway.connectedPassengers.entries()),
       );
 
-      this.rideGateway.server
-        .to(primaryPassengerId)
-        .emit('sharedRideMatched', paired.primary);
-      this.rideGateway.server
-        .to(secondaryPassengerId)
-        .emit('sharedRideMatched', paired.secondary);
+      // Get socket IDs from the map
+      const primarySocketId =
+        this.rideGateway.connectedPassengers.get(primaryPassengerId);
+      const secondarySocketId =
+        this.rideGateway.connectedPassengers.get(secondaryPassengerId);
 
-      console.log(`✅ sharedRideMatched events emitted successfully`);
+      console.log(`   Primary socket ID: ${primarySocketId || 'NOT FOUND'}`);
+      console.log(
+        `   Secondary socket ID: ${secondarySocketId || 'NOT FOUND'}`,
+      );
+
+      if (primarySocketId) {
+        this.rideGateway.server
+          .to(primarySocketId)
+          .emit('sharedRideMatched', paired.primary);
+        console.log(
+          `✅ Emitted sharedRideMatched to primary passenger (${primarySocketId})`,
+        );
+      } else {
+        console.warn(
+          `⚠️ Primary passenger ${primaryPassengerId} not connected`,
+        );
+      }
+
+      if (secondarySocketId) {
+        this.rideGateway.server
+          .to(secondarySocketId)
+          .emit('sharedRideMatched', paired.secondary);
+        console.log(
+          `✅ Emitted sharedRideMatched to secondary passenger (${secondarySocketId})`,
+        );
+      } else {
+        console.warn(
+          `⚠️ Secondary passenger ${secondaryPassengerId} not connected`,
+        );
+      }
     } catch (e) {
       // Non-fatal: socket may not be connected; continue
       console.warn('WebSocket emit failed (sharedRideMatched):', e.message);
+      console.error('Full error:', e);
     }
 
     // Emit to nearby drivers as a combined request
@@ -140,6 +181,13 @@ export class SharedRideRequestService {
   ): Promise<RideRequest | null> {
     const [lng, lat] = ride.pickupLocation.coordinates;
 
+    // Populate the current ride's passenger to get gender
+    await ride.populate(
+      'passengerID',
+      'username phoneNumber email profilePicture gender',
+    );
+    const currentPassengerGender = (ride.passengerID as any)?.gender;
+
     // Candidates: pending, shared, not self, not already matched
     const candidates = await this.rideRequestModel
       .find({
@@ -156,15 +204,49 @@ export class SharedRideRequestService {
           },
         },
       })
+      .populate(
+        'passengerID',
+        'username phoneNumber email profilePicture gender',
+      ) // Include gender in population
       .limit(15) // small batch to score
       .exec();
 
     if (!candidates.length) return null;
 
+    // Filter candidates based on gender-based matching preference
+    let filteredCandidates = candidates;
+    if (ride.genderBasedMatching && currentPassengerGender === 'female') {
+      // If current passenger is female with gender-based matching ON,
+      // only match with other female passengers
+      filteredCandidates = candidates.filter((cand) => {
+        const candidatePassengerGender = (cand.passengerID as any)?.gender;
+        return candidatePassengerGender === 'female';
+      });
+      console.log(
+        `🚺 Gender-based matching enabled: Filtered ${filteredCandidates.length} female passengers from ${candidates.length} total candidates`,
+      );
+    }
+
+    // Also check if any candidate has gender-based matching enabled
+    // If a candidate is female with gender-based matching, only match with females
+    filteredCandidates = filteredCandidates.filter((cand) => {
+      const candidatePassengerGender = (cand.passengerID as any)?.gender;
+      if (cand.genderBasedMatching && candidatePassengerGender === 'female') {
+        // Candidate wants gender-based matching, so current passenger must also be female
+        return currentPassengerGender === 'female';
+      }
+      return true; // Otherwise, candidate is compatible
+    });
+
+    if (!filteredCandidates.length) {
+      console.log('❌ No candidates remaining after gender filtering');
+      return null;
+    }
+
     // Score by alignment; pick best above threshold
     let best: { cand: RideRequest; score: number } | null = null;
 
-    for (const cand of candidates) {
+    for (const cand of filteredCandidates) {
       const score = this.routeAlignmentScore(
         ride.pickupLocation.coordinates,
         ride.dropoffLocation.coordinates,
@@ -209,6 +291,10 @@ export class SharedRideRequestService {
         { $set: { matchedWith: freshB._id, status: 'matched' } },
         { new: true },
       )
+      .populate(
+        'passengerID',
+        'username phoneNumber email profilePicture gender',
+      )
       .exec();
 
     const updatedB = await this.rideRequestModel
@@ -217,11 +303,25 @@ export class SharedRideRequestService {
         { $set: { matchedWith: freshA._id, status: 'matched' } },
         { new: true },
       )
+      .populate(
+        'passengerID',
+        'username phoneNumber email profilePicture gender',
+      )
       .exec();
 
     if (!updatedA || !updatedB) {
       throw new BadRequestException('Failed to pair rides');
     }
+
+    console.log('✅ Rides paired successfully:');
+    console.log(
+      '   Primary passenger:',
+      (updatedA.passengerID as any)?._id || updatedA.passengerID,
+    );
+    console.log(
+      '   Secondary passenger:',
+      (updatedB.passengerID as any)?._id || updatedB.passengerID,
+    );
 
     return { primary: updatedA, secondary: updatedB };
   }
@@ -237,14 +337,54 @@ export class SharedRideRequestService {
     const centroid: [number, number] = [(lng1 + lng2) / 2, (lat1 + lat2) / 2];
 
     // Use a slightly larger radius for shared pickups
-    const radius = Math.max(this.PICKUP_RADIUS_M, 2500);
+    const radius = Math.max(this.PICKUP_RADIUS_M, 5000); // Increased to 5km
 
-    const result = await this.driversService.findNearbyDrivers(
+    // First, try to find nearby connected drivers with real-time location
+    const nearbyConnectedDriverIds = this.rideGateway.getNearbyConnectedDrivers(
       centroid,
-      a.rideType, // same type enforced in match
+      a.rideType,
       radius,
     );
-    const nearbyDrivers = result.drivers ?? [];
+
+    console.log(
+      `Found ${nearbyConnectedDriverIds.length} nearby connected drivers for shared ride`,
+    );
+
+    // Get driver details from database for connected drivers
+    const connectedDriversPromises = nearbyConnectedDriverIds.map((id) =>
+      this.driversService.findOne(id),
+    );
+    const connectedDrivers = (
+      await Promise.all(connectedDriversPromises)
+    ).filter((d) => d !== null);
+
+    // If not enough connected drivers, fall back to database location search
+    let allNearbyDrivers = connectedDrivers;
+    if (connectedDrivers.length < 5) {
+      const result = await this.driversService.findNearbyDrivers(
+        centroid,
+        a.rideType,
+        radius,
+      );
+
+      // Merge and deduplicate drivers
+      const connectedDriverIds = new Set(nearbyConnectedDriverIds);
+      const dbDrivers = result.drivers.filter(
+        (d: any) => !connectedDriverIds.has(d._id.toString()),
+      );
+
+      allNearbyDrivers = [...connectedDrivers, ...dbDrivers];
+    }
+
+    const nearbyDrivers = allNearbyDrivers ?? [];
+
+    console.log('📊 Preparing combined payload for shared ride:');
+    console.log('  - Passenger A:', a.passengerID);
+    console.log('  - Passenger B:', b.passengerID);
+    console.log('  - Primary Ride ID:', a._id);
+    console.log('  - Primary Ride Status:', a.status);
+    console.log('  - Secondary Ride ID:', b._id);
+    console.log('  - Secondary Ride Status:', b.status);
 
     // Prepare a combined payload (you can adapt this to your driver app contract)
     const combinedPayload = {
@@ -273,19 +413,35 @@ export class SharedRideRequestService {
       // suggestedTotalFare: a.fare + b.fare,
     };
 
+    console.log('📦 Combined payload prepared:', {
+      _id: combinedPayload._id,
+      status: combinedPayload.status,
+      passengerCount: combinedPayload.passengers.length,
+    });
+
     nearbyDrivers.forEach((driver: any) => {
       const driverId = (driver._id as Types.ObjectId).toString();
       const connected = this.rideGateway.connectedDrivers.get(driverId);
 
       if (connected?.socketId) {
+        console.log('🚗 Emitting to driver:', {
+          driverId,
+          socketId: connected.socketId,
+          passengers: combinedPayload.passengers.map((p) => ({
+            passengerName: (p.passengerID as any)?.username || 'Unknown',
+            passengerId: (p.passengerID as any)?._id || p.passengerID,
+            fare: p.fare,
+          })),
+        });
+
         this.rideGateway.server
           .to(connected.socketId)
           .emit('newSharedRideRequest', combinedPayload);
         console.log(
-          `Emitted shared ride to driver socket: ${connected.socketId}`,
+          `✅ Emitted shared ride to driver socket: ${connected.socketId}`,
         );
       } else {
-        console.log(`Driver ${driverId} is not connected`);
+        console.log(`⚠️ Driver ${driverId} is not connected`);
       }
     });
   }
@@ -410,5 +566,110 @@ export class SharedRideRequestService {
 
     const distRad = Math.sqrt(dx * dx + dy * dy);
     return distRad * R;
+  }
+
+  /**
+   * Atomically accept a shared ride by a driver using atomic update operations.
+   * Only the first driver to accept will succeed. Updates both paired rides.
+   * Returns both updated ride documents or null if already accepted.
+   * Works with standalone MongoDB (no replica set required).
+   */
+  async acceptSharedRideAtomic(
+    primaryRideId: string,
+    driverId: string,
+  ): Promise<{ primary: RideRequest; secondary: RideRequest } | null> {
+    try {
+      console.log('🔍 Starting atomic acceptance for ride:', primaryRideId);
+
+      // First, atomically update the primary ride ONLY if it's still available
+      // This is atomic at the document level and doesn't require transactions
+      const updatedPrimary = await this.rideRequestModel
+        .findOneAndUpdate(
+          {
+            _id: primaryRideId,
+            status: 'matched',
+            driverID: null, // Only update if no driver assigned yet
+          },
+          {
+            $set: {
+              driverID: new Types.ObjectId(driverId),
+              status: 'accepted',
+            },
+          },
+          { new: true },
+        )
+        .populate('passengerID', 'username phoneNumber email profilePicture')
+        .populate('driverID', 'fullname phoneNumber vehicle profilePhoto')
+        .exec();
+
+      console.log('🔍 Primary ride update result:', {
+        found: !!updatedPrimary,
+        rideId: updatedPrimary?._id,
+        status: updatedPrimary?.status,
+        driverID: updatedPrimary?.driverID,
+      });
+
+      if (!updatedPrimary) {
+        console.log(
+          `❌ Primary ride ${primaryRideId} already accepted by another driver or not in matched state`,
+        );
+        return null;
+      }
+
+      // If primary was updated successfully, update the secondary ride
+      if (!updatedPrimary.matchedWith) {
+        console.log(`❌ Primary ride ${primaryRideId} has no matchedWith`);
+        // Rollback the primary ride
+        await this.rideRequestModel.findByIdAndUpdate(primaryRideId, {
+          $set: { driverID: null, status: 'matched' },
+        });
+        return null;
+      }
+
+      const updatedSecondary = await this.rideRequestModel
+        .findOneAndUpdate(
+          {
+            _id: updatedPrimary.matchedWith,
+            status: 'matched',
+            driverID: null,
+          },
+          {
+            $set: {
+              driverID: new Types.ObjectId(driverId),
+              status: 'accepted',
+            },
+          },
+          { new: true },
+        )
+        .populate('passengerID', 'username phoneNumber email profilePicture')
+        .populate('driverID', 'fullname phoneNumber vehicle profilePhoto')
+        .exec();
+
+      console.log('🔍 Secondary ride update result:', {
+        found: !!updatedSecondary,
+        rideId: updatedSecondary?._id,
+        status: updatedSecondary?.status,
+      });
+
+      if (!updatedSecondary) {
+        console.log(
+          `❌ Secondary ride ${updatedPrimary.matchedWith} already accepted or not available`,
+        );
+        // Rollback the primary ride
+        await this.rideRequestModel.findByIdAndUpdate(primaryRideId, {
+          $set: { driverID: null, status: 'matched' },
+        });
+        return null;
+      }
+
+      console.log(
+        `✅ Driver ${driverId} atomically accepted shared ride ${primaryRideId} and ${updatedSecondary._id}`,
+      );
+
+      return { primary: updatedPrimary, secondary: updatedSecondary };
+    } catch (error) {
+      console.error('Error in acceptSharedRideAtomic:', error);
+      return null;
+    }
   }
 }

@@ -13,4 +13,8 @@ export class CalculateFareDto {
   @IsOptional()
   @IsIn(['auto', 'car', 'bike'])
   rideType?: 'auto' | 'car' | 'bike';
+
+  @IsOptional()
+  @IsIn(['solo', 'shared'])
+  rideMode?: 'solo' | 'shared';
 }

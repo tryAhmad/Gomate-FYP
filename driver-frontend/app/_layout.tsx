@@ -1,5 +1,5 @@
 import { StatusBar } from "expo-status-bar";
-import { useColorScheme } from "react-native";
+import { useColorScheme, View, ActivityIndicator } from "react-native";
 import {
   ThemeProvider,
   DarkTheme,
@@ -50,6 +50,22 @@ function RootLayoutNav() {
   }, [isAuthenticated, loading, segments, driver]);
 
   const colorScheme = useColorScheme();
+
+  // Show loading screen while checking authentication
+  if (loading) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: "#ffffff",
+        }}
+      >
+        <ActivityIndicator size="large" color="#0286ff" />
+      </View>
+    );
+  }
 
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
@@ -118,6 +134,7 @@ function RootLayoutNav() {
           />
           <Stack.Screen name="ride-history" options={{ headerShown: false }} />
           <Stack.Screen name="earnings" options={{ headerShown: false }} />
+          <Stack.Screen name="payments" options={{ headerShown: false }} />
           <Stack.Screen name="profile" options={{ headerShown: false }} />
           <Stack.Screen name="notifications" options={{ headerShown: false }} />
           <Stack.Screen name="support" options={{ headerShown: false }} />

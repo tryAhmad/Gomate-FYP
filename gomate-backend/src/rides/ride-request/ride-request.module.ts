@@ -13,7 +13,7 @@ import { FareSettingsModule } from 'src/fare-settings/fare-settings.module';
     MongooseModule.forFeature([
       { name: RideRequest.name, schema: RideRequestSchema },
     ]),
-    DriversModule,
+    forwardRef(() => DriversModule),
     FareSettingsModule,
     forwardRef(() => WebSocketModule),
   ],

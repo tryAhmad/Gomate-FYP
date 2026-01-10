@@ -80,6 +80,9 @@ export default function DriversPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [rideCounts, setRideCounts] = useState<Record<string, number>>({});
+  const [driverRatings, setDriverRatings] = useState<
+    Record<string, { averageRating: number; totalRatings: number }>
+  >({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -143,6 +146,28 @@ export default function DriversPage() {
 
       setDrivers(driversData.drivers || []);
       setRideCounts(rideCountsData.data || {});
+
+      // Fetch ratings for all drivers
+      const drivers = driversData.drivers || [];
+      const ratingsPromises = drivers.map((driver: Driver) =>
+        fetch(
+          `${API_CONFIG.BASE_URL}/ride-request/driver/${driver._id}/average-rating`
+        )
+          .then((res) => res.json())
+          .catch(() => ({ averageRating: 0, totalRatings: 0 }))
+      );
+
+      const ratingsResults = await Promise.all(ratingsPromises);
+      const ratingsMap: Record<
+        string,
+        { averageRating: number; totalRatings: number }
+      > = {};
+
+      drivers.forEach((driver: Driver, index: number) => {
+        ratingsMap[driver._id] = ratingsResults[index];
+      });
+
+      setDriverRatings(ratingsMap);
     } catch (err) {
       console.error("Error fetching data:", err);
       setError(
@@ -297,7 +322,9 @@ export default function DriversPage() {
       );
 
       if (!response.ok) {
-        throw new Error("Failed to update driver");
+        const errorData = await response.json().catch(() => ({}));
+        console.error("Update failed:", errorData);
+        throw new Error(errorData.message || "Failed to update driver");
       }
 
       toast({
@@ -529,6 +556,7 @@ export default function DriversPage() {
                   <TableHead>Vehicle</TableHead>
                   <TableHead>Plate</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Rating</TableHead>
                   <TableHead>Completed Rides</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -561,6 +589,27 @@ export default function DriversPage() {
                       >
                         {capitalizeStatus(driver.status)}
                       </span>
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      <div className="flex items-center gap-1">
+                        {driverRatings[driver._id]?.averageRating > 0 ? (
+                          <>
+                            <span className="text-yellow-500">★</span>
+                            <span className="font-semibold">
+                              {driverRatings[driver._id].averageRating.toFixed(
+                                1
+                              )}
+                            </span>
+                            <span className="text-muted-foreground text-xs">
+                              ({driverRatings[driver._id].totalRatings})
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-muted-foreground">
+                            No ratings
+                          </span>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="text-sm">
                       <div className="flex items-center gap-1">

@@ -18,8 +18,14 @@ export class Passenger {
   @Prop({ required: true })
   phoneNumber: string;
 
+  @Prop({ required: true, enum: ['male', 'female', 'other'] })
+  gender: string;
+
   @Prop({ required: true, enum: Role, default: Role.Passenger })
   role: Role;
+
+  @Prop({ default: null })
+  profilePicture: string;
 }
 
 export const PassengerSchema = SchemaFactory.createForClass(Passenger);

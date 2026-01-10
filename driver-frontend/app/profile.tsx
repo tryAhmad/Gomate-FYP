@@ -181,34 +181,109 @@ export default function ProfileScreen() {
         quality: 0.8,
       });
 
-      if (!result.canceled) {
-        const updatedProfile = {
-          ...profile,
-          profilePhoto: result.assets[0].uri,
-        };
-        setProfile(updatedProfile);
-        await AsyncStorage.setItem(
-          "driverProfile",
-          JSON.stringify(updatedProfile)
+      if (!result.canceled && driver && authToken) {
+        const imageUri = result.assets[0].uri;
+
+        // Show loading state
+        Alert.alert(
+          "Uploading",
+          "Please wait while we update your profile photo..."
         );
+
+        // Upload to backend
+        const formData = new FormData();
+        const filename = imageUri.split("/").pop() || "profile.jpg";
+        const match = /\.(\w+)$/.exec(filename);
+        const type = match ? `image/${match[1]}` : "image/jpeg";
+
+        formData.append("profilePhoto", {
+          uri: imageUri,
+          name: filename,
+          type,
+        } as any);
+
+        const response = await fetch(
+          `${API_URL}/drivers/${driver._id}/documents`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${authToken}`,
+            },
+            body: formData,
+          }
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log("Profile photo uploaded successfully:", data);
+
+          // Update local profile state
+          const updatedProfile = {
+            ...profile,
+            profilePhoto: data.driver.profilePhoto?.url,
+          };
+          setProfile(updatedProfile);
+
+          // Update context with fresh driver data
+          await updateDriver(data.driver);
+
+          Alert.alert("Success", "Profile photo updated successfully!");
+        } else {
+          const errorData = await response.json();
+          console.error("Upload error:", errorData);
+          Alert.alert(
+            "Error",
+            errorData.message || "Failed to upload profile photo"
+          );
+        }
       }
     } catch (error) {
-      console.error("Error picking image:", error);
+      console.error("Error picking/uploading image:", error);
       Alert.alert("Error", "Failed to update profile photo");
     }
   };
 
   const removeProfilePhoto = async () => {
     try {
-      const updatedProfile = {
-        ...profile,
-        profilePhoto: undefined,
-      };
-      setProfile(updatedProfile);
-      await AsyncStorage.setItem(
-        "driverProfile",
-        JSON.stringify(updatedProfile)
+      if (!driver || !authToken) {
+        Alert.alert("Error", "Authentication required");
+        return;
+      }
+
+      Alert.alert(
+        "Removing",
+        "Please wait while we remove your profile photo..."
       );
+
+      // Call backend to remove profile photo
+      const response = await fetch(
+        `${API_URL}/drivers/${driver._id}/documents`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+          },
+          body: new FormData(), // Empty form data to update without photo
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+
+        // Update local profile state
+        const updatedProfile = {
+          ...profile,
+          profilePhoto: undefined,
+        };
+        setProfile(updatedProfile);
+
+        // Update context
+        await updateDriver(data.driver);
+
+        Alert.alert("Success", "Profile photo removed successfully!");
+      } else {
+        Alert.alert("Error", "Failed to remove profile photo");
+      }
     } catch (error) {
       console.error("Error removing profile photo:", error);
       Alert.alert("Error", "Failed to remove profile photo");

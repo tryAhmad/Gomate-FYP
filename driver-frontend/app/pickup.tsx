@@ -25,6 +25,7 @@ import {
   getRouteCoordinates,
 } from "@/utils/getRoute";
 import { getDriverSocket } from "@/utils/socket";
+import { useAuth } from "@/contexts/AuthContext";
 
 const { width, height } = Dimensions.get("window");
 
@@ -42,6 +43,7 @@ interface Stop {
   completed?: boolean;
   coordinate: Coordinate;
   passengerPhone?: string;
+  passengerId?: string;
 }
 
 type PickupParams = {
@@ -66,6 +68,10 @@ const PickupPage: React.FC = () => {
   const params = useLocalSearchParams() as PickupParams;
   const mapRef = useRef<MapView>(null);
   const bottomSheetRef = useRef<BottomSheet>(null);
+  const { driverId } = useAuth();
+  const locationUpdateIntervalRef = useRef<ReturnType<
+    typeof setInterval
+  > | null>(null);
 
   const isSharedRide = params.rideType === "shared";
 
@@ -154,6 +160,57 @@ const PickupPage: React.FC = () => {
   useEffect(() => {
     initializeDriverLocation();
   }, []);
+
+  // Listen for ride cancellation
+  useEffect(() => {
+    const socket = getDriverSocket();
+    if (!socket) {
+      console.warn("⚠️ Socket not available for rideCancelled listener");
+      return;
+    }
+
+    const handleRideCancelled = (data: {
+      rideId: string;
+      cancelledBy: string;
+      reason?: string;
+    }) => {
+      console.log("🚫 Ride cancelled event received on pickup page:", data);
+
+      // Check if this is the current ride
+      if (data.rideId === params.rideId) {
+        console.log("🚫 This ride was cancelled, navigating back to home");
+
+        // Clean up location tracking
+        if (locationSubscription) {
+          locationSubscription.remove();
+        }
+
+        Alert.alert(
+          "Ride Cancelled",
+          `This ride has been cancelled by the ${data.cancelledBy}.\n${
+            data.reason || ""
+          }`,
+          [
+            {
+              text: "OK",
+              onPress: () => {
+                router.replace("/" as any);
+              },
+            },
+          ],
+          { cancelable: false }
+        );
+      }
+    };
+
+    socket.on("rideCancelled", handleRideCancelled);
+    console.log("👂 Listening for rideCancelled on ride:", params.rideId);
+
+    return () => {
+      socket.off("rideCancelled", handleRideCancelled);
+      console.log("🔇 Removed rideCancelled listener");
+    };
+  }, [params.rideId, locationSubscription, router]);
 
   // Load route data once driver location is ready
   useEffect(() => {
@@ -254,6 +311,7 @@ const PickupPage: React.FC = () => {
                 stopNumber: stop.stopNumber,
                 coordinate: coordinate,
                 passengerPhone: passengerPhone,
+                passengerId: stop.passengerId, // Include passenger ID from optimized stops
                 completed: false,
               };
 
@@ -463,6 +521,9 @@ const PickupPage: React.FC = () => {
 
         setLocationSubscription(subscription);
         console.log("[TRACKING] Real-time tracking started");
+
+        // Start sending location updates to backend every 10 seconds
+        startLocationUpdates();
       } else {
         console.error("[TRACKING] Location permission not granted");
       }
@@ -470,6 +531,48 @@ const PickupPage: React.FC = () => {
       console.error("Error starting tracking:", error);
     }
   };
+
+  const startLocationUpdates = () => {
+    // Clear any existing interval
+    if (locationUpdateIntervalRef.current) {
+      clearInterval(locationUpdateIntervalRef.current);
+    }
+
+    // Send location update every 10 seconds
+    locationUpdateIntervalRef.current = setInterval(async () => {
+      try {
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+
+        const socket = getDriverSocket();
+        if (socket && socket.connected && driverId && params.passengerId) {
+          const locationData = {
+            driverId: driverId,
+            location: [location.coords.longitude, location.coords.latitude], // [lng, lat] format
+            passengerId: params.passengerId,
+          };
+
+          console.log("📍 Sending driver location update:", locationData);
+          socket.emit("updateDriverLocation", locationData);
+        }
+      } catch (error) {
+        console.error("❌ Error sending location update:", error);
+      }
+    }, 10000); // 10 seconds
+
+    console.log("✅ Location update interval started");
+  };
+
+  // Cleanup location updates on unmount
+  useEffect(() => {
+    return () => {
+      if (locationUpdateIntervalRef.current) {
+        clearInterval(locationUpdateIntervalRef.current);
+        console.log("🧹 Location update interval cleared");
+      }
+    };
+  }, []);
 
   const requestLocationPermission = async () => {
     try {
@@ -543,7 +646,7 @@ const PickupPage: React.FC = () => {
       } else {
         const driverReachedData = {
           rideId: params.rideId,
-          driverId: "68908c87f5bd1d56dcc631b8", // Same driver ID as in other files
+          driverId: driverId,
           passengerId: params.passengerId,
         };
 
@@ -618,7 +721,7 @@ const PickupPage: React.FC = () => {
       } else {
         const startRideData = {
           rideId: params.rideId,
-          driverId: "68908c87f5bd1d56dcc631b8",
+          driverId: driverId,
           passengerId: params.passengerId,
         };
 
@@ -648,7 +751,7 @@ const PickupPage: React.FC = () => {
       } else {
         const endRideData = {
           rideId: params.rideId,
-          driverId: "68908c87f5bd1d56dcc631b8",
+          driverId: driverId,
           passengerId: params.passengerId,
         };
 
@@ -692,10 +795,39 @@ const PickupPage: React.FC = () => {
         text: "Yes, Cancel",
         style: "destructive",
         onPress: () => {
-          console.log("[RIDE] Ride cancelled");
+          console.log("[RIDE] Ride cancelled by driver");
+
+          // Emit cancel event to backend
+          const socket = getDriverSocket();
+          if (socket && params.rideId && params.passengerId) {
+            console.log("🚫 Emitting cancelRide event:", {
+              rideId: params.rideId,
+              driverId: driverId,
+              passengerId: params.passengerId,
+            });
+
+            socket.emit("cancelRide", {
+              rideId: params.rideId,
+              cancelledBy: "driver",
+              passengerId: params.passengerId,
+              driverId: driverId,
+              reason: "Driver cancelled the ride",
+            });
+          } else {
+            console.warn("⚠️ Missing data for cancel:", {
+              hasSocket: !!socket,
+              rideId: params.rideId,
+              passengerId: params.passengerId,
+              driverId: driverId,
+            });
+          }
+
+          // Clean up location tracking
           if (locationSubscription) {
             locationSubscription.remove();
           }
+
+          // Navigate back to home
           router.replace("/" as any);
         },
       },
@@ -704,7 +836,11 @@ const PickupPage: React.FC = () => {
 
   const handleCall = (phoneNumber?: string) => {
     const phoneToCall = phoneNumber || params.passengerPhone;
-    if (phoneToCall) {
+    console.log("📞 [CALL] Phone number received:", phoneNumber);
+    console.log("📞 [CALL] params.passengerPhone:", params.passengerPhone);
+    console.log("📞 [CALL] Final phone to call:", phoneToCall);
+
+    if (phoneToCall && phoneToCall !== "N/A" && phoneToCall.trim() !== "") {
       Linking.openURL(`tel:${phoneToCall}`);
     } else {
       Alert.alert("Error", "Passenger phone number not available");
@@ -718,8 +854,21 @@ const PickupPage: React.FC = () => {
     const phoneToUse = phoneNumber || params.passengerPhone;
     const nameToUse = passengerName || passengerNames[0];
 
-    if (phoneToUse) {
-      const phone = phoneToUse.replace(/\D/g, "");
+    console.log("💬 [WHATSAPP] Phone number received:", phoneNumber);
+    console.log("💬 [WHATSAPP] params.passengerPhone:", params.passengerPhone);
+    console.log("💬 [WHATSAPP] Final phone to use:", phoneToUse);
+
+    if (phoneToUse && phoneToUse !== "N/A" && phoneToUse.trim() !== "") {
+      // Remove all non-digit characters and ensure country code
+      let phone = phoneToUse.replace(/\D/g, "");
+
+      // If phone doesn't start with country code, add Pakistan's code (92)
+      if (!phone.startsWith("92") && phone.length === 10) {
+        phone = "92" + phone;
+      }
+
+      console.log("💬 [WHATSAPP] Formatted phone:", phone);
+
       const message = `Hi ${
         nameToUse || "there"
       }, I'm your driver and I'm on my way.`;
@@ -728,6 +877,8 @@ const PickupPage: React.FC = () => {
         const whatsappUrl = `whatsapp://send?phone=${phone}&text=${encodeURIComponent(
           message
         )}`;
+        console.log("💬 [WHATSAPP] Opening URL:", whatsappUrl);
+
         const canOpen = await Linking.canOpenURL(whatsappUrl);
 
         if (canOpen) {
@@ -736,9 +887,11 @@ const PickupPage: React.FC = () => {
           const webWhatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(
             message
           )}`;
+          console.log("💬 [WHATSAPP] Falling back to web URL:", webWhatsappUrl);
           await Linking.openURL(webWhatsappUrl);
         }
       } catch (error) {
+        console.error("💬 [WHATSAPP] Error:", error);
         Alert.alert("Error", "Could not open WhatsApp.");
       }
     } else {
@@ -778,6 +931,30 @@ const PickupPage: React.FC = () => {
           "Passenger Notified",
           `${currentStop.passengerName} has been notified that you have arrived.`
         );
+
+        // Emit socket event to notify passenger that driver has arrived
+        try {
+          const socket = getDriverSocket();
+          if (socket && socket.connected && currentStop.passengerId) {
+            const arrivalData = {
+              rideId: params.rideId,
+              driverId: driverId,
+              passengerId: currentStop.passengerId,
+              passengerName: currentStop.passengerName,
+              stopType: "pickup",
+            };
+            console.log(
+              "📤 Emitting driverArrivedAtPickup event:",
+              arrivalData
+            );
+            socket.emit("driverArrivedAtPickup", arrivalData);
+          }
+        } catch (error) {
+          console.error(
+            "❌ Error emitting driverArrivedAtPickup event:",
+            error
+          );
+        }
 
         const updatedStops = sharedRideStops.map((stop, index) =>
           index === currentStopIndex ? { ...stop, completed: true } : stop
@@ -840,6 +1017,24 @@ const PickupPage: React.FC = () => {
       // If pickup already completed -> Move to next stop
       if (currentStop.type === "pickup" && currentStop.completed) {
         Alert.alert("Ride Started", `Continuing to next stop.`);
+
+        // Emit socket event to notify passenger that their ride leg has started
+        try {
+          const socket = getDriverSocket();
+          if (socket && socket.connected && currentStop.passengerId) {
+            const startRideData = {
+              rideId: params.rideId,
+              driverId: driverId,
+              passengerId: currentStop.passengerId,
+              passengerName: currentStop.passengerName,
+            };
+            console.log("📤 Emitting startSharedRideLeg event:", startRideData);
+            socket.emit("startSharedRideLeg", startRideData);
+          }
+        } catch (error) {
+          console.error("❌ Error emitting startSharedRideLeg event:", error);
+        }
+
         const nextStopIndex = currentStopIndex + 1;
         if (nextStopIndex < sharedRideStops.length) {
           const nextStop = sharedRideStops[nextStopIndex];
@@ -902,6 +1097,24 @@ const PickupPage: React.FC = () => {
   const processDestinationStop = async (currentStop: any) => {
     try {
       console.log("[SHARED_RIDE] Processing destination stop");
+
+      // Emit socket event to notify passenger that their leg has ended
+      try {
+        const socket = getDriverSocket();
+        if (socket && socket.connected && currentStop.passengerId) {
+          const endRideData = {
+            rideId: params.rideId,
+            driverId: driverId,
+            passengerId: currentStop.passengerId,
+            passengerName: currentStop.passengerName,
+            fare: currentStop.fare,
+          };
+          console.log("📤 Emitting endSharedRideLeg event:", endRideData);
+          socket.emit("endSharedRideLeg", endRideData);
+        }
+      } catch (error) {
+        console.error("❌ Error emitting endSharedRideLeg event:", error);
+      }
 
       // Mark stop as completed
       const updatedStops = sharedRideStops.map((stop, idx) =>
@@ -1165,8 +1378,15 @@ const PickupPage: React.FC = () => {
                   fare={fares[0]}
                   hasArrived={hasArrived}
                   rideStarted={rideStarted}
-                  onCall={() => handleCall()}
-                  onWhatsApp={() => handleWhatsApp()}
+                  onCall={() =>
+                    handleCall(passengerPhones[0] || params.passengerPhone)
+                  }
+                  onWhatsApp={() =>
+                    handleWhatsApp(
+                      passengerPhones[0] || params.passengerPhone,
+                      passengerNames[0]
+                    )
+                  }
                   onCancel={handleCancel}
                   onImHere={handleImHere}
                   onStartRide={handleStartRide}

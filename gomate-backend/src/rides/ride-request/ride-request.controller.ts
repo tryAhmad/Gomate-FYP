@@ -130,6 +130,29 @@ export class RideRequestController {
       dto.distance,
       dto.duration,
       dto.rideType,
+      dto.rideMode,
     );
+  }
+
+  @Post('rate')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Passenger)
+  @ApiOperation({ summary: 'Rate a completed ride' })
+  async rateRide(
+    @Body() body: { rideId: string; rating: number },
+    @Req() req: any,
+  ) {
+    const passengerId = req.user?.userId;
+    return this.rideRequestService.rateRide(
+      body.rideId,
+      passengerId,
+      body.rating,
+    );
+  }
+
+  @Get('driver/:driverId/average-rating')
+  @ApiOperation({ summary: 'Get average rating for a driver' })
+  async getDriverAverageRating(@Param('driverId') driverId: string) {
+    return this.rideRequestService.getDriverAverageRating(driverId);
   }
 }

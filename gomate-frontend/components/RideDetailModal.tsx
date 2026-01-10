@@ -16,15 +16,20 @@ import AlertModal from "./AlertModal";
 
 const GOOGLE_MAPS_APIKEY = Constants.expoConfig?.extra?.MAPS_API_KEY;
 const userip = Constants.expoConfig?.extra?.USER_IP?.trim();
-const usertoken = Constants.expoConfig?.extra?.USER_TOKEN?.trim();
 
 interface Props {
   visible: boolean;
   onClose: () => void;
   ride: any;
+  usertoken?: string | null;
 }
 
-export default function RideDetailModal({ visible, onClose, ride }: Props) {
+export default function RideDetailModal({
+  visible,
+  onClose,
+  ride,
+  usertoken,
+}: Props) {
   const mapRef = useRef<MapView | null>(null);
   const [driver, setDriver] = useState<any>(null);
   const [loadingDriver, setLoadingDriver] = useState(false);

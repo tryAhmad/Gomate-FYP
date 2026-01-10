@@ -407,7 +407,7 @@ export default function RidesPage() {
                           </div>
                         </TableCell>
                         <TableCell className="font-semibold">
-                          PKR {ride.fare.toFixed(2)}
+                          PKR {ride.fare}
                         </TableCell>
                         <TableCell className="text-sm">
                           <div className="flex items-center gap-1">

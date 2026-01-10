@@ -9,7 +9,6 @@ import {
 
 import { Role } from 'src/common/enums/roles.enum';
 
-
 export class CreatePassengerDto {
   @IsNotEmpty()
   @IsString()
@@ -28,6 +27,12 @@ export class CreatePassengerDto {
     message: 'Phone number must be a 11-digit number',
   })
   phoneNumber: string;
+
+  @IsNotEmpty()
+  @IsEnum(['male', 'female', 'other'], {
+    message: 'Gender must be male, female, or other',
+  })
+  gender: string;
 
   @IsEnum(Role)
   role: Role;

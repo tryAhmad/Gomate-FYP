@@ -40,6 +40,14 @@ export class AuthService {
 
     return {
       access_token: this.jwtService.sign(payload),
+      user: {
+        _id: user._id,
+        email: user.email,
+        username: user.username,
+        phoneNumber: user.phoneNumber || user.phone,
+        role: user.role,
+        profilePicture: user.profilePicture,
+      },
     };
   }
 

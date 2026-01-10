@@ -2,17 +2,13 @@ import React, { useState } from "react";
 import {
   View,
   Text,
-  StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
-  KeyboardAvoidingView,
-  Platform,
   ScrollView,
   ActivityIndicator,
   Alert,
+  TextInput,
 } from "react-native";
 import { router } from "expo-router";
-import { Input } from "@/components/ui/Input";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Location from "expo-location";
@@ -244,197 +240,417 @@ export default function SignupScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.keyboardView}
-      >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
+    <ScrollView
+      style={{ flex: 1, backgroundColor: "white" }}
+      keyboardShouldPersistTaps="handled"
+    >
+      <View style={{ flex: 1, backgroundColor: "white" }}>
+        {/* Header Image */}
+        <View
+          style={{
+            position: "relative",
+            width: "100%",
+            height: 280,
+            backgroundColor: "#0286ff",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
         >
-          {/* Header */}
-          <View style={styles.header}>
-            <Ionicons name="car-sport" size={60} color="#10B981" />
-            <Text style={styles.title}>Create Account</Text>
-            <Text style={styles.subtitle}>
-              Sign up to become a GoMate driver
+          <Ionicons name="car-sport" size={90} color="white" />
+          <Text
+            style={{
+              position: "absolute",
+              bottom: 20,
+              left: 20,
+              fontSize: 28,
+              color: "white",
+              fontWeight: "600",
+            }}
+          >
+            Create Driver Account
+          </Text>
+        </View>
+
+        <View style={{ padding: 28 }}>
+          {/* First Name */}
+          <View style={{ marginBottom: 20 }}>
+            <Text style={{ fontSize: 18, fontWeight: "600", marginBottom: 12 }}>
+              First Name
             </Text>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                backgroundColor: "#F5F5F5",
+                borderRadius: 25,
+                borderWidth: 1,
+                borderColor: errors.firstname ? "#EF4444" : "#F5F5F5",
+              }}
+            >
+              <Ionicons
+                name="person-outline"
+                size={24}
+                color="#666"
+                style={{ marginLeft: 16 }}
+              />
+              <TextInput
+                placeholder="Enter your first name"
+                placeholderTextColor="grey"
+                value={form.firstname}
+                onChangeText={(text) => setForm({ ...form, firstname: text })}
+                editable={!loading}
+                autoCapitalize="words"
+                style={{
+                  flex: 1,
+                  padding: 16,
+                  fontSize: 15,
+                  fontWeight: "600",
+                }}
+              />
+            </View>
+            {errors.firstname && (
+              <Text
+                style={{
+                  color: "#EF4444",
+                  fontSize: 14,
+                  marginTop: 4,
+                  marginLeft: 16,
+                }}
+              >
+                {errors.firstname}
+              </Text>
+            )}
           </View>
 
-          {/* Form */}
-          <View style={styles.form}>
-            <Input
-              label="First Name"
-              placeholder="Enter your first name"
-              value={form.firstname}
-              onChangeText={(text) => setForm({ ...form, firstname: text })}
-              error={errors.firstname}
-              icon="person-outline"
-              autoCapitalize="words"
-              editable={!loading}
-            />
-
-            <Input
-              label="Last Name"
-              placeholder="Enter your last name"
-              value={form.lastname}
-              onChangeText={(text) => setForm({ ...form, lastname: text })}
-              error={errors.lastname}
-              icon="person-outline"
-              autoCapitalize="words"
-              editable={!loading}
-            />
-
-            <Input
-              label="Email"
-              placeholder="Enter your email"
-              value={form.email}
-              onChangeText={(text) => setForm({ ...form, email: text })}
-              error={errors.email}
-              icon="mail-outline"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              editable={!loading}
-            />
-
-            <Input
-              label="Phone Number"
-              placeholder="Enter your phone number"
-              value={form.phoneNumber}
-              onChangeText={(text) => setForm({ ...form, phoneNumber: text })}
-              error={errors.phoneNumber}
-              icon="call-outline"
-              keyboardType="phone-pad"
-              editable={!loading}
-            />
-
-            <Input
-              label="Password"
-              placeholder="Enter your password"
-              value={form.password}
-              onChangeText={(text) => setForm({ ...form, password: text })}
-              error={errors.password}
-              icon="lock-closed-outline"
-              secureTextEntry={!showPassword}
-              rightIcon={showPassword ? "eye-off-outline" : "eye-outline"}
-              onRightIconPress={() => setShowPassword(!showPassword)}
-              editable={!loading}
-            />
-
-            <Input
-              label="Confirm Password"
-              placeholder="Re-enter your password"
-              value={form.confirmPassword}
-              onChangeText={(text) =>
-                setForm({ ...form, confirmPassword: text })
-              }
-              error={errors.confirmPassword}
-              icon="lock-closed-outline"
-              secureTextEntry={!showConfirmPassword}
-              rightIcon={
-                showConfirmPassword ? "eye-off-outline" : "eye-outline"
-              }
-              onRightIconPress={() =>
-                setShowConfirmPassword(!showConfirmPassword)
-              }
-              editable={!loading}
-            />
-
-            <TouchableOpacity
-              style={[styles.signupButton, loading && styles.buttonDisabled]}
-              onPress={handleSignup}
-              disabled={loading}
+          {/* Last Name */}
+          <View style={{ marginBottom: 20 }}>
+            <Text style={{ fontSize: 18, fontWeight: "600", marginBottom: 12 }}>
+              Last Name
+            </Text>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                backgroundColor: "#F5F5F5",
+                borderRadius: 25,
+                borderWidth: 1,
+                borderColor: errors.lastname ? "#EF4444" : "#F5F5F5",
+              }}
             >
-              {loading ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text style={styles.signupButtonText}>Sign Up</Text>
-              )}
-            </TouchableOpacity>
-
-            {/* Login Link */}
-            <View style={styles.loginContainer}>
-              <Text style={styles.loginText}>Already have an account? </Text>
-              <TouchableOpacity
-                onPress={() => router.push("/(auth)/login")}
-                disabled={loading}
+              <Ionicons
+                name="person-outline"
+                size={24}
+                color="#666"
+                style={{ marginLeft: 16 }}
+              />
+              <TextInput
+                placeholder="Enter your last name"
+                placeholderTextColor="grey"
+                value={form.lastname}
+                onChangeText={(text) => setForm({ ...form, lastname: text })}
+                editable={!loading}
+                autoCapitalize="words"
+                style={{
+                  flex: 1,
+                  padding: 16,
+                  fontSize: 15,
+                  fontWeight: "600",
+                }}
+              />
+            </View>
+            {errors.lastname && (
+              <Text
+                style={{
+                  color: "#EF4444",
+                  fontSize: 14,
+                  marginTop: 4,
+                  marginLeft: 16,
+                }}
               >
-                <Text style={styles.loginLink}>Login</Text>
+                {errors.lastname}
+              </Text>
+            )}
+          </View>
+
+          {/* Email */}
+          <View style={{ marginBottom: 20 }}>
+            <Text style={{ fontSize: 18, fontWeight: "600", marginBottom: 12 }}>
+              Email
+            </Text>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                backgroundColor: "#F5F5F5",
+                borderRadius: 25,
+                borderWidth: 1,
+                borderColor: errors.email ? "#EF4444" : "#F5F5F5",
+              }}
+            >
+              <Ionicons
+                name="mail-outline"
+                size={24}
+                color="#666"
+                style={{ marginLeft: 16 }}
+              />
+              <TextInput
+                placeholder="Enter your email"
+                placeholderTextColor="grey"
+                value={form.email}
+                onChangeText={(text) => setForm({ ...form, email: text })}
+                editable={!loading}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                style={{
+                  flex: 1,
+                  padding: 16,
+                  fontSize: 15,
+                  fontWeight: "600",
+                }}
+              />
+            </View>
+            {errors.email && (
+              <Text
+                style={{
+                  color: "#EF4444",
+                  fontSize: 14,
+                  marginTop: 4,
+                  marginLeft: 16,
+                }}
+              >
+                {errors.email}
+              </Text>
+            )}
+          </View>
+
+          {/* Phone Number */}
+          <View style={{ marginBottom: 20 }}>
+            <Text style={{ fontSize: 18, fontWeight: "600", marginBottom: 12 }}>
+              Phone Number
+            </Text>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                backgroundColor: "#F5F5F5",
+                borderRadius: 25,
+                borderWidth: 1,
+                borderColor: errors.phoneNumber ? "#EF4444" : "#F5F5F5",
+              }}
+            >
+              <Ionicons
+                name="call-outline"
+                size={24}
+                color="#666"
+                style={{ marginLeft: 16 }}
+              />
+              <TextInput
+                placeholder="Enter your phone number"
+                placeholderTextColor="grey"
+                value={form.phoneNumber}
+                onChangeText={(text) => setForm({ ...form, phoneNumber: text })}
+                editable={!loading}
+                keyboardType="phone-pad"
+                style={{
+                  flex: 1,
+                  padding: 16,
+                  fontSize: 15,
+                  fontWeight: "600",
+                }}
+              />
+            </View>
+            {errors.phoneNumber && (
+              <Text
+                style={{
+                  color: "#EF4444",
+                  fontSize: 14,
+                  marginTop: 4,
+                  marginLeft: 16,
+                }}
+              >
+                {errors.phoneNumber}
+              </Text>
+            )}
+          </View>
+
+          {/* Password */}
+          <View style={{ marginBottom: 20 }}>
+            <Text style={{ fontSize: 18, fontWeight: "600", marginBottom: 12 }}>
+              Password
+            </Text>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                backgroundColor: "#F5F5F5",
+                borderRadius: 25,
+                borderWidth: 1,
+                borderColor: errors.password ? "#EF4444" : "#F5F5F5",
+              }}
+            >
+              <Ionicons
+                name="lock-closed-outline"
+                size={24}
+                color="#666"
+                style={{ marginLeft: 16 }}
+              />
+              <TextInput
+                placeholder="Enter your password"
+                placeholderTextColor="grey"
+                value={form.password}
+                onChangeText={(text) => setForm({ ...form, password: text })}
+                editable={!loading}
+                secureTextEntry={!showPassword}
+                style={{
+                  flex: 1,
+                  padding: 16,
+                  fontSize: 15,
+                  fontWeight: "600",
+                }}
+              />
+              <TouchableOpacity
+                onPress={() => setShowPassword(!showPassword)}
+                style={{ marginRight: 16 }}
+              >
+                <Ionicons
+                  name={showPassword ? "eye-off-outline" : "eye-outline"}
+                  size={24}
+                  color="#666"
+                />
               </TouchableOpacity>
             </View>
+            {errors.password && (
+              <Text
+                style={{
+                  color: "#EF4444",
+                  fontSize: 14,
+                  marginTop: 4,
+                  marginLeft: 16,
+                }}
+              >
+                {errors.password}
+              </Text>
+            )}
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+
+          {/* Confirm Password */}
+          <View style={{ marginBottom: 20 }}>
+            <Text style={{ fontSize: 18, fontWeight: "600", marginBottom: 12 }}>
+              Confirm Password
+            </Text>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                backgroundColor: "#F5F5F5",
+                borderRadius: 25,
+                borderWidth: 1,
+                borderColor: errors.confirmPassword ? "#EF4444" : "#F5F5F5",
+              }}
+            >
+              <Ionicons
+                name="lock-closed-outline"
+                size={24}
+                color="#666"
+                style={{ marginLeft: 16 }}
+              />
+              <TextInput
+                placeholder="Re-enter your password"
+                placeholderTextColor="grey"
+                value={form.confirmPassword}
+                onChangeText={(text) =>
+                  setForm({ ...form, confirmPassword: text })
+                }
+                editable={!loading}
+                secureTextEntry={!showConfirmPassword}
+                style={{
+                  flex: 1,
+                  padding: 16,
+                  fontSize: 15,
+                  fontWeight: "600",
+                }}
+              />
+              <TouchableOpacity
+                onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                style={{ marginRight: 16 }}
+              >
+                <Ionicons
+                  name={showConfirmPassword ? "eye-off-outline" : "eye-outline"}
+                  size={24}
+                  color="#666"
+                />
+              </TouchableOpacity>
+            </View>
+            {errors.confirmPassword && (
+              <Text
+                style={{
+                  color: "#EF4444",
+                  fontSize: 14,
+                  marginTop: 4,
+                  marginLeft: 16,
+                }}
+              >
+                {errors.confirmPassword}
+              </Text>
+            )}
+          </View>
+
+          <TouchableOpacity
+            onPress={handleSignup}
+            disabled={loading}
+            style={{
+              backgroundColor: "#0286ff",
+              borderRadius: 25,
+              padding: 16,
+              marginTop: 32,
+              opacity: loading ? 0.6 : 1,
+              shadowColor: "#0286ff",
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.3,
+              shadowRadius: 8,
+              elevation: 4,
+            }}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text
+                style={{
+                  color: "white",
+                  textAlign: "center",
+                  fontSize: 18,
+                  fontWeight: "bold",
+                }}
+              >
+                Sign Up
+              </Text>
+            )}
+          </TouchableOpacity>
+
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "center",
+              marginTop: 40,
+              marginBottom: 20,
+            }}
+          >
+            <Text style={{ fontSize: 16, color: "#666" }}>
+              Already have an account?{" "}
+            </Text>
+            <TouchableOpacity
+              onPress={() => router.push("/(auth)/login")}
+              disabled={loading}
+            >
+              <Text
+                style={{ fontSize: 16, color: "#0286ff", fontWeight: "bold" }}
+              >
+                Login
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingTop: 40,
-    paddingBottom: 24,
-  },
-  header: {
-    alignItems: "center",
-    marginBottom: 40,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#111827",
-    marginTop: 16,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: "#6B7280",
-    marginTop: 8,
-  },
-  form: {
-    flex: 1,
-  },
-  signupButton: {
-    backgroundColor: "#10B981",
-    borderRadius: 12,
-    height: 50,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 8,
-    shadowColor: "#10B981",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  signupButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  loginContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    marginTop: 24,
-  },
-  loginText: {
-    fontSize: 14,
-    color: "#6B7280",
-  },
-  loginLink: {
-    fontSize: 14,
-    color: "#10B981",
-    fontWeight: "600",
-  },
-});

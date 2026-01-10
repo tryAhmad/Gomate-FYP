@@ -75,9 +75,41 @@ const DriverLandingPage: React.FC = () => {
   const [isConnecting, setIsConnecting] = useState(true);
   const [isSocketConnected, setIsSocketConnected] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const locationUpdateIntervalRef = useRef<ReturnType<
+    typeof setInterval
+  > | null>(null);
 
   // Use driver ID from auth context
   const driverId = driver?._id || "68908c87f5bd1d56dcc631b8";
+
+  // Load persisted online state and location on mount
+  useEffect(() => {
+    const loadPersistedState = async () => {
+      try {
+        const savedOnlineState = await AsyncStorage.getItem(
+          "driverOnlineState"
+        );
+        const savedLocation = await AsyncStorage.getItem(
+          "driverCurrentLocation"
+        );
+        const savedCoordinates = await AsyncStorage.getItem(
+          "driverCoordinates"
+        );
+
+        if (savedOnlineState === "true" && savedLocation && savedCoordinates) {
+          setIsOnline(true);
+          setCurrentLocation(savedLocation);
+          setDriverCoordinates(JSON.parse(savedCoordinates));
+          setIsLocationLoaded(true);
+          console.log("✅ Restored driver state from storage - already online");
+        }
+      } catch (error) {
+        console.error("Error loading persisted state:", error);
+      }
+    };
+
+    loadPersistedState();
+  }, []);
 
   // Load profile from driver context
   useEffect(() => {
@@ -88,9 +120,10 @@ const DriverLandingPage: React.FC = () => {
         }`.trim(),
         email: driver.email,
         phone: driver.phoneNumber || "",
-        profilePhoto: typeof driver.profilePhoto === 'string' 
-          ? driver.profilePhoto 
-          : driver.profilePhoto?.url,
+        profilePhoto:
+          typeof driver.profilePhoto === "string"
+            ? driver.profilePhoto
+            : driver.profilePhoto?.url,
         vehicle: {
           company: driver.vehicle?.company || "",
           model: driver.vehicle?.model || "",
@@ -104,6 +137,14 @@ const DriverLandingPage: React.FC = () => {
 
   // Socket connection effect - runs on app load
   useEffect(() => {
+    // Don't connect socket if account is suspended
+    if (driver?.accountStatus === "suspended") {
+      console.log("⚠️ Account suspended, skipping socket connection");
+      setIsConnecting(false);
+      setIsSocketConnected(false);
+      return;
+    }
+
     const socket = getDriverSocket();
 
     // Check if socket is already connected
@@ -120,15 +161,8 @@ const DriverLandingPage: React.FC = () => {
       setIsSocketConnected(true);
       setConnectionError(null);
 
-      // Register driver immediately after connection (like driver.html)
-      const driverData = {
-        driverId: driverId,
-        location: [74.42812, 31.576079], // [lng, lat] format
-        rideType: "car",
-      };
-
-      console.log("📡 Emitting driver data:", driverData);
-      socket.emit("registerDriver", driverData);
+      // Register driver with real-time location
+      registerDriverWithLocation();
 
       // Show success alert
       Alert.alert(
@@ -136,6 +170,37 @@ const DriverLandingPage: React.FC = () => {
         "Driver registered and ready to receive ride requests!",
         [{ text: "OK" }]
       );
+    };
+
+    const registerDriverWithLocation = async () => {
+      try {
+        // Get current location
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+
+        const driverData = {
+          driverId: driverId,
+          location: [location.coords.longitude, location.coords.latitude], // [lng, lat] format - use real location
+          rideType: "car",
+        };
+
+        console.log("📡 Emitting driver data with real location:", driverData);
+        socket.emit("registerDriver", driverData);
+      } catch (error) {
+        console.error("❌ Error getting location for registration:", error);
+        // Fallback to registering without location
+        const driverData = {
+          driverId: driverId,
+          location: [74.42812, 31.576079], // fallback coordinates
+          rideType: "car",
+        };
+        console.log(
+          "📡 Emitting driver data with fallback location:",
+          driverData
+        );
+        socket.emit("registerDriver", driverData);
+      }
     };
 
     const handleConnectError = (error: Error) => {
@@ -158,6 +223,12 @@ const DriverLandingPage: React.FC = () => {
 
     const handleNewRideRequest = async (data: any) => {
       console.log("🚗 New ride request received:", data);
+      console.log("👤 Passenger data:", data.passenger);
+      console.log(
+        "📸 Passenger profile picture:",
+        data.passenger?.profilePicture
+      );
+      console.log("🎫 Ride passengerID:", data.ride?.passengerID);
 
       try {
         const { ride, passenger } = data;
@@ -322,17 +393,218 @@ const DriverLandingPage: React.FC = () => {
       }
     };
 
+    const handleNewSharedRideRequest = async (data: any) => {
+      console.log("🚗🚗 New SHARED ride request received:", data);
+
+      try {
+        const { passengers } = data;
+
+        // Arrays to hold all passenger data
+        const pickupAddresses: string[] = [];
+        const dropoffAddresses: string[] = [];
+        const fares: number[] = [];
+        const passengerNames: string[] = [];
+        const passengerPhones: string[] = [];
+        const passengerIds: string[] = [];
+        const profilePhotos: string[] = [];
+
+        // Process each passenger
+        for (const passenger of passengers) {
+          // Extract coordinates
+          const pickupCoords = {
+            latitude: passenger.pickupLocation.coordinates[1],
+            longitude: passenger.pickupLocation.coordinates[0],
+          };
+          const dropoffCoords = {
+            latitude: passenger.dropoffLocation.coordinates[1],
+            longitude: passenger.dropoffLocation.coordinates[0],
+          };
+
+          // Get addresses
+          let pickupAddress = `${pickupCoords.latitude}, ${pickupCoords.longitude}`;
+          let dropoffAddress = `${dropoffCoords.latitude}, ${dropoffCoords.longitude}`;
+
+          try {
+            const geocodedPickup = await mapsApi.reverseGeocode(
+              pickupCoords.latitude,
+              pickupCoords.longitude
+            );
+            if (geocodedPickup) pickupAddress = geocodedPickup;
+          } catch (error) {
+            console.warn("⚠️ Failed to reverse geocode pickup");
+          }
+
+          try {
+            const geocodedDropoff = await mapsApi.reverseGeocode(
+              dropoffCoords.latitude,
+              dropoffCoords.longitude
+            );
+            if (geocodedDropoff) dropoffAddress = geocodedDropoff;
+          } catch (error) {
+            console.warn("⚠️ Failed to reverse geocode dropoff");
+          }
+
+          pickupAddresses.push(pickupAddress);
+          dropoffAddresses.push(dropoffAddress);
+          fares.push(passenger.fare);
+
+          // Handle passengerID - could be object or string
+          const passengerInfo =
+            typeof passenger.passengerID === "object"
+              ? passenger.passengerID
+              : {
+                  username: "Passenger",
+                  _id: passenger.passengerID,
+                  phoneNumber: "N/A",
+                };
+
+          console.log(
+            "🔍 [SHARED] Full passengerInfo:",
+            JSON.stringify(passengerInfo, null, 2)
+          );
+          console.log(
+            "🔍 [SHARED] passengerInfo.phoneNumber:",
+            passengerInfo.phoneNumber
+          );
+          console.log("🔍 [SHARED] passengerInfo.phone:", passengerInfo.phone);
+          console.log(
+            "🔍 [SHARED] passengerInfo.profilePicture:",
+            passengerInfo.profilePicture
+          );
+
+          const extractedPhone =
+            passengerInfo.phoneNumber || passengerInfo.phone || "N/A";
+          console.log("🔍 [SHARED] Extracted phone:", extractedPhone);
+
+          passengerNames.push(passengerInfo.username || "Passenger");
+          passengerPhones.push(extractedPhone);
+          passengerIds.push(passengerInfo._id || passenger.passengerID);
+          profilePhotos.push(passengerInfo.profilePicture || "");
+        }
+
+        // Create shared ride object
+        const initialSharedRide: RideRequest = {
+          id: data._id,
+          pickup: pickupAddresses,
+          destination: dropoffAddresses,
+          fare: fares,
+          distance: "Calculating...",
+          timeAway: "Calculating...",
+          passengerName: passengerNames,
+          passengerPhone: passengerPhones,
+          passengerId: passengerIds,
+          profilePhoto: profilePhotos,
+          isCalculating: true,
+          type: "shared",
+        };
+
+        // Add to shared rides list
+        setSharedRides((prev) => [...prev, initialSharedRide]);
+
+        console.log(
+          "✅ Shared ride added to list, now calculating distance..."
+        );
+
+        // Calculate distance in background
+        if (driverCoordinates) {
+          try {
+            // Calculate to first pickup
+            const timeToPickup = await calculateTimeToPickup(
+              driverCoordinates,
+              pickupAddresses[0]
+            );
+
+            // Calculate total ride distance (simplified - could be more complex)
+            const rideDistance = await calculateRideDistance(
+              pickupAddresses[0],
+              dropoffAddresses[dropoffAddresses.length - 1]
+            );
+
+            const updatedRide = {
+              ...initialSharedRide,
+              distance: rideDistance.distance,
+              timeAway: timeToPickup.timeAway,
+              isCalculating: false,
+            };
+
+            setSharedRides((prev) =>
+              prev.map((r) => (r.id === initialSharedRide.id ? updatedRide : r))
+            );
+
+            console.log("✅ Shared ride updated with distance and time");
+          } catch (error: any) {
+            console.error("❌ Error calculating shared ride details:", error);
+            const updatedRide = {
+              ...initialSharedRide,
+              distance: "Unknown",
+              timeAway: "Unknown",
+              isCalculating: false,
+            };
+            setSharedRides((prev) =>
+              prev.map((r) => (r.id === initialSharedRide.id ? updatedRide : r))
+            );
+          }
+        }
+      } catch (error) {
+        console.error("Error processing shared ride request:", error);
+      }
+    };
+
+    const handleRideCancelled = (data: any) => {
+      console.log("🚫 Ride cancelled event received:", data);
+      const { rideId, cancelledBy, reason } = data;
+
+      console.log(`🚫 Removing ride ${rideId} from lists`);
+      console.log(
+        `🚫 Current solo rides:`,
+        soloRides.map((r) => r.id)
+      );
+      console.log(
+        `🚫 Current shared rides:`,
+        sharedRides.map((r) => r.id)
+      );
+
+      // Remove the ride from both solo and shared ride lists
+      setSoloRides((prev) => {
+        const filtered = prev.filter((ride) => ride.id !== rideId);
+        console.log(
+          `🚫 Solo rides after filter:`,
+          filtered.map((r) => r.id)
+        );
+        return filtered;
+      });
+      setSharedRides((prev) => {
+        const filtered = prev.filter((ride) => ride.id !== rideId);
+        console.log(
+          `🚫 Shared rides after filter:`,
+          filtered.map((r) => r.id)
+        );
+        return filtered;
+      });
+
+      // Show a notification to the driver
+      Alert.alert(
+        "Ride Cancelled",
+        `This ride has been cancelled by the ${cancelledBy}.\n${reason || ""}`,
+        [{ text: "OK" }]
+      );
+    };
+
     // Remove old listeners
     socket.off("connect", handleConnect);
     socket.off("connect_error", handleConnectError);
     socket.off("disconnect", handleDisconnect);
     socket.off("newRideRequest", handleNewRideRequest);
+    socket.off("newSharedRideRequest", handleNewSharedRideRequest);
+    socket.off("rideCancelled", handleRideCancelled);
 
     // Add fresh listeners
     socket.on("connect", handleConnect);
     socket.on("connect_error", handleConnectError);
     socket.on("disconnect", handleDisconnect);
     socket.on("newRideRequest", handleNewRideRequest);
+    socket.on("newSharedRideRequest", handleNewSharedRideRequest);
+    socket.on("rideCancelled", handleRideCancelled);
 
     // Connect the socket
     console.log("🔌 Initiating socket connection...");
@@ -343,11 +615,23 @@ const DriverLandingPage: React.FC = () => {
       socket.off("connect_error", handleConnectError);
       socket.off("disconnect", handleDisconnect);
       socket.off("newRideRequest", handleNewRideRequest);
+      socket.off("newSharedRideRequest", handleNewSharedRideRequest);
+      socket.off("rideCancelled", handleRideCancelled);
     };
   }, []);
 
   useEffect(() => {
     const getLocation = async () => {
+      // Skip if location already loaded from persisted state
+      if (isLocationLoaded && driverCoordinates) {
+        console.log("✅ Location already loaded from storage, skipping fetch");
+        // Still start periodic updates if online
+        if (isOnline) {
+          startPeriodicLocationUpdates();
+        }
+        return;
+      }
+
       try {
         console.log("📍 Requesting location permissions...");
         let { status } = await Location.getForegroundPermissionsAsync();
@@ -388,6 +672,9 @@ const DriverLandingPage: React.FC = () => {
         setDriverCoordinates(coords);
         console.log("✅ Driver coordinates STATE UPDATED:", coords);
 
+        // Save coordinates to AsyncStorage
+        await AsyncStorage.setItem("driverCoordinates", JSON.stringify(coords));
+
         const reverseGeocode = await Location.reverseGeocodeAsync({
           latitude: location.coords.latitude,
           longitude: location.coords.longitude,
@@ -400,11 +687,21 @@ const DriverLandingPage: React.FC = () => {
           }, ${address.region || ""}`.trim();
           setCurrentLocation(locationString || "Unknown location");
           console.log("✅ Driver location address set:", locationString);
+
+          // Save location to AsyncStorage
+          await AsyncStorage.setItem("driverCurrentLocation", locationString);
         }
 
         setIsLocationLoaded(true);
         setIsOnline(true);
+
+        // Save online state to AsyncStorage
+        await AsyncStorage.setItem("driverOnlineState", "true");
+
         console.log("✅ Location loading complete - ready for ride requests!");
+
+        // Start periodic location updates to backend
+        startPeriodicLocationUpdates();
       } catch (error: any) {
         console.error("❌ CRITICAL ERROR getting location:", error);
         console.error("Error details:", {
@@ -563,9 +860,87 @@ const DriverLandingPage: React.FC = () => {
     updateRidesWithDistance();
   }, [driverCoordinates, soloRides.length, sharedRides.length]);
 
-  const handleToggleOnline = () => {
+  // Periodic location updates to backend (every 30 seconds when online)
+  const startPeriodicLocationUpdates = () => {
+    // Clear any existing interval
+    if (locationUpdateIntervalRef.current) {
+      clearInterval(locationUpdateIntervalRef.current);
+    }
+
+    // Send location update every 30 seconds
+    locationUpdateIntervalRef.current = setInterval(async () => {
+      try {
+        // Only send updates if driver is online and socket is connected
+        if (!isOnline || !isSocketConnected) {
+          return;
+        }
+
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+
+        const socket = getDriverSocket();
+        if (socket && socket.connected && driverId) {
+          const locationData = {
+            driverId: driverId,
+            location: [location.coords.longitude, location.coords.latitude], // [lng, lat] format
+          };
+
+          console.log(
+            "📍 [Periodic] Sending driver location update:",
+            locationData
+          );
+          socket.emit("updateDriverLocation", locationData);
+
+          // Update local state
+          setDriverCoordinates({
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+          });
+        }
+      } catch (error) {
+        console.error("❌ Error in periodic location update:", error);
+      }
+    }, 30000); // 30 seconds
+
+    console.log("✅ Periodic location updates started (every 30s)");
+  };
+
+  // Cleanup location updates on unmount
+  useEffect(() => {
+    return () => {
+      if (locationUpdateIntervalRef.current) {
+        clearInterval(locationUpdateIntervalRef.current);
+        console.log("🧹 Periodic location update interval cleared");
+      }
+    };
+  }, []);
+
+  const handleToggleOnline = async () => {
+    // Prevent toggle if account is suspended
+    if (driver?.accountStatus === "suspended") {
+      Alert.alert(
+        "Account Suspended",
+        "Your account has been suspended. Please clear your dues to reactivate your account.",
+        [{ text: "OK" }]
+      );
+      return;
+    }
+
     if (isLocationLoaded && isSocketConnected) {
-      setIsOnline(!isOnline);
+      const newOnlineState = !isOnline;
+      setIsOnline(newOnlineState);
+
+      // Save online state to AsyncStorage
+      try {
+        await AsyncStorage.setItem(
+          "driverOnlineState",
+          newOnlineState.toString()
+        );
+        console.log(`✅ Saved online state: ${newOnlineState}`);
+      } catch (error) {
+        console.error("Error saving online state:", error);
+      }
     } else if (!isSocketConnected) {
       Alert.alert(
         "Not Connected",
@@ -624,6 +999,7 @@ const DriverLandingPage: React.FC = () => {
             passengerName: selectedRide.passengerName as string,
             passengerPhone: selectedRide.passengerPhone as string,
             passengerId: selectedRide.passengerId as string,
+            profilePhoto: selectedRide.profilePhoto as string,
             driverLat: driverCoordinates?.latitude.toString(),
             driverLng: driverCoordinates?.longitude.toString(),
             rideType: "solo",
@@ -643,6 +1019,7 @@ const DriverLandingPage: React.FC = () => {
             passengerName: JSON.stringify(selectedRide.passengerName),
             passengerPhone: JSON.stringify(selectedRide.passengerPhone),
             passengerId: JSON.stringify(selectedRide.passengerId),
+            profilePhoto: JSON.stringify(selectedRide.profilePhoto),
             driverLat: driverCoordinates?.latitude.toString(),
             driverLng: driverCoordinates?.longitude.toString(),
             rideType: "shared",
@@ -703,6 +1080,33 @@ const DriverLandingPage: React.FC = () => {
           >
             <Ionicons name="refresh" size={20} color="#fff" />
             <Text style={styles.retryButtonText}>Retry Connection</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Show suspended account screen if account is suspended
+  if (driver?.accountStatus === "suspended") {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar backgroundColor="#fff" barStyle="dark-content" />
+        <View style={styles.suspendedContainer}>
+          <Ionicons name="lock-closed-outline" size={100} color="#FF3B30" />
+          <Text style={styles.suspendedTitle}>Account Suspended</Text>
+          <Text style={styles.suspendedMessage}>
+            Your account has been temporarily suspended due to overdue payments.
+          </Text>
+          <Text style={styles.suspendedSubmessage}>
+            Please clear your dues to reactivate your account and continue
+            accepting rides.
+          </Text>
+          <TouchableOpacity
+            style={styles.contactSupportButton}
+            onPress={() => router.push("/support")}
+          >
+            <Ionicons name="help-circle-outline" size={20} color="#fff" />
+            <Text style={styles.contactSupportButtonText}>Contact Support</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -968,6 +1372,54 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   retryButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  suspendedContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 32,
+    backgroundColor: "#f5f5f5",
+  },
+  suspendedTitle: {
+    fontSize: 28,
+    fontWeight: "700",
+    color: "#FF3B30",
+    marginTop: 24,
+    marginBottom: 16,
+  },
+  suspendedMessage: {
+    fontSize: 16,
+    color: "#333",
+    textAlign: "center",
+    marginBottom: 12,
+    lineHeight: 24,
+    fontWeight: "500",
+  },
+  suspendedSubmessage: {
+    fontSize: 14,
+    color: "#666",
+    textAlign: "center",
+    marginBottom: 32,
+    lineHeight: 22,
+  },
+  contactSupportButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#0286FF",
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+    borderRadius: 10,
+    gap: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  contactSupportButtonText: {
     color: "#fff",
     fontSize: 16,
     fontWeight: "600",

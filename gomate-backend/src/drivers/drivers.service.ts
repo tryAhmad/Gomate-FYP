@@ -44,6 +44,21 @@ export class DriversService {
     return this.driverModel.findByIdAndUpdate(driverId, { socketId });
   }
 
+  async updateDriverLocation(driverId: string, location: [number, number]) {
+    return this.driverModel.findByIdAndUpdate(
+      driverId,
+      {
+        $set: {
+          location: {
+            type: 'Point',
+            coordinates: location,
+          },
+        },
+      },
+      { new: true },
+    );
+  }
+
   async remove(id: string) {
     return this.driverModel.findByIdAndDelete(id).exec();
   }
@@ -238,15 +253,32 @@ export class DriversService {
       JSON.stringify(updateData, null, 2),
     );
 
+    // Only change verification status to 'pending' if actual verification documents are uploaded
+    // Don't change status if only profile photo is updated
+    const isVerificationDocumentUploaded =
+      files.cnicFront ||
+      files.cnicBack ||
+      files.selfieWithId ||
+      files.licenseFront ||
+      files.licenseBack ||
+      files.vehicleImages;
+
+    const updatePayload: any = {
+      $set: {
+        ...updateData,
+        documents,
+      },
+    };
+
+    // Only set verification status to pending if verification documents are uploaded
+    // This allows profile photo updates without affecting verification status
+    if (isVerificationDocumentUploaded) {
+      updatePayload.$set.verificationStatus = 'pending';
+    }
+
     const updatedDriver = await this.driverModel.findByIdAndUpdate(
       driverId,
-      {
-        $set: {
-          ...updateData,
-          documents,
-          verificationStatus: 'pending',
-        },
-      },
+      updatePayload,
       { new: true, runValidators: false },
     );
 
@@ -289,6 +321,27 @@ export class DriversService {
     const updatedDriver = await this.driverModel.findByIdAndUpdate(
       driverId,
       updateData,
+      { new: true },
+    );
+
+    return updatedDriver;
+  }
+
+  /**
+   * Update driver account status (active/suspended)
+   */
+  async updateAccountStatus(
+    driverId: string,
+    accountStatus: 'active' | 'suspended',
+  ) {
+    const driver = await this.driverModel.findById(driverId);
+    if (!driver) {
+      throw new NotFoundException('Driver not found');
+    }
+
+    const updatedDriver = await this.driverModel.findByIdAndUpdate(
+      driverId,
+      { accountStatus },
       { new: true },
     );
 

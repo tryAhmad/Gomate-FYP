@@ -17,15 +17,16 @@ import InputField from "@/components/InputField";
 import CustomButton from "@/components/CustomButton";
 import Constants from "expo-constants";
 import AlertModal from "@/components/AlertModal";
+import { useAuth } from "@/contexts/AuthContext";
 
 const userip = Constants.expoConfig?.extra?.USER_IP?.trim();
-const usertoken = Constants.expoConfig?.extra?.USER_TOKEN?.trim();
 
 export default function Profile() {
   const router = useRouter();
+  const { user, token: usertoken, updateUser } = useAuth();
 
-  // Simulated logged-in passenger ID (replace with auth context later)
-  const passengerId = "688c69f20653ec0f43df6e2c";
+  // Use logged-in user ID from auth context
+  const passengerId = user?._id || "";
 
   const [loading, setLoading] = useState(true);
   const [passenger, setPassenger] = useState<any>(null);
@@ -76,10 +77,17 @@ export default function Profile() {
         setUsername(data.username);
         setPhoneNumber(data.phoneNumber);
 
+        // Use profilePicture from backend if available
+        const picture =
+          data.profilePicture ||
+          user?.profilePicture ||
+          "https://i.pravatar.cc/150?img=3";
+        setProfilePic(picture);
+
         // Set original values
         setOriginalUsername(data.username);
         setOriginalPhoneNumber(data.phoneNumber);
-        setOriginalProfilePic(profilePic);
+        setOriginalProfilePic(picture);
       } catch (err) {
         console.error("Error fetching profile:", err);
         Alert.alert("Error", "Failed to fetch profile");
@@ -105,7 +113,14 @@ export default function Profile() {
           },
         }
       );
-      setPassenger(res.data.passenger);
+      const updatedPassenger = res.data.passenger;
+      setPassenger(updatedPassenger);
+
+      // Update user in auth context
+      updateUser({
+        username: updatedPassenger.username,
+        phoneNumber: updatedPassenger.phoneNumber,
+      });
 
       // Update original values after successful save
       setOriginalUsername(username);
@@ -166,12 +181,70 @@ export default function Profile() {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 1,
+      quality: 0.8,
     });
 
     if (!result.canceled) {
-      setProfilePic(result.assets[0].uri);
-      // 👉 Later: upload to backend along with profile update
+      const imageUri = result.assets[0].uri;
+      setProfilePic(imageUri);
+
+      // Upload to backend
+      try {
+        const uploadUrl = `http://${userip}:3000/passengers/${passengerId}/profile-picture`;
+        console.log("Uploading to:", uploadUrl);
+        console.log("Passenger ID:", passengerId);
+        console.log("Token:", usertoken ? "exists" : "missing");
+
+        // Get the file extension from the URI
+        const fileExtension = imageUri.split(".").pop() || "jpg";
+        const fileName = `profile-${Date.now()}.${fileExtension}`;
+
+        const formData = new FormData();
+        formData.append("profilePicture", {
+          uri: imageUri,
+          type: `image/${fileExtension}`,
+          name: fileName,
+        } as any);
+
+        console.log("FormData prepared with file:", fileName);
+
+        const res = await axios.post(uploadUrl, formData, {
+          headers: {
+            Authorization: `Bearer ${usertoken}`,
+            "Content-Type": "multipart/form-data",
+          },
+          timeout: 30000, // 30 second timeout
+          transformRequest: (data, headers) => {
+            // Return data as-is, don't let axios transform it
+            return data;
+          },
+        });
+
+        console.log("Upload response:", res.data);
+        const updatedPassenger = res.data.passenger;
+        setProfilePic(updatedPassenger.profilePicture);
+        setOriginalProfilePic(updatedPassenger.profilePicture);
+
+        // Update user in auth context
+        updateUser({
+          profilePicture: updatedPassenger.profilePicture,
+        });
+
+        Alert.alert("Success", "Profile picture updated successfully!");
+      } catch (err: any) {
+        console.error("Error uploading profile picture:", err);
+        console.error("Error details:", {
+          message: err.message,
+          response: err.response?.data,
+          status: err.response?.status,
+          url: err.config?.url,
+        });
+        Alert.alert(
+          "Error",
+          `Failed to upload: ${err.response?.data?.message || err.message}`
+        );
+        setProfilePic(originalProfilePic); // Revert on error
+      }
     }
   };
 

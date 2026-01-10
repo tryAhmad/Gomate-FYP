@@ -78,6 +78,12 @@ export class RideRequest extends Document {
     default: 'pending',
   })
   status: string;
+
+  @Prop({ type: Boolean, default: false })
+  genderBasedMatching?: boolean;
+
+  @Prop({ type: Number, min: 1, max: 5 })
+  rating?: number;
 }
 
 export const RideRequestSchema = SchemaFactory.createForClass(RideRequest);

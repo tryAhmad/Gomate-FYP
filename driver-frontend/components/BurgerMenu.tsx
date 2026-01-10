@@ -27,6 +27,8 @@ const BurgerMenu: React.FC<BurgerMenuProps> = ({
   slideAnim,
 }) => {
   const { driver, logout } = useAuth();
+  const [averageRating, setAverageRating] = useState<number>(0);
+  const [totalRatings, setTotalRatings] = useState<number>(0);
 
   // Get driver name and profile photo from context
   const driverName = driver?.fullname
@@ -34,6 +36,31 @@ const BurgerMenu: React.FC<BurgerMenuProps> = ({
     : "Driver";
 
   const profilePhoto = driver?.profilePhoto?.url || driver?.profilePhoto;
+
+  // Fetch driver average rating
+  useEffect(() => {
+    const fetchDriverRating = async () => {
+      if (!driver?._id) return;
+
+      try {
+        const response = await fetch(
+          `http://192.168.100.5:3000/ride-request/driver/${driver._id}/average-rating`
+        );
+        const data = await response.json();
+
+        if (response.ok) {
+          setAverageRating(data.averageRating || 0);
+          setTotalRatings(data.totalRatings || 0);
+        }
+      } catch (error) {
+        console.error("Error fetching driver rating:", error);
+      }
+    };
+
+    if (isVisible) {
+      fetchDriverRating();
+    }
+  }, [isVisible, driver?._id]);
 
   const handleProfileClick = () => {
     router.push("/profile");
@@ -52,6 +79,12 @@ const BurgerMenu: React.FC<BurgerMenuProps> = ({
 
   const handleEarnings = () => {
     router.push("/earnings");
+    onClose();
+  };
+
+  const handlePayments = () => {
+    console.log("Opening payments...");
+    router.push("/payments");
     onClose();
   };
 
@@ -121,9 +154,23 @@ const BurgerMenu: React.FC<BurgerMenuProps> = ({
                 <View style={styles.profileInfo}>
                   <Text style={styles.profileName}>{driverName}</Text>
                   <View style={styles.ratingContainer}>
-                    {[...Array(5)].map((_, i) => (
-                      <Ionicons key={i} name="star" size={12} color="#FFD700" />
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Ionicons
+                        key={star}
+                        name={
+                          star <= Math.round(averageRating)
+                            ? "star"
+                            : "star-outline"
+                        }
+                        size={12}
+                        color="#FFD700"
+                      />
                     ))}
+                    <Text style={styles.ratingText}>
+                      {averageRating > 0
+                        ? `${averageRating.toFixed(1)} (${totalRatings})`
+                        : "No ratings"}
+                    </Text>
                   </View>
                 </View>
               </TouchableOpacity>
@@ -153,6 +200,14 @@ const BurgerMenu: React.FC<BurgerMenuProps> = ({
               >
                 <Ionicons name="cash" size={20} color="black" />
                 <Text style={styles.menuText}>Earnings</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={handlePayments}
+              >
+                <Ionicons name="card" size={20} color="black" />
+                <Text style={styles.menuText}>Payments</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -237,7 +292,14 @@ const styles = StyleSheet.create({
   ratingContainer: {
     flexDirection: "row",
     gap: 2,
+    alignItems: "center",
     justifyContent: "flex-start",
+  },
+  ratingText: {
+    fontSize: 11,
+    color: "#666",
+    marginLeft: 4,
+    fontWeight: "500",
   },
   menuItems: {
     paddingTop: 20,

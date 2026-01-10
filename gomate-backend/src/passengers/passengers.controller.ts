@@ -7,7 +7,10 @@ import {
   Param,
   Delete,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { PassengersService } from './passengers.service';
 import { CreatePassengerDto } from './dto/create-passenger.dto';
 import { UpdatePassengerDto } from './dto/update-passenger.dto';
@@ -89,6 +92,24 @@ export class PassengersController {
     const passenger = await this.passengersService.remove(id);
     return {
       message: 'Passenger removed successfully',
+      passenger,
+    };
+  }
+
+  @Post(':id/profile-picture')
+  //@UseGuards(JwtAuthGuard)
+  @UseInterceptors(FileInterceptor('profilePicture'))
+  @ApiOperation({ summary: 'Upload passenger profile picture' })
+  async uploadProfilePicture(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    const passenger = await this.passengersService.uploadProfilePicture(
+      id,
+      file,
+    );
+    return {
+      message: 'Profile picture uploaded successfully',
       passenger,
     };
   }

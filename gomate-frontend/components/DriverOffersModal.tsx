@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   Alert,
   Modal,
+  Image,
 } from "react-native";
 import CustomButton from "@/components/CustomButton";
 import { Ionicons } from "@expo/vector-icons";
@@ -20,6 +21,7 @@ interface Driver {
   id: string;
   firstname: string;
   lastname?: string;
+  profilePicture?: string;
   profile_image_url?: string; // optional, can be added later
   car_image_url?: string; // optional, can be added later
   fare: number;
@@ -41,6 +43,7 @@ interface DriverOffer {
   rideId: string;
   counterFare: number;
   driver: Driver;
+  timestamp?: number;
 }
 
 interface RawOffer {
@@ -53,6 +56,8 @@ interface DriverOffersModalProps {
   visible: boolean;
   onClose: () => void;
   onDriverAccepted: (offer: DriverOffer) => void;
+  onCancelRide?: () => void;
+  onOfferExpired?: (driverId: string) => void;
   rideDetails?: {
     pickup: string;
     dropoff: string;
@@ -68,6 +73,8 @@ const DriverOffersModal: React.FC<DriverOffersModalProps> = ({
   visible,
   onClose,
   onDriverAccepted,
+  onCancelRide,
+  onOfferExpired,
   rideDetails,
   offers = [],
 }) => {
@@ -76,9 +83,14 @@ const DriverOffersModal: React.FC<DriverOffersModalProps> = ({
   const [driverDistances, setDriverDistances] = useState<{
     [key: string]: { distance: string; duration: string };
   }>({});
+  const [offerTimers, setOfferTimers] = useState<{
+    [key: string]: number;
+  }>({});
 
   // animation values (1 per driver card)
   const slideAnimsRef = useRef<Animated.Value[]>([]);
+  const timerIntervalRef = useRef<number | null>(null);
+  const expiredOffersRef = useRef<string[]>([]);
 
   // Function to get driver address and calculate distance/time
   const calculateDriverDistances = async () => {
@@ -133,7 +145,74 @@ const DriverOffersModal: React.FC<DriverOffersModalProps> = ({
   // rebuild anim array whenever offers change
   useEffect(() => {
     slideAnimsRef.current = offers.map(() => new Animated.Value(-width));
+
+    // Initialize timers for new offers
+    const initialTimers: { [key: string]: number } = {};
+    offers.forEach((offer) => {
+      const timestamp = offer.timestamp || Date.now();
+      const elapsed = (Date.now() - timestamp) / 1000;
+      const remaining = Math.max(0, 10 - elapsed);
+      initialTimers[offer.driver.id] = remaining;
+    });
+    setOfferTimers(initialTimers);
   }, [offers]);
+
+  // Timer countdown effect
+  useEffect(() => {
+    if (!visible || offers.length === 0) {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
+      return;
+    }
+
+    timerIntervalRef.current = setInterval(() => {
+      setOfferTimers((prevTimers) => {
+        const newTimers = { ...prevTimers };
+
+        offers.forEach((offer) => {
+          if (newTimers[offer.driver.id] !== undefined) {
+            newTimers[offer.driver.id] = Math.max(
+              0,
+              newTimers[offer.driver.id] - 0.1
+            );
+
+            // Check if offer just expired
+            if (
+              newTimers[offer.driver.id] === 0 &&
+              prevTimers[offer.driver.id] > 0
+            ) {
+              // Queue the expired offer instead of calling callback immediately
+              if (!expiredOffersRef.current.includes(offer.driver.id)) {
+                expiredOffersRef.current.push(offer.driver.id);
+              }
+            }
+          }
+        });
+
+        return newTimers;
+      });
+    }, 100);
+
+    return () => {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
+    };
+  }, [visible, offers, onOfferExpired]);
+
+  // Process expired offers after render
+  useEffect(() => {
+    if (expiredOffersRef.current.length > 0 && onOfferExpired) {
+      const expired = [...expiredOffersRef.current];
+      expiredOffersRef.current = [];
+      expired.forEach((driverId) => {
+        onOfferExpired(driverId);
+      });
+    }
+  }, [offerTimers, onOfferExpired]);
 
   // animate when modal opens
   useEffect(() => {
@@ -248,19 +327,40 @@ const DriverOffersModal: React.FC<DriverOffersModalProps> = ({
               {offers.map((offer, index) => {
                 const anim =
                   slideAnimsRef.current[index] || new Animated.Value(0);
+                const timeRemaining = offerTimers[offer.driver.id] || 0;
+                const isExpired = timeRemaining === 0;
+
+                if (isExpired) return null;
+
                 return (
                   <Animated.View
                     key={offer.driver.id || index}
                     style={{ transform: [{ translateX: anim }] }}
                     className="bg-white rounded-2xl p-5 mb-4 mx-4 shadow-sm border-2 border-gray-200"
                   >
+                    {/* Timer Badge */}
+                    <View className="absolute top-3 right-3 bg-red-500 rounded-full px-3 py-1 z-10">
+                      <Text className="text-white font-JakartaBold text-sm">
+                        {Math.ceil(timeRemaining)}s
+                      </Text>
+                    </View>
+
                     <View className="flex-row items-center justify-between">
                       <View className="flex-row items-center flex-1">
-                        <View className="w-16 h-16 rounded-full bg-gray-200 mr-4 items-center justify-center">
-                          <Text className="text-gray-500 font-JakartaBold text-2xl">
-                            {offer.driver.firstname?.slice(0, 1).toUpperCase()}
-                          </Text>
-                        </View>
+                        {offer.driver.profilePicture ? (
+                          <Image
+                            source={{ uri: offer.driver.profilePicture }}
+                            className="w-16 h-16 rounded-full mr-4"
+                          />
+                        ) : (
+                          <View className="w-16 h-16 rounded-full bg-gray-200 mr-4 items-center justify-center">
+                            <Text className="text-gray-500 font-JakartaBold text-2xl">
+                              {offer.driver.firstname
+                                ?.slice(0, 1)
+                                .toUpperCase()}
+                            </Text>
+                          </View>
+                        )}
 
                         <View className="flex-1">
                           <Text className="text-xl font-JakartaBold text-gray-800">
@@ -347,7 +447,12 @@ const DriverOffersModal: React.FC<DriverOffersModalProps> = ({
                   <CustomButton
                     title="Cancel"
                     className="bg-red-500 py-3 rounded-xl"
-                    onPress={onClose}
+                    onPress={() => {
+                      if (onCancelRide) {
+                        onCancelRide();
+                      }
+                      onClose();
+                    }}
                   />
                 </View>
                 {fareOffer > 0 && (

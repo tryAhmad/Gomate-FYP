@@ -226,7 +226,7 @@ export default function ServiceFeesPage() {
       <Card className="bg-muted/50">
         <CardContent className="pt-6">
           <div className="flex items-start gap-3">
-            <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0 mt-0.5">
               <span className="text-blue-600 dark:text-blue-400 text-sm">ℹ</span>
             </div>
             <div className="space-y-1">

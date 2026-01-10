@@ -9,6 +9,7 @@ interface Driver {
   };
   email: string;
   verificationStatus: "incomplete" | "pending" | "approved" | "rejected";
+  accountStatus?: "active" | "suspended";
   documents?: any;
   vehicle?: any;
   profilePhoto?:

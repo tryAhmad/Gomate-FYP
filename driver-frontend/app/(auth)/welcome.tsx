@@ -18,7 +18,7 @@ export default function WelcomeScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <LinearGradient
-        colors={["#10B981", "#059669", "#047857"]}
+        colors={["#0286ff", "#0270d9", "#025bb3"]}
         style={styles.gradient}
       >
         {/* Logo and App Name */}
@@ -57,7 +57,7 @@ export default function WelcomeScreen() {
             onPress={() => router.push("/(auth)/signup")}
           >
             <Text style={styles.primaryButtonText}>Get Started</Text>
-            <Ionicons name="arrow-forward" size={20} color="#10B981" />
+            <Ionicons name="arrow-forward" size={20} color="#0286ff" />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -82,18 +82,18 @@ export default function WelcomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#10B981",
+    backgroundColor: "#0286ff",
   },
   gradient: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: 60,
+    paddingTop: height * 0.04,
     paddingBottom: 40,
   },
   header: {
     alignItems: "center",
-    marginTop: 40,
-    marginBottom: 60,
+    marginTop: height * 0.02,
+    marginBottom: height * 0.04,
   },
   logoContainer: {
     width: 120,
@@ -116,7 +116,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   featuresContainer: {
-    marginBottom: 60,
+    marginBottom: height * 0.04,
   },
   feature: {
     flexDirection: "row",
@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   primaryButtonText: {
-    color: "#10B981",
+    color: "#0286ff",
     fontSize: 18,
     fontWeight: "bold",
     marginRight: 8,
