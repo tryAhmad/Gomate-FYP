@@ -265,28 +265,6 @@ export default function LoginScreen() {
         </View>
 
         <TouchableOpacity
-          onPress={() =>
-            Alert.alert(
-              "Info",
-              "Please contact support to reset your password."
-            )
-          }
-          style={{ width: "100%", alignItems: "flex-end", padding: 12 }}
-          disabled={loading}
-        >
-          <Text
-            style={{
-              color: "#0286ff",
-              fontSize: 16,
-              fontWeight: "bold",
-              textDecorationLine: "underline",
-            }}
-          >
-            Forgot Password?
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
           onPress={handleLogin}
           disabled={loading}
           style={{

@@ -14,7 +14,7 @@ import { DriversModule } from 'src/drivers/drivers.module';
     PassportModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'supersecretkey',
-      signOptions: { expiresIn: '1d' }, // Token expiration time
+      // No expiration - tokens never expire
     }),
   ],
   controllers: [AuthController],
