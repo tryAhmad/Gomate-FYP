@@ -174,12 +174,8 @@ const PickupPage: React.FC = () => {
       cancelledBy: string;
       reason?: string;
     }) => {
-      console.log("🚫 Ride cancelled event received on pickup page:", data);
-
       // Check if this is the current ride
       if (data.rideId === params.rideId) {
-        console.log("🚫 This ride was cancelled, navigating back to home");
-
         // Clean up location tracking
         if (locationSubscription) {
           locationSubscription.remove();
@@ -204,20 +200,15 @@ const PickupPage: React.FC = () => {
     };
 
     socket.on("rideCancelled", handleRideCancelled);
-    console.log("👂 Listening for rideCancelled on ride:", params.rideId);
 
     return () => {
       socket.off("rideCancelled", handleRideCancelled);
-      console.log("🔇 Removed rideCancelled listener");
     };
   }, [params.rideId, locationSubscription, router]);
 
   // Load route data once driver location is ready
   useEffect(() => {
     if (driverLocation && !initialRouteLoaded) {
-      console.log(
-        "[PICKUP] Driver location ready, loading initial route data..."
-      );
       (async () => {
         await loadRouteData();
         setInitialRouteLoaded(true);
@@ -227,17 +218,11 @@ const PickupPage: React.FC = () => {
 
   const initializeDriverLocation = async () => {
     try {
-      console.log("[PICKUP] Initializing driver location...");
-
       if (params.driverLat && params.driverLng) {
         const initialLocation = {
           latitude: Number.parseFloat(params.driverLat),
           longitude: Number.parseFloat(params.driverLng),
         };
-        console.log(
-          "[PICKUP] Setting driver location from params:",
-          initialLocation
-        );
         setDriverLocation(initialLocation);
         await startRealTimeTracking();
       } else {
@@ -252,7 +237,6 @@ const PickupPage: React.FC = () => {
   const loadRouteData = async () => {
     try {
       setIsLoading(true);
-      console.log("[PICKUP] Loading route data, isSharedRide:", isSharedRide);
 
       if (isSharedRide) {
         await loadSharedRideData();
@@ -269,25 +253,15 @@ const PickupPage: React.FC = () => {
 
   const loadSharedRideData = async () => {
     try {
-      console.log("[SHARED_RIDE] Loading shared ride data...");
-
       if (!driverLocation) {
         console.error("[SHARED_RIDE] No driver location available");
         return;
       }
 
       if (parsedOptimizedStops && parsedOptimizedStops.length > 0) {
-        console.log(
-          "[SHARED_RIDE] Using optimized stops:",
-          parsedOptimizedStops
-        );
-
         // Get coordinates for all stops with proper typing
         const stopsWithCoords = await Promise.all(
           parsedOptimizedStops.map(async (stop: any) => {
-            console.log(
-              `[SHARED_RIDE] Getting coordinates for: ${stop.address}`
-            );
             try {
               const coordinate = await getCoordinatesFromAddress(stop.address);
 
@@ -341,14 +315,9 @@ const PickupPage: React.FC = () => {
         }
 
         setSharedRideStops(validStops);
-        console.log("[SHARED_RIDE] Final stops with coordinates:", validStops);
 
         // Get optimized route from driver to first stop (stop 1)
         const firstStop = validStops[0];
-        console.log(
-          "[SHARED_RIDE] Getting route from driver to first stop:",
-          firstStop
-        );
 
         try {
           const route = await getRouteCoordinates(
@@ -356,20 +325,10 @@ const PickupPage: React.FC = () => {
             firstStop.coordinate
           );
           const safeRoute = sanitizeCoords(route); // sanitize
-          console.log(
-            "[SHARED_RIDE] Driver to first stop route result:",
-            safeRoute.length,
-            "points"
-          );
 
           if (safeRoute.length > 0) {
             setRemainingRouteCoords(safeRoute);
             setRouteCoords([]);
-            console.log(
-              "[SHARED_RIDE] Driver to first pickup route loaded:",
-              safeRoute.length,
-              "points"
-            );
 
             // Fit map to show the entire route, not just the two points
             setTimeout(() => {
@@ -411,8 +370,6 @@ const PickupPage: React.FC = () => {
 
   const loadSoloRideData = async () => {
     try {
-      console.log("[SOLO_RIDE] Loading solo ride data...");
-
       if (!driverLocation) {
         console.error("[SOLO_RIDE] No driver location available");
         return;
@@ -421,14 +378,10 @@ const PickupPage: React.FC = () => {
       const pickupCoord = await getCoordinatesFromAddress(pickups[0]);
       const destinationCoord = await getCoordinatesFromAddress(destinations[0]);
 
-      console.log("[SOLO_RIDE] Pickup coordinates:", pickupCoord);
-      console.log("[SOLO_RIDE] Destination coordinates:", destinationCoord);
-
       if (pickupCoord && destinationCoord) {
         setPickupCoords([pickupCoord]);
         setDestinationCoords([destinationCoord]);
 
-        console.log("[SOLO_RIDE] Getting route from driver to pickup...");
         try {
           const driverRoute = await getRouteCoordinates(
             driverLocation,
@@ -436,20 +389,9 @@ const PickupPage: React.FC = () => {
           );
           const safeDriverRoute = sanitizeCoords(driverRoute); // sanitize
 
-          console.log(
-            "[SOLO_RIDE] Driver to pickup route result:",
-            safeDriverRoute.length,
-            "points"
-          );
-
           if (safeDriverRoute.length > 0) {
             setRemainingRouteCoords(safeDriverRoute); // Show only driver to pickup initially
             setRouteCoords([]); // Don't show pickup to destination yet
-            console.log(
-              "Driver to pickup route loaded:",
-              safeDriverRoute.length,
-              "points"
-            );
           } else {
             console.error("[SOLO_RIDE] Failed to get driver to pickup route");
             Alert.alert(
@@ -492,7 +434,6 @@ const PickupPage: React.FC = () => {
 
   const startRealTimeTracking = async () => {
     try {
-      console.log("[TRACKING] Starting real-time tracking...");
       const { status } = await Location.getForegroundPermissionsAsync();
 
       if (status === "granted") {
@@ -508,7 +449,6 @@ const PickupPage: React.FC = () => {
               longitude: location.coords.longitude,
             };
 
-            console.log("[TRACKING] Location updated:", newLocation);
             setDriverLocation(newLocation);
 
             if (location.coords.heading !== null) {
@@ -520,7 +460,6 @@ const PickupPage: React.FC = () => {
         );
 
         setLocationSubscription(subscription);
-        console.log("[TRACKING] Real-time tracking started");
 
         // Start sending location updates to backend every 10 seconds
         startLocationUpdates();
@@ -553,15 +492,12 @@ const PickupPage: React.FC = () => {
             passengerId: params.passengerId,
           };
 
-          console.log("📍 Sending driver location update:", locationData);
           socket.emit("updateDriverLocation", locationData);
         }
       } catch (error) {
         console.error("❌ Error sending location update:", error);
       }
     }, 10000); // 10 seconds
-
-    console.log("✅ Location update interval started");
   };
 
   // Cleanup location updates on unmount
@@ -569,14 +505,12 @@ const PickupPage: React.FC = () => {
     return () => {
       if (locationUpdateIntervalRef.current) {
         clearInterval(locationUpdateIntervalRef.current);
-        console.log("🧹 Location update interval cleared");
       }
     };
   }, []);
 
   const requestLocationPermission = async () => {
     try {
-      console.log("[PERMISSION] Requesting location permission...");
       let { status } = await Location.getForegroundPermissionsAsync();
 
       if (status !== "granted") {
@@ -586,7 +520,6 @@ const PickupPage: React.FC = () => {
       }
 
       if (status === "granted") {
-        console.log("[PERMISSION] Location permission granted");
         const location = await Location.getCurrentPositionAsync({
           accuracy: Location.Accuracy.High,
         });
@@ -594,12 +527,10 @@ const PickupPage: React.FC = () => {
           latitude: location.coords.latitude,
           longitude: location.coords.longitude,
         };
-        console.log("[PERMISSION] Current location obtained:", newLocation);
         setDriverLocation(newLocation);
         focusMapOnDriver(newLocation);
         await startRealTimeTracking();
       } else {
-        console.log("[PERMISSION] Location permission denied");
         setDriverLocation(DEFAULT_REGION);
       }
     } catch (error) {
@@ -634,7 +565,6 @@ const PickupPage: React.FC = () => {
 
   // for solo ride
   const handleImHere = async () => {
-    console.log("[SOLO_RIDE] Driver marked as arrived");
     setHasArrived(true);
 
     // Emit socket event to notify passenger
@@ -650,9 +580,7 @@ const PickupPage: React.FC = () => {
           passengerId: params.passengerId,
         };
 
-        console.log("📤 Emitting driverReached event:", driverReachedData);
         socket.emit("driverReached", driverReachedData);
-        console.log("✅ driverReached event emitted successfully");
       }
     } catch (error) {
       console.error("❌ Error emitting driverReached event:", error);
@@ -671,7 +599,6 @@ const PickupPage: React.FC = () => {
 
     if (pickupCoords[0] && destinationCoords[0]) {
       // Get route from pickup to destination
-      console.log("[SOLO_RIDE] Getting route from pickup to destination...");
       try {
         const mainRoute = await getRouteCoordinates(
           pickupCoords[0],
@@ -692,12 +619,6 @@ const PickupPage: React.FC = () => {
               });
             }
           }, 500);
-
-          console.log(
-            "Pickup to destination route loaded:",
-            safeMainRoute.length,
-            "points"
-          );
         }
       } catch (error) {
         console.error(
@@ -709,7 +630,6 @@ const PickupPage: React.FC = () => {
   };
 
   const handleStartRide = () => {
-    console.log("[SOLO_RIDE] Ride started");
     setRideStarted(true);
 
     // Emit socket event to notify backend that ride has started
@@ -725,21 +645,14 @@ const PickupPage: React.FC = () => {
           passengerId: params.passengerId,
         };
 
-        console.log("📤 Emitting startRide event:", startRideData);
         socket.emit("startRide", startRideData);
-        console.log("✅ startRide event emitted successfully");
       }
     } catch (error) {
       console.error("❌ Error emitting startRide event:", error);
     }
-
-    Alert.alert("Ride Started", "Navigate to the destination location.", [
-      { text: "OK" },
-    ]);
   };
 
   const handleEndRide = () => {
-    console.log("[RIDE] Ending ride");
     setEndingRide(true);
 
     // Emit socket event to notify backend that ride has ended
@@ -755,9 +668,7 @@ const PickupPage: React.FC = () => {
           passengerId: params.passengerId,
         };
 
-        console.log("📤 Emitting endRide event:", endRideData);
         socket.emit("endRide", endRideData);
-        console.log("✅ endRide event emitted successfully");
       }
     } catch (error) {
       console.error("❌ Error emitting endRide event:", error);
@@ -795,17 +706,9 @@ const PickupPage: React.FC = () => {
         text: "Yes, Cancel",
         style: "destructive",
         onPress: () => {
-          console.log("[RIDE] Ride cancelled by driver");
-
           // Emit cancel event to backend
           const socket = getDriverSocket();
           if (socket && params.rideId && params.passengerId) {
-            console.log("🚫 Emitting cancelRide event:", {
-              rideId: params.rideId,
-              driverId: driverId,
-              passengerId: params.passengerId,
-            });
-
             socket.emit("cancelRide", {
               rideId: params.rideId,
               cancelledBy: "driver",
@@ -836,9 +739,6 @@ const PickupPage: React.FC = () => {
 
   const handleCall = (phoneNumber?: string) => {
     const phoneToCall = phoneNumber || params.passengerPhone;
-    console.log("📞 [CALL] Phone number received:", phoneNumber);
-    console.log("📞 [CALL] params.passengerPhone:", params.passengerPhone);
-    console.log("📞 [CALL] Final phone to call:", phoneToCall);
 
     if (phoneToCall && phoneToCall !== "N/A" && phoneToCall.trim() !== "") {
       Linking.openURL(`tel:${phoneToCall}`);
@@ -854,10 +754,6 @@ const PickupPage: React.FC = () => {
     const phoneToUse = phoneNumber || params.passengerPhone;
     const nameToUse = passengerName || passengerNames[0];
 
-    console.log("💬 [WHATSAPP] Phone number received:", phoneNumber);
-    console.log("💬 [WHATSAPP] params.passengerPhone:", params.passengerPhone);
-    console.log("💬 [WHATSAPP] Final phone to use:", phoneToUse);
-
     if (phoneToUse && phoneToUse !== "N/A" && phoneToUse.trim() !== "") {
       // Remove all non-digit characters and ensure country code
       let phone = phoneToUse.replace(/\D/g, "");
@@ -867,8 +763,6 @@ const PickupPage: React.FC = () => {
         phone = "92" + phone;
       }
 
-      console.log("💬 [WHATSAPP] Formatted phone:", phone);
-
       const message = `Hi ${
         nameToUse || "there"
       }, I'm your driver and I'm on my way.`;
@@ -877,7 +771,6 @@ const PickupPage: React.FC = () => {
         const whatsappUrl = `whatsapp://send?phone=${phone}&text=${encodeURIComponent(
           message
         )}`;
-        console.log("💬 [WHATSAPP] Opening URL:", whatsappUrl);
 
         const canOpen = await Linking.canOpenURL(whatsappUrl);
 
@@ -887,7 +780,6 @@ const PickupPage: React.FC = () => {
           const webWhatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(
             message
           )}`;
-          console.log("💬 [WHATSAPP] Falling back to web URL:", webWhatsappUrl);
           await Linking.openURL(webWhatsappUrl);
         }
       } catch (error) {
@@ -903,27 +795,18 @@ const PickupPage: React.FC = () => {
     try {
       // Basic guards:
       if (!sharedRideStops || sharedRideStops.length === 0) {
-        console.warn("[SHARED_RIDE] handleNextStop called but stops not ready");
         Alert.alert("Error", "Ride stops are not ready yet.");
         return;
       }
 
       if (currentStopIndex < 0 || currentStopIndex >= sharedRideStops.length) {
-        console.warn(
-          "[SHARED_RIDE] Invalid currentStopIndex:",
-          currentStopIndex
-        );
         return;
       }
 
       const currentStop = sharedRideStops[currentStopIndex];
       if (!currentStop) {
-        console.warn("[SHARED_RIDE] Current stop missing");
         return;
       }
-
-      console.log("[SHARED_RIDE] Handling stop:", currentStop);
-      console.log("[SHARED_RIDE] Current stop index:", currentStopIndex);
 
       // PICKUP (first tap marks arrived unless already completed)
       if (currentStop.type === "pickup" && !currentStop.completed) {
@@ -943,10 +826,6 @@ const PickupPage: React.FC = () => {
               passengerName: currentStop.passengerName,
               stopType: "pickup",
             };
-            console.log(
-              "📤 Emitting driverArrivedAtPickup event:",
-              arrivalData
-            );
             socket.emit("driverArrivedAtPickup", arrivalData);
           }
         } catch (error) {
@@ -1016,8 +895,6 @@ const PickupPage: React.FC = () => {
 
       // If pickup already completed -> Move to next stop
       if (currentStop.type === "pickup" && currentStop.completed) {
-        Alert.alert("Ride Started", `Continuing to next stop.`);
-
         // Emit socket event to notify passenger that their ride leg has started
         try {
           const socket = getDriverSocket();
@@ -1028,7 +905,6 @@ const PickupPage: React.FC = () => {
               passengerId: currentStop.passengerId,
               passengerName: currentStop.passengerName,
             };
-            console.log("📤 Emitting startSharedRideLeg event:", startRideData);
             socket.emit("startSharedRideLeg", startRideData);
           }
         } catch (error) {
@@ -1084,7 +960,6 @@ const PickupPage: React.FC = () => {
 
       // DESTINATION: collect fare and move on OR finish ride
       if (currentStop.type === "destination") {
-        console.log("[SHARED_RIDE] Processing destination stop:", currentStop);
         await processDestinationStop(currentStop);
       }
     } catch (e) {
@@ -1096,8 +971,6 @@ const PickupPage: React.FC = () => {
   // ✅ Moved outside try — separate helper function
   const processDestinationStop = async (currentStop: any) => {
     try {
-      console.log("[SHARED_RIDE] Processing destination stop");
-
       // Emit socket event to notify passenger that their leg has ended
       try {
         const socket = getDriverSocket();
@@ -1109,7 +982,6 @@ const PickupPage: React.FC = () => {
             passengerName: currentStop.passengerName,
             fare: currentStop.fare,
           };
-          console.log("📤 Emitting endSharedRideLeg event:", endRideData);
           socket.emit("endSharedRideLeg", endRideData);
         }
       } catch (error) {
@@ -1129,14 +1001,12 @@ const PickupPage: React.FC = () => {
 
       // Check if this is the last stop
       if (currentStopIndex === updatedStops.length - 1) {
-        console.log("[SHARED_RIDE] Last destination reached, ending ride");
         setTimeout(() => handleEndRide(), 300);
         return;
       }
 
       // Move to next stop
       const nextIdx = currentStopIndex + 1;
-      console.log("[SHARED_RIDE] Moving to next stop index:", nextIdx);
       const nextStop = updatedStops[nextIdx];
 
       if (!nextStop) {
@@ -1157,17 +1027,12 @@ const PickupPage: React.FC = () => {
       }
 
       // Calculate route to next stop
-      console.log("[SHARED_RIDE] Calculating route to next stop:", nextStop);
       try {
         const route = await getRouteCoordinates(
           currentStop.coordinate,
           nextStop.coordinate
         );
         const safeRoute = sanitizeCoords(route);
-        console.log(
-          "[SHARED_RIDE] Route calculated with points:",
-          safeRoute.length
-        );
 
         setRemainingRouteCoords([]);
         setRouteCoords(safeRoute);
@@ -1180,7 +1045,6 @@ const PickupPage: React.FC = () => {
                 edgePadding: { top: 80, right: 80, bottom: 80, left: 80 },
                 animated: true,
               });
-              console.log("[SHARED_RIDE] Map fitted to new route");
             }
           } catch (e) {
             console.error("[SHARED_RIDE] Error fitting map:", e);

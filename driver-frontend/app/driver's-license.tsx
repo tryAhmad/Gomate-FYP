@@ -16,8 +16,6 @@ import { useDocuments } from "@/utils/DocumentContext";
 export default function DriverLicense() {
   const router = useRouter();
   const { images, setImage, uploadDocuments, isUploading } = useDocuments();
-  // TODO: Get from auth context when authentication is implemented
-  // For now using the same ID as in index.tsx for testing
   const [driverId] = useState("68908c87f5bd1d56dcc631b8");
 
   const pickImage = async (side: "front" | "back") => {

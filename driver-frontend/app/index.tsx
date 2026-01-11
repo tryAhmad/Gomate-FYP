@@ -101,7 +101,6 @@ const DriverLandingPage: React.FC = () => {
           setCurrentLocation(savedLocation);
           setDriverCoordinates(JSON.parse(savedCoordinates));
           setIsLocationLoaded(true);
-          console.log("✅ Restored driver state from storage - already online");
         }
       } catch (error) {
         console.error("Error loading persisted state:", error);
@@ -139,7 +138,6 @@ const DriverLandingPage: React.FC = () => {
   useEffect(() => {
     // Don't connect socket if account is suspended
     if (driver?.accountStatus === "suspended") {
-      console.log("⚠️ Account suspended, skipping socket connection");
       setIsConnecting(false);
       setIsSocketConnected(false);
       return;
@@ -149,27 +147,18 @@ const DriverLandingPage: React.FC = () => {
 
     // Check if socket is already connected
     if (socket.connected) {
-      console.log("✅ Socket already connected:", socket.id);
       setIsConnecting(false);
       setIsSocketConnected(true);
       setConnectionError(null);
     }
 
     const handleConnect = () => {
-      console.log("✅ Driver connected:", socket.id);
       setIsConnecting(false);
       setIsSocketConnected(true);
       setConnectionError(null);
 
       // Register driver with real-time location
       registerDriverWithLocation();
-
-      // Show success alert
-      Alert.alert(
-        "✅ Connected Successfully",
-        "Driver registered and ready to receive ride requests!",
-        [{ text: "OK" }]
-      );
     };
 
     const registerDriverWithLocation = async () => {
@@ -185,7 +174,6 @@ const DriverLandingPage: React.FC = () => {
           rideType: "car",
         };
 
-        console.log("📡 Emitting driver data with real location:", driverData);
         socket.emit("registerDriver", driverData);
       } catch (error) {
         console.error("❌ Error getting location for registration:", error);
@@ -195,10 +183,6 @@ const DriverLandingPage: React.FC = () => {
           location: [74.42812, 31.576079], // fallback coordinates
           rideType: "car",
         };
-        console.log(
-          "📡 Emitting driver data with fallback location:",
-          driverData
-        );
         socket.emit("registerDriver", driverData);
       }
     };
@@ -214,7 +198,6 @@ const DriverLandingPage: React.FC = () => {
     };
 
     const handleDisconnect = (reason: string) => {
-      console.log("⚠️ Disconnected:", reason);
       setIsSocketConnected(false);
       if (reason === "io server disconnect") {
         socket.connect();
@@ -222,23 +205,12 @@ const DriverLandingPage: React.FC = () => {
     };
 
     const handleNewRideRequest = async (data: any) => {
-      console.log("🚗 New ride request received:", data);
-      console.log("👤 Passenger data:", data.passenger);
-      console.log(
-        "📸 Passenger profile picture:",
-        data.passenger?.profilePicture
-      );
-      console.log("🎫 Ride passengerID:", data.ride?.passengerID);
-
       try {
         const { ride, passenger } = data;
 
         // Extract coordinates
         const pickupCoords = extractCoordinates(ride).pickup;
         const dropoffCoords = extractCoordinates(ride).dropoff;
-
-        console.log("📍 Pickup coords:", pickupCoords);
-        console.log("📍 Dropoff coords:", dropoffCoords);
 
         // Try to get readable addresses, fallback to coordinates
         let pickupAddress = `${pickupCoords.latitude}, ${pickupCoords.longitude}`;
@@ -251,7 +223,6 @@ const DriverLandingPage: React.FC = () => {
           );
           if (geocodedPickup) {
             pickupAddress = geocodedPickup;
-            console.log("✅ Pickup address:", pickupAddress);
           }
         } catch (error) {
           console.warn(
@@ -266,7 +237,6 @@ const DriverLandingPage: React.FC = () => {
           );
           if (geocodedDropoff) {
             dropoffAddress = geocodedDropoff;
-            console.log("✅ Dropoff address:", dropoffAddress);
           }
         } catch (error) {
           console.warn(
@@ -290,19 +260,11 @@ const DriverLandingPage: React.FC = () => {
           setSharedRides((prev) => [...prev, initialRide]);
         }
 
-        console.log("✅ Ride added to list, now calculating distance...");
-
         // Calculate distance and time in background
         let distance = "Unknown";
         let timeAway = "Unknown";
 
-        console.log("🔍 Checking driver coordinates availability...");
-        console.log("Driver coordinates state:", driverCoordinates);
-
         if (driverCoordinates) {
-          console.log(
-            "✅ Driver coordinates available, calculating distances..."
-          );
           try {
             // Calculate ride distance (pickup to dropoff)
             const rideDistance = await calculateRideDistance(
@@ -310,7 +272,6 @@ const DriverLandingPage: React.FC = () => {
               dropoffAddress
             );
             distance = rideDistance.distance;
-            console.log("📏 Ride distance:", distance);
 
             // Calculate time to pickup
             const timeToPickup = await calculateTimeToPickup(
@@ -318,7 +279,6 @@ const DriverLandingPage: React.FC = () => {
               pickupAddress
             );
             timeAway = timeToPickup.timeAway;
-            console.log("⏱️ Time to pickup:", timeAway);
 
             // Update the ride with calculated values
             const updatedRide = {
@@ -338,8 +298,6 @@ const DriverLandingPage: React.FC = () => {
                 prev.map((r) => (r.id === initialRide.id ? updatedRide : r))
               );
             }
-
-            console.log("✅ Ride updated with distance and time");
           } catch (error: any) {
             console.error("❌ Error calculating ride details:", error);
             console.error("Calculation error details:", {
@@ -367,35 +325,13 @@ const DriverLandingPage: React.FC = () => {
               );
             }
           }
-        } else {
-          console.warn("⚠️ ======================================");
-          console.warn("⚠️ DRIVER LOCATION NOT AVAILABLE!");
-          console.warn("⚠️ Location state:", driverCoordinates);
-          console.warn("⚠️ Location loaded flag:", isLocationLoaded);
-          console.warn("⚠️ Current location string:", currentLocation);
-          console.warn("⚠️ ======================================");
-          console.warn(
-            "⚠️ Ride will show 'Calculating...' until location is available"
-          );
-          console.warn(
-            "⚠️ Distance calculation will be triggered automatically when GPS loads"
-          );
         }
-
-        // Show notification
-        // Alert.alert(
-        //   "🚗 New Ride Request",
-        //   `New ${ride.rideMode} ride from ${passenger.username}`,
-        //   [{ text: "View", onPress: () => setActiveTab(ride.rideMode) }, { text: "Later" }]
-        // )
       } catch (error) {
         console.error("Error processing new ride request:", error);
       }
     };
 
     const handleNewSharedRideRequest = async (data: any) => {
-      console.log("🚗🚗 New SHARED ride request received:", data);
-
       try {
         const { passengers } = data;
 
@@ -458,23 +394,8 @@ const DriverLandingPage: React.FC = () => {
                   phoneNumber: "N/A",
                 };
 
-          console.log(
-            "🔍 [SHARED] Full passengerInfo:",
-            JSON.stringify(passengerInfo, null, 2)
-          );
-          console.log(
-            "🔍 [SHARED] passengerInfo.phoneNumber:",
-            passengerInfo.phoneNumber
-          );
-          console.log("🔍 [SHARED] passengerInfo.phone:", passengerInfo.phone);
-          console.log(
-            "🔍 [SHARED] passengerInfo.profilePicture:",
-            passengerInfo.profilePicture
-          );
-
           const extractedPhone =
             passengerInfo.phoneNumber || passengerInfo.phone || "N/A";
-          console.log("🔍 [SHARED] Extracted phone:", extractedPhone);
 
           passengerNames.push(passengerInfo.username || "Passenger");
           passengerPhones.push(extractedPhone);
@@ -501,10 +422,6 @@ const DriverLandingPage: React.FC = () => {
         // Add to shared rides list
         setSharedRides((prev) => [...prev, initialSharedRide]);
 
-        console.log(
-          "✅ Shared ride added to list, now calculating distance..."
-        );
-
         // Calculate distance in background
         if (driverCoordinates) {
           try {
@@ -530,8 +447,6 @@ const DriverLandingPage: React.FC = () => {
             setSharedRides((prev) =>
               prev.map((r) => (r.id === initialSharedRide.id ? updatedRide : r))
             );
-
-            console.log("✅ Shared ride updated with distance and time");
           } catch (error: any) {
             console.error("❌ Error calculating shared ride details:", error);
             const updatedRide = {
@@ -551,34 +466,15 @@ const DriverLandingPage: React.FC = () => {
     };
 
     const handleRideCancelled = (data: any) => {
-      console.log("🚫 Ride cancelled event received:", data);
       const { rideId, cancelledBy, reason } = data;
-
-      console.log(`🚫 Removing ride ${rideId} from lists`);
-      console.log(
-        `🚫 Current solo rides:`,
-        soloRides.map((r) => r.id)
-      );
-      console.log(
-        `🚫 Current shared rides:`,
-        sharedRides.map((r) => r.id)
-      );
 
       // Remove the ride from both solo and shared ride lists
       setSoloRides((prev) => {
         const filtered = prev.filter((ride) => ride.id !== rideId);
-        console.log(
-          `🚫 Solo rides after filter:`,
-          filtered.map((r) => r.id)
-        );
         return filtered;
       });
       setSharedRides((prev) => {
         const filtered = prev.filter((ride) => ride.id !== rideId);
-        console.log(
-          `🚫 Shared rides after filter:`,
-          filtered.map((r) => r.id)
-        );
         return filtered;
       });
 
@@ -607,7 +503,6 @@ const DriverLandingPage: React.FC = () => {
     socket.on("rideCancelled", handleRideCancelled);
 
     // Connect the socket
-    console.log("🔌 Initiating socket connection...");
     connectDriverSocket();
 
     return () => {
@@ -624,7 +519,6 @@ const DriverLandingPage: React.FC = () => {
     const getLocation = async () => {
       // Skip if location already loaded from persisted state
       if (isLocationLoaded && driverCoordinates) {
-        console.log("✅ Location already loaded from storage, skipping fetch");
         // Still start periodic updates if online
         if (isOnline) {
           startPeriodicLocationUpdates();
@@ -633,16 +527,12 @@ const DriverLandingPage: React.FC = () => {
       }
 
       try {
-        console.log("📍 Requesting location permissions...");
         let { status } = await Location.getForegroundPermissionsAsync();
-        console.log("📍 Current permission status:", status);
 
         if (status !== "granted") {
-          console.log("📍 Requesting location permission...");
           const { status: newStatus } =
             await Location.requestForegroundPermissionsAsync();
           status = newStatus;
-          console.log("📍 New permission status:", status);
         }
 
         if (status !== "granted") {
@@ -657,7 +547,6 @@ const DriverLandingPage: React.FC = () => {
           return;
         }
 
-        console.log("📍 Getting current location...");
         const location = await Location.getCurrentPositionAsync({
           accuracy: Location.Accuracy.Balanced,
         });
@@ -667,10 +556,7 @@ const DriverLandingPage: React.FC = () => {
           longitude: location.coords.longitude,
         };
 
-        console.log("✅ GPS coordinates obtained successfully:", coords);
-
         setDriverCoordinates(coords);
-        console.log("✅ Driver coordinates STATE UPDATED:", coords);
 
         // Save coordinates to AsyncStorage
         await AsyncStorage.setItem("driverCoordinates", JSON.stringify(coords));
@@ -686,7 +572,6 @@ const DriverLandingPage: React.FC = () => {
             address.city || ""
           }, ${address.region || ""}`.trim();
           setCurrentLocation(locationString || "Unknown location");
-          console.log("✅ Driver location address set:", locationString);
 
           // Save location to AsyncStorage
           await AsyncStorage.setItem("driverCurrentLocation", locationString);
@@ -697,8 +582,6 @@ const DriverLandingPage: React.FC = () => {
 
         // Save online state to AsyncStorage
         await AsyncStorage.setItem("driverOnlineState", "true");
-
-        console.log("✅ Location loading complete - ready for ride requests!");
 
         // Start periodic location updates to backend
         startPeriodicLocationUpdates();
@@ -737,34 +620,18 @@ const DriverLandingPage: React.FC = () => {
   useEffect(() => {
     const updateRidesWithDistance = async () => {
       if (!driverCoordinates) {
-        console.log(
-          "⏳ Driver location not yet available for distance calculation"
-        );
-        console.log("   Waiting for GPS to load...");
         return;
       }
 
       const calculatingSoloRides = soloRides.filter((r) => r.isCalculating);
       const calculatingSharedRides = sharedRides.filter((r) => r.isCalculating);
 
-      console.log("📍 Driver location available!", driverCoordinates);
-      console.log(
-        "📊 Solo rides needing calculation:",
-        calculatingSoloRides.length
-      );
-      console.log(
-        "📊 Shared rides needing calculation:",
-        calculatingSharedRides.length
-      );
-
       // Update solo rides
       if (calculatingSoloRides.length > 0) {
-        console.log("🔄 Updating solo rides with distance...");
         const updatedSoloRides = await Promise.all(
           soloRides.map(async (ride) => {
             if (ride.isCalculating) {
               try {
-                console.log(`🔄 Calculating for ride ${ride.id}...`);
                 const rideDistance = await calculateRideDistance(
                   ride.pickup as string,
                   ride.destination as string
@@ -772,9 +639,6 @@ const DriverLandingPage: React.FC = () => {
                 const timeToPickup = await calculateTimeToPickup(
                   driverCoordinates,
                   ride.pickup as string
-                );
-                console.log(
-                  `✅ Updated ride ${ride.id}: ${rideDistance.distance}, ${timeToPickup.timeAway}`
                 );
                 return {
                   ...ride,
@@ -784,7 +648,6 @@ const DriverLandingPage: React.FC = () => {
                 };
               } catch (error: any) {
                 console.error(`❌ Error updating ride ${ride.id}:`, error);
-                console.error("Error details:", error.message);
                 return {
                   ...ride,
                   distance: "Unknown",
@@ -797,17 +660,14 @@ const DriverLandingPage: React.FC = () => {
           })
         );
         setSoloRides(updatedSoloRides);
-        console.log("✅ All solo rides updated!");
       }
 
       // Update shared rides
       if (calculatingSharedRides.length > 0) {
-        console.log("🔄 Updating shared rides with distance...");
         const updatedSharedRides = await Promise.all(
           sharedRides.map(async (ride) => {
             if (ride.isCalculating) {
               try {
-                console.log(`🔄 Calculating for shared ride ${ride.id}...`);
                 // For shared rides, calculate to first pickup
                 const pickups = Array.isArray(ride.pickup)
                   ? ride.pickup
@@ -825,10 +685,6 @@ const DriverLandingPage: React.FC = () => {
                   pickups
                 );
 
-                console.log(
-                  `✅ Updated shared ride ${ride.id}: ${rideDistance.distance}, ${timeToPickup.timeAway}`
-                );
-
                 return {
                   ...ride,
                   distance: rideDistance.distance,
@@ -840,7 +696,6 @@ const DriverLandingPage: React.FC = () => {
                   `❌ Error updating shared ride ${ride.id}:`,
                   error
                 );
-                console.error("Error details:", error.message);
                 return {
                   ...ride,
                   distance: "Unknown",
@@ -853,7 +708,6 @@ const DriverLandingPage: React.FC = () => {
           })
         );
         setSharedRides(updatedSharedRides);
-        console.log("✅ All shared rides updated!");
       }
     };
 
@@ -886,10 +740,6 @@ const DriverLandingPage: React.FC = () => {
             location: [location.coords.longitude, location.coords.latitude], // [lng, lat] format
           };
 
-          console.log(
-            "📍 [Periodic] Sending driver location update:",
-            locationData
-          );
           socket.emit("updateDriverLocation", locationData);
 
           // Update local state
@@ -902,8 +752,6 @@ const DriverLandingPage: React.FC = () => {
         console.error("❌ Error in periodic location update:", error);
       }
     }, 30000); // 30 seconds
-
-    console.log("✅ Periodic location updates started (every 30s)");
   };
 
   // Cleanup location updates on unmount
@@ -911,7 +759,6 @@ const DriverLandingPage: React.FC = () => {
     return () => {
       if (locationUpdateIntervalRef.current) {
         clearInterval(locationUpdateIntervalRef.current);
-        console.log("🧹 Periodic location update interval cleared");
       }
     };
   }, []);
@@ -937,21 +784,13 @@ const DriverLandingPage: React.FC = () => {
           "driverOnlineState",
           newOnlineState.toString()
         );
-        console.log(`✅ Saved online state: ${newOnlineState}`);
       } catch (error) {
         console.error("Error saving online state:", error);
       }
-    } else if (!isSocketConnected) {
-      Alert.alert(
-        "Not Connected",
-        "Please wait for socket connection before going online.",
-        [{ text: "OK" }]
-      );
     }
   };
 
   const handleRetryConnection = () => {
-    console.log("🔄 Retrying connection...");
     setConnectionError(null);
     setIsConnecting(true);
     connectDriverSocket();
@@ -1154,7 +993,6 @@ const DriverLandingPage: React.FC = () => {
               source={{ uri: profile.profilePhoto }}
               style={styles.headerProfileImage}
               onError={(e) => {
-                console.log("Image load error:", e.nativeEvent.error);
                 // Fallback to initial if image fails to load
               }}
             />

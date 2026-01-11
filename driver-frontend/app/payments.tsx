@@ -36,7 +36,9 @@ const DriverPaymentsScreen = () => {
   useEffect(() => {
     const fetchServiceFees = async () => {
       try {
-        const response = await fetch("http://192.168.100.5:3000/service-fees");
+        const API_URL =
+          process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
+        const response = await fetch(`${API_URL}/service-fees`);
         const data = await response.json();
 
         if (response.ok && data.data) {

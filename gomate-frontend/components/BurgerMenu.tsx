@@ -68,7 +68,6 @@ export default function BurgerMenu({
     const routeMap: { [key: string]: string } = {
       newHome: "/(screens)/newHome",
       rideHistory: "/(screens)/rideHistory",
-      notifications: "/(screens)/notifications",
       supportScreen: "/(screens)/supportScreen",
       profile: "/(screens)/profile",
     };
@@ -139,12 +138,6 @@ export default function BurgerMenu({
                   label="Ride History"
                   onPress={() => handleNavigation("rideHistory")}
                   disabled={currentScreen === "rideHistory"}
-                />
-                <MenuOption
-                  icon="notifications"
-                  label="Notifications"
-                  onPress={() => handleNavigation("notifications")}
-                  disabled={currentScreen === "notifications"}
                 />
                 <MenuOption
                   icon="call"

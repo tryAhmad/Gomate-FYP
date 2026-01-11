@@ -43,8 +43,10 @@ const BurgerMenu: React.FC<BurgerMenuProps> = ({
       if (!driver?._id) return;
 
       try {
+        const API_URL =
+          process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
         const response = await fetch(
-          `http://192.168.100.5:3000/ride-request/driver/${driver._id}/average-rating`
+          `${API_URL}/ride-request/driver/${driver._id}/average-rating`
         );
         const data = await response.json();
 

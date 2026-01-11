@@ -64,14 +64,13 @@ export default function Profile() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const res = await axios.get(
-          `http://${userip}:3000/passengers/${passengerId}`,
-          {
-            headers: {
-              Authorization: `Bearer ${usertoken}`,
-            },
-          }
-        );
+        const backendUrl =
+          process.env.EXPO_PUBLIC_BACKEND_URL || "http://localhost:3000";
+        const res = await axios.get(`${backendUrl}/passengers/${passengerId}`, {
+          headers: {
+            Authorization: `Bearer ${usertoken}`,
+          },
+        });
         const data = res.data.passenger;
         setPassenger(data);
         setUsername(data.username);
@@ -101,8 +100,10 @@ export default function Profile() {
 
   const handleSave = async () => {
     try {
+      const backendUrl =
+        process.env.EXPO_PUBLIC_BACKEND_URL || "http://localhost:3000";
       const res = await axios.patch(
-        `http://${userip}:3000/passengers/${passengerId}`,
+        `${backendUrl}/passengers/${passengerId}`,
         {
           username,
           phoneNumber,
@@ -190,10 +191,9 @@ export default function Profile() {
 
       // Upload to backend
       try {
-        const uploadUrl = `http://${userip}:3000/passengers/${passengerId}/profile-picture`;
-        console.log("Uploading to:", uploadUrl);
-        console.log("Passenger ID:", passengerId);
-        console.log("Token:", usertoken ? "exists" : "missing");
+        const backendUrl =
+          process.env.EXPO_PUBLIC_BACKEND_URL || "http://localhost:3000";
+        const uploadUrl = `${backendUrl}/passengers/${passengerId}/profile-picture`;
 
         // Get the file extension from the URI
         const fileExtension = imageUri.split(".").pop() || "jpg";
@@ -205,8 +205,6 @@ export default function Profile() {
           type: `image/${fileExtension}`,
           name: fileName,
         } as any);
-
-        console.log("FormData prepared with file:", fileName);
 
         const res = await axios.post(uploadUrl, formData, {
           headers: {
@@ -220,7 +218,6 @@ export default function Profile() {
           },
         });
 
-        console.log("Upload response:", res.data);
         const updatedPassenger = res.data.passenger;
         setProfilePic(updatedPassenger.profilePicture);
         setOriginalProfilePic(updatedPassenger.profilePicture);

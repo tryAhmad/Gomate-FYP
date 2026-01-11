@@ -5,5 +5,3 @@ import Constants from "expo-constants";
 const backendUrl = Constants.expoConfig?.extra?.BACKEND_URL?.trim();
 
 export const API_BASE_URL = backendUrl || "http://localhost:3000";
-
-console.log("📡 API Base URL:", API_BASE_URL);

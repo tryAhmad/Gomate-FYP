@@ -122,7 +122,7 @@ export default function RideHistoryScreen() {
           setLoading(false);
         }
       } catch (err) {
-        console.log("Error loading cached rides:", err);
+        // Silently fail - cached data is optional
       }
     };
     loadCachedRides();
@@ -131,14 +131,13 @@ export default function RideHistoryScreen() {
   // Fetch from API and update cache
   const fetchHistory = async () => {
     try {
-      const res = await axios.get(
-        `http://${userip}:3000/ride-request/history`,
-        {
-          headers: {
-            Authorization: `Bearer ${usertoken}`,
-          },
-        }
-      );
+      const backendUrl =
+        process.env.EXPO_PUBLIC_BACKEND_URL || "http://localhost:3000";
+      const res = await axios.get(`${backendUrl}/ride-request/history`, {
+        headers: {
+          Authorization: `Bearer ${usertoken}`,
+        },
+      });
 
       let fetchedRides: Ride[] = res.data.rides || [];
 

@@ -76,15 +76,14 @@ export default function EarningsScreen() {
       }
 
       // Fetch ride history from backend
-      const response = await fetch(
-        "http://192.168.100.5:3000/ride-request/driver/history",
-        {
-          headers: {
-            Authorization: `Bearer ${authToken}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      const API_URL =
+        process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
+      const response = await fetch(`${API_URL}/ride-request/driver/history`, {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+          "Content-Type": "application/json",
+        },
+      });
 
       if (!response.ok) {
         throw new Error(`Failed to fetch ride history: ${response.status}`);

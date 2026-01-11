@@ -95,33 +95,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   ): Promise<{ success: boolean; message?: string }> => {
     try {
       // Get backend URL from environment
-      const userip =
-        process.env.EXPO_PUBLIC_USER_IP ||
-        process.env.USER_IP ||
-        "192.168.100.5";
+      const backendUrl =
+        process.env.EXPO_PUBLIC_BACKEND_URL || "http://localhost:3000";
 
-      console.log(
-        "Attempting login to:",
-        `http://${userip}:3000/auth/passenger/login`
-      );
-
-      const response = await fetch(
-        `http://${userip}:3000/auth/passenger/login`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ email, password }),
-        }
-      );
+      const response = await fetch(`${backendUrl}/auth/passenger/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
 
       const data = await response.json();
-      console.log("Login response:", {
-        ok: response.ok,
-        status: response.status,
-        data,
-      });
 
       if (response.ok && data.access_token) {
         // Store token and user data - note: backend returns 'access_token' not 'accessToken'
@@ -133,7 +118,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           profilePicture: data.user.profilePicture,
         };
 
-        console.log("Storing auth with user data:", userData);
         await storeAuth(data.access_token, userData);
 
         return { success: true };
@@ -161,27 +145,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     gender: string
   ): Promise<{ success: boolean; message?: string }> => {
     try {
-      const userip =
-        process.env.EXPO_PUBLIC_USER_IP ||
-        process.env.USER_IP ||
-        "192.168.100.5";
+      const backendUrl =
+        process.env.EXPO_PUBLIC_BACKEND_URL || "http://localhost:3000";
 
-      const response = await fetch(
-        `http://${userip}:3000/auth/passenger/register`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            username,
-            email,
-            password,
-            phoneNumber,
-            gender,
-          }),
-        }
-      );
+      const response = await fetch(`${backendUrl}/auth/passenger/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username,
+          email,
+          password,
+          phoneNumber,
+          gender,
+        }),
+      });
 
       const data = await response.json();
 

@@ -50,8 +50,10 @@ export default function DriverNotificationsScreen() {
 
     try {
       setLoading(true);
+      const API_URL =
+        process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
       const response = await fetch(
-        `http://192.168.100.5:3000/notifications/driver/${driver._id}`
+        `${API_URL}/notifications/driver/${driver._id}`
       );
       const data = await response.json();
 
@@ -96,10 +98,11 @@ export default function DriverNotificationsScreen() {
     // Mark as read if unread
     if (!notification.read) {
       try {
-        await fetch(
-          `http://192.168.100.5:3000/notifications/${notification._id}/read`,
-          { method: "PATCH" }
-        );
+        const API_URL =
+          process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
+        await fetch(`${API_URL}/notifications/${notification._id}/read`, {
+          method: "PATCH",
+        });
 
         // Update local state
         setNotifications((prev) =>

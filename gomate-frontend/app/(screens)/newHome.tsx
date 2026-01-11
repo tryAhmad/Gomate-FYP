@@ -181,48 +181,20 @@ const newHome = () => {
   const passengerId = user?._id || "";
   const socket = getSocket();
 
-  // Debug logging for user data
-  useEffect(() => {
-    console.log(
-      "newHome - Current user object:",
-      JSON.stringify(user, null, 2)
-    );
-    console.log("newHome - Profile picture from user:", user?.profilePicture);
-  }, [user]);
-
   // Register passenger when component mounts
   useEffect(() => {
-    console.log(
-      "🔍 newHome useEffect - passengerId:",
-      passengerId,
-      "socket:",
-      socket ? "exists" : "null",
-      "user:",
-      user
-    );
-
     if (passengerId && socket) {
-      console.log(
-        "📡 Connecting socket and registering passenger:",
-        passengerId
-      );
-
       const handleConnect = () => {
-        console.log("✅ Socket connected:", socket.id);
         socket.emit("registerPassenger", { passengerId });
-        console.log("📝 Passenger registered:", passengerId);
       };
 
       const handleDisconnect = (reason: string) => {
-        console.log("⚠️ Socket disconnected:", reason);
+        // Socket disconnected
       };
 
       // If already connected, register immediately
       if (socket.connected) {
-        console.log("Socket already connected, registering immediately");
         handleConnect();
-      } else {
-        console.log("Socket not connected, calling connect()");
       }
 
       // Listen for connection events
@@ -238,10 +210,6 @@ const newHome = () => {
         socket.off("connect", handleConnect);
         socket.off("disconnect", handleDisconnect);
       };
-    } else {
-      console.log(
-        "⚠️ Cannot register passenger - missing passengerId or socket"
-      );
     }
   }, [passengerId, user, socket]);
 
@@ -259,12 +227,10 @@ const newHome = () => {
 
   useEffect(() => {
     const handleCounterOffer = (data: any) => {
-      console.log("Counter fare received:", data);
       setDriverOffers((prev) => [...prev, { ...data, timestamp: Date.now() }]);
     };
 
     const handleDriverArrived = (data: any) => {
-      console.log("Driver arrived:", data.message);
       setDriverArrived(true);
       setRideStatus("driver_arrived");
       setDriverETA(""); // Clear ETA when driver arrives
@@ -279,13 +245,10 @@ const newHome = () => {
     };
 
     const handleRideStarted = (data: any) => {
-      console.log("Ride started:", data.message);
       setRideStatus("started");
     };
 
     const handleRideCompleted = (data: any) => {
-      console.log("Ride completed:", data.message);
-      console.log("🔍 Current rideId state:", rideId);
       setRideStatus("completed");
 
       Notifications.scheduleNotificationAsync({
@@ -298,17 +261,6 @@ const newHome = () => {
 
       // Get current ride data from ref (avoids closure issues)
       const currentRideData = rideDataRef.current;
-
-      console.log("🔍 Current ride data from ref:", currentRideData);
-      console.log(
-        "🔍 Accepted driver from ref:",
-        currentRideData.acceptedDriver
-      );
-      console.log(
-        "🔍 Profile picture from driver:",
-        currentRideData.acceptedDriver?.profilePicture
-      );
-      console.log("🔍 rideId from ref:", currentRideData.rideId);
 
       const rideData = {
         rideId: currentRideData.rideId || "",
@@ -328,9 +280,6 @@ const newHome = () => {
         rideType: currentRideData.selectedRideType ?? "",
       };
 
-      console.log("🎯 Sending ride data to rating screen:", rideData);
-      console.log("🎯 Accepted driver object:", currentRideData.acceptedDriver);
-
       router.push({
         pathname: "/(screens)/ratingScreen",
         params: rideData,
@@ -339,7 +288,6 @@ const newHome = () => {
 
     // Shared ride passenger-specific notification handlers
     const handleDriverArrivedAtYourPickup = (data: any) => {
-      console.log("🚗 [SHARED RIDE] Driver arrived at your pickup:", data);
       setDriverArrived(true);
       setRideStatus("driver_arrived");
 
@@ -359,7 +307,6 @@ const newHome = () => {
     };
 
     const handleYourRideLegStarted = (data: any) => {
-      console.log("🚀 [SHARED RIDE] Your ride leg started:", data);
       setRideStatus("started");
 
       Notifications.scheduleNotificationAsync({
@@ -372,7 +319,6 @@ const newHome = () => {
     };
 
     const handleYourRideLegCompleted = (data: any) => {
-      console.log("✅ [SHARED RIDE] Your ride leg completed:", data);
       setRideStatus("completed");
 
       Notifications.scheduleNotificationAsync({
@@ -410,23 +356,15 @@ const newHome = () => {
 
     // Shared ride handlers
     const handleSharedRideSearching = (data: any) => {
-      console.log("🔍 [HANDLER] Shared ride searching:", data);
-      console.log("🔍 [HANDLER] Setting sharedMatchingStatus to 'searching'");
       setSharedMatchingStatus("searching");
     };
 
     const handleSharedRideMatched = (data: any) => {
-      console.log("🎉 [HANDLER] Shared ride matched:", data);
-      console.log(
-        "🎉 [HANDLER] Setting sharedMatchingStatus to 'finding-driver'"
-      );
       setSharedMatchingStatus("finding-driver");
       // The ride is now matched with another passenger, transition to finding driver
     };
 
     const handleDriverAssigned = (data: any) => {
-      console.log("🚗 [HANDLER] Driver assigned to shared ride:", data);
-
       if (data.driver) {
         // Set accepted driver with the assigned driver's data
         // Match the structure expected by the app (same as counter offer driver)
@@ -457,19 +395,13 @@ const newHome = () => {
         setAcceptedDriver(driverData);
         setSharedMatchingStatus(null); // Clear matching status
         setShowOffersModal(false);
-
-        console.log("✅ Driver assigned to shared ride:", driverData);
-        console.log("📍 Driver location:", driverData.location);
       }
     };
 
     const handleDriverLocationUpdate = (data: any) => {
-      console.log("📍 [HANDLER] Driver location update received:", data);
       // Use functional update to avoid dependency on acceptedDriver
       setAcceptedDriver((prevDriver: any) => {
         if (prevDriver && data.driverId === prevDriver.id) {
-          console.log("✅ Updated accepted driver location:", data.location);
-
           // Calculate ETA to pickup location
           if (pickupCoord && !driverArrived) {
             getDistanceTime(
@@ -497,8 +429,6 @@ const newHome = () => {
     };
 
     const handleRideCancelled = (data: any) => {
-      console.log("🚫 Ride cancelled event received:", data);
-
       // Reset all ride-related state
       setRideStatus("cancelled");
       setAcceptedDriver(null);
@@ -539,14 +469,6 @@ const newHome = () => {
     socket.off("yourRideLegCompleted");
 
     // ✅ Add fresh listeners
-    console.log("📡 Registering socket listeners for passenger:", passengerId);
-    console.log(
-      "📡 Socket connected:",
-      socket.connected,
-      "Socket ID:",
-      socket.id
-    );
-
     socket.on("receiveCounterOffer", handleCounterOffer);
     socket.on("driverArrived", handleDriverArrived);
     socket.on("rideStarted", handleRideStarted);
@@ -559,8 +481,6 @@ const newHome = () => {
     socket.on("driverArrivedAtYourPickup", handleDriverArrivedAtYourPickup);
     socket.on("yourRideLegStarted", handleYourRideLegStarted);
     socket.on("yourRideLegCompleted", handleYourRideLegCompleted);
-
-    console.log("✅ Socket listeners registered successfully");
 
     return () => {
       socket.off("receiveCounterOffer", handleCounterOffer);
@@ -690,7 +610,6 @@ const newHome = () => {
     if (sharedMatchingStatus === "finding-driver" && rideId) {
       // Show "Passenger Found!" modal for 1 second
       const timer = setTimeout(() => {
-        console.log("⏰ 1 second passed, showing driver offers modal");
         setShowOffersModal(true);
       }, 1000);
 
@@ -713,31 +632,24 @@ const newHome = () => {
             if (result) {
               setRideDistance(result.distance.text);
               setRideDuration(result.duration.text);
-              //console.log("Distance:", result.distance.value / 1000, "km");
-              //console.log("Duration:", result.duration.value / 60, "mins");
               try {
-                const res = await fetch(
-                  `http://${userip}:3000/ride-request/fare`,
-                  {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                      distance: result.distance.value, // in meters
-                      duration: result.duration.value, // in seconds
-                      rideType: selectedRideType,
-                      rideMode: isSharedMode ? "shared" : "solo",
-                    }),
-                  }
-                );
+                const backendUrl =
+                  process.env.EXPO_PUBLIC_BACKEND_URL ||
+                  "http://localhost:3000";
+                const res = await fetch(`${backendUrl}/ride-request/fare`, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    distance: result.distance.value, // in meters
+                    duration: result.duration.value, // in seconds
+                    rideType: selectedRideType,
+                    rideMode: isSharedMode ? "shared" : "solo",
+                  }),
+                });
                 const data = await res.json();
                 if (res.ok) {
-                  console.log(
-                    "Ride fare fetched successfully:",
-                    data,
-                    typeof data.fare
-                  );
                   setCalculatedFare(data.fare);
                   setMinFare(Math.round(Number(data.fare) * 0.85));
                 } else {
@@ -943,28 +855,6 @@ const newHome = () => {
         latitude: currentLocation.coords.latitude,
         longitude: currentLocation.coords.longitude,
       };
-      //setPickupCoord(currentCoords);
-
-      // try {
-      //   const [place] = await Location.reverseGeocodeAsync(currentCoords);
-      //   if (place) {
-      //     const formattedAddress = [place.name, place.street, place.city]
-      //       .filter(Boolean)
-      //       .join(", ");
-      //     setPickup(formattedAddress);
-      //   } else {
-      //     // fallback if reverse geocode returns nothing
-      //     setPickup(
-      //       `${currentCoords.latitude.toFixed(4)}, ${currentCoords.longitude.toFixed(4)}`
-      //     );
-      //   }
-      // } catch (error) {
-      //   console.error("Error reverse geocoding pickup:", error);
-      //   // fallback if geocoding fails
-      //   setPickup(
-      //     `${currentCoords.latitude.toFixed(4)}, ${currentCoords.longitude.toFixed(4)}`
-      //   );
-      // }
     }
   };
 
@@ -989,9 +879,7 @@ const newHome = () => {
             .filter(Boolean)
             .join(", ");
           setPickup(formattedAddress);
-          console.log("Set pickup to current location:", formattedAddress);
         } else {
-          console.log("Reverse geocode returned no results");
         }
       } catch (error) {
         console.error("Error reverse geocoding pickup:", error);
@@ -1020,9 +908,7 @@ const newHome = () => {
             .filter(Boolean)
             .join(", ");
           setDropoff(formattedAddress);
-          console.log("Set dropoff to current location:", formattedAddress);
         } else {
-          console.log("Reverse geocode returned no results");
         }
       } catch (error) {
         console.error("Error reverse geocoding dropoff:", error);
@@ -1046,11 +932,10 @@ const newHome = () => {
       return; // stop execution
     }
 
-    console.log(pickupCoord.latitude, pickupCoord.longitude);
-    console.log(dropoffCoord.latitude, dropoffCoord.longitude);
-
     try {
-      const response = await fetch(`http://${userip}:3000/ride-request`, {
+      const backendUrl =
+        process.env.EXPO_PUBLIC_BACKEND_URL || "http://localhost:3000";
+      const response = await fetch(`${backendUrl}/ride-request`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1077,7 +962,6 @@ const newHome = () => {
         return;
       }
       const data = await response.json();
-      console.log("Ride request created:", data);
 
       // Handle shared ride flow differently
       if (isSharedMode) {
@@ -1090,7 +974,6 @@ const newHome = () => {
 
       // Solo ride flow
       const rideId = data.ride._id;
-      console.log("Ride ID:", rideId);
 
       // Store the ride ID for later use
       setRideId(rideId);
@@ -1200,9 +1083,6 @@ const newHome = () => {
 
   // Called when user accepts a driver from the modal
   const handleDriverAccepted = (offer: any) => {
-    console.log("Driver accepted:", offer.driver);
-    console.log("Driver profile picture:", offer.driver.profilePicture);
-
     socket.emit("acceptDriverOffer", {
       rideId: offer.rideId,
       driverId: offer.driver.id,
@@ -1234,7 +1114,6 @@ const newHome = () => {
   };
 
   const handleOfferExpired = (driverId: string) => {
-    console.log(`⏱️ Offer from driver ${driverId} expired`);
     setDriverOffers((prev) =>
       prev.filter((offer) => offer.driver.id !== driverId)
     );
@@ -1293,8 +1172,6 @@ const newHome = () => {
 
   const handleCancelRide = () => {
     if (!rideId || !passengerId) {
-      if (!rideId) console.log("❌ Missing rideId");
-      if (!passengerId) console.log("❌ Missing passengerId");
       return; // stop execution if something is missing
     }
 
@@ -1306,7 +1183,6 @@ const newHome = () => {
       reason: "Passenger cancelled the ride",
     };
 
-    console.log("🚫 Emitting cancelRide with data:", cancelData);
     socket.emit("cancelRide", cancelData);
 
     setRideStatus("cancelled");

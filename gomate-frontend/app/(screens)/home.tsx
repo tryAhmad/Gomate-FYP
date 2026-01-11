@@ -1,16 +1,9 @@
 import React, { useEffect, useState, useRef, useMemo } from "react";
-import {
-  Text,
-  View,
-  ActivityIndicator,
-  TouchableOpacity,
-} from "react-native";
+import { Text, View, ActivityIndicator, TouchableOpacity } from "react-native";
 import MapView, { Marker, Region } from "react-native-maps";
 import * as Notifications from "expo-notifications";
 import * as Location from "expo-location";
-import BottomSheet, {
-  BottomSheetView,
-} from "@gorhom/bottom-sheet";
+import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
 import InputField from "@/components/InputField";
 import { icons } from "@/constants";
 import CustomButton from "@/components/CustomButton";
@@ -96,7 +89,6 @@ const Home = () => {
       alert("Please fill in all fields");
       return;
     }
-    console.log({ selectedRideType, pickup, dropoff, fare });
     alert(
       `Finding ride for ${selectedRideType} from ${pickup} to ${dropoff} with fare ${fare}`
     );

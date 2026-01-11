@@ -33,8 +33,6 @@ export default function RideDetailModal({
   const mapRef = useRef<MapView | null>(null);
   const [driver, setDriver] = useState<any>(null);
   const [loadingDriver, setLoadingDriver] = useState(false);
-  const [deletingRide, setDeletingRide] = useState(false);
-  const [showDeleteAlert, setShowDeleteAlert] = useState(false);
 
   const pickupCoords = ride
     ? {
@@ -90,14 +88,13 @@ export default function RideDetailModal({
       if (!ride?.driverID) return;
       try {
         setLoadingDriver(true);
-        const res = await axios.get(
-          `http://${userip}:3000/drivers/${ride.driverID}`,
-          {
-            headers: {
-              Authorization: `Bearer ${usertoken}`, // adjust if JWT needed
-            },
-          }
-        );
+        const backendUrl =
+          process.env.EXPO_PUBLIC_BACKEND_URL || "http://localhost:3000";
+        const res = await axios.get(`${backendUrl}/drivers/${ride.driverID}`, {
+          headers: {
+            Authorization: `Bearer ${usertoken}`, // adjust if JWT needed
+          },
+        });
         setDriver(res.data.driver);
       } catch (err) {
         console.error("Error fetching driver:", err);
@@ -110,30 +107,6 @@ export default function RideDetailModal({
       fetchDriver();
     }
   }, [visible, ride]);
-
-  const onDelete = async () => {
-    if (!ride?._id) return;
-
-    try {
-      setDeletingRide(true);
-      await axios.delete(`http://${userip}:3000/ride-request/${ride._id}`, {
-        headers: {
-          Authorization: `Bearer ${usertoken}`,
-        },
-      });
-
-      // Close the modal after successful deletion
-      onClose();
-
-      // You might want to show a success message or refresh the parent component
-      console.log("Ride deleted successfully");
-    } catch (err) {
-      console.error("Error deleting ride:", err);
-      // You might want to show an error message to the user
-    } finally {
-      setDeletingRide(false);
-    }
-  };
 
   if (!ride) return null;
 
@@ -284,37 +257,7 @@ export default function RideDetailModal({
             </View>
           </View>
         </View>
-        <TouchableOpacity
-          onPress={() => setShowDeleteAlert(true)}
-          className="mb-[10%] mx-[10%] p-4 bg-red-500 rounded-full shadow-md shadow-neutral-400"
-          disabled={deletingRide}
-        >
-          {deletingRide ? (
-            <ActivityIndicator size="small" color="white" />
-          ) : (
-            <Text className="text-2xl text-center text-white font-JakartaBold">
-              Delete
-            </Text>
-          )}
-        </TouchableOpacity>
       </View>
-      <AlertModal
-        visible={showDeleteAlert}
-        onClose={() => {
-          setShowDeleteAlert(false);
-          onDelete();
-        }}
-        iconName="trash-bin"
-        iconColor="red"
-        title="Delete record"
-        message={
-          "Are you sure you want to delete this ride record? This action cannot be undone."
-        }
-        button1text="Delete"
-        button2visible
-        button2text="Cancel"
-        onButton2Press={() => setShowDeleteAlert(false)}
-      />
     </Modal>
   );
 }

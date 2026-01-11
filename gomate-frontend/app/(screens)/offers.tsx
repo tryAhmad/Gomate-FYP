@@ -149,7 +149,6 @@ const Offers = () => {
   };
 
   const acceptDriver = (driverId: string) => {
-    console.log("Accepted driver:", driverId);
     // Navigate to next screen or update state
   };
 
@@ -174,14 +173,14 @@ const Offers = () => {
           </Text>
           <View className="flex-row">
             <TouchableOpacity className="p-2 rounded-full bg-blue-500 shadow-sm border-[1px] border-white">
+              <MaterialCommunityIcons name={"phone"} size={44} color="white" />
+            </TouchableOpacity>
+            <TouchableOpacity className="p-2 ml-6 rounded-full bg-green-500 shadow-sm border-[1px] border-white">
               <MaterialCommunityIcons
-                name={"phone"}
+                name={"whatsapp"}
                 size={44}
                 color="white"
               />
-            </TouchableOpacity>
-            <TouchableOpacity className="p-2 ml-6 rounded-full bg-green-500 shadow-sm border-[1px] border-white">
-              <MaterialCommunityIcons name={"whatsapp"} size={44} color="white" />
             </TouchableOpacity>
           </View>
         </View>
@@ -207,23 +206,27 @@ const Offers = () => {
 
         {/* Pickup & Dropoff */}
         <View className="mb-3">
-          <Text className="text-lg text-gray-500 font-JakartaSemiBold">Pickup</Text>
+          <Text className="text-lg text-gray-500 font-JakartaSemiBold">
+            Pickup
+          </Text>
           <Text className="text-xl font-JakartaBold">
             Harbanspura, Lahore, Pakistan
           </Text>
         </View>
 
         <View className="mb-5">
-          <Text className="text-lg text-gray-500 font-JakartaSemiBold">Drop-off</Text>
+          <Text className="text-lg text-gray-500 font-JakartaSemiBold">
+            Drop-off
+          </Text>
           <Text className="text-xl font-JakartaBold">
             Gulberg, Lahore, Pakistan
           </Text>
         </View>
         <View className="mb-5">
-          <Text className="text-lg text-gray-500 font-JakartaSemiBold">Fare</Text>
-          <Text className="text-2xl font-JakartaBold">
-            PKR 1500
+          <Text className="text-lg text-gray-500 font-JakartaSemiBold">
+            Fare
           </Text>
+          <Text className="text-2xl font-JakartaBold">PKR 1500</Text>
         </View>
 
         {/* Cancel Ride Button */}

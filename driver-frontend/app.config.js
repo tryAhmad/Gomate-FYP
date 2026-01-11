@@ -2,8 +2,8 @@ import "dotenv/config";
 
 export default {
   expo: {
-    name: "Driver",
-    slug: "Driver",
+    name: "Gomate Driver",
+    slug: "gomate-driver",
     version: "1.0.0",
     orientation: "portrait",
     icon: "./assets/images/icon.png",
@@ -17,7 +17,7 @@ export default {
       },
     },
     android: {
-      package: "com.maheera.driver",
+      package: "com.tryahmad.driver",
       adaptiveIcon: {
         foregroundImage: "./assets/images/adaptive-icon.png",
         backgroundColor: "#ffffff",

@@ -30,20 +30,6 @@ export default function RatingScreen() {
   const [submitting, setSubmitting] = useState(false);
   const { token: authToken } = useAuth();
 
-  // Debug logging
-  console.log("Rating Screen - Received params:", {
-    rideId,
-    driverName,
-    driverProfilePic,
-    driverCarColor,
-    driverCarCompany,
-    driverCarModel,
-    pickup,
-    dropoff,
-    fare,
-  });
-  console.log("Rating Screen - authToken:", authToken ? "Present" : "Missing");
-
   const handleSubmit = async () => {
     if (rating === 0) {
       Alert.alert(
@@ -69,29 +55,25 @@ export default function RatingScreen() {
     }
 
     setSubmitting(true);
-    console.log("Submitting rating:", rating, "for ride:", rideId);
-    console.log("Using authToken:", authToken?.substring(0, 20) + "...");
 
     try {
-      const response = await fetch(
-        "http://192.168.100.5:3000/ride-request/rate",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${authToken}`,
-          },
-          body: JSON.stringify({
-            rideId: rideId,
-            rating: rating,
-          }),
-        }
-      );
+      const API_URL =
+        process.env.EXPO_PUBLIC_BACKEND_URL || "http://localhost:3000";
+      const response = await fetch(`${API_URL}/ride-request/rate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          rideId: rideId,
+          rating: rating,
+        }),
+      });
 
       const data = await response.json();
 
       if (response.ok) {
-        console.log("Rating submitted successfully:", data);
         router.replace("/(screens)/newHome");
       } else {
         console.error("Failed to submit rating:", data);
