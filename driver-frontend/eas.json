@@ -11,6 +11,11 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "AIzaSyDzQN-jV7BeZQTsCVQgEh9pZfJSeaGGDnU",
+        "EXPO_PUBLIC_BACKEND_URL": "https://gomate-fyp.onrender.com",
+        "EXPO_PUBLIC_API_URL": "https://gomate-fyp.onrender.com"
       }
     },
     "production": {
